@@ -88,10 +88,30 @@ As an athlete, I want to browse my backed-up activities locally without needing 
 
 ---
 
+### User Story 6 - Export to FitTrackee (Priority: P6)
+
+As an athlete, I want to export my backed-up activities to a self-hosted FitTrackee instance, so I can maintain an independent copy of my fitness data with full ownership and use FitTrackee's features for analysis and visualization.
+
+**Why this priority**: Provides data portability to another self-hosted platform. Builds on the existing backup data model to enable export without re-fetching from Strava.
+
+**Independent Test**: Can be fully tested by running an export command against a local FitTrackee instance (using Docker) and verifying activities appear correctly in FitTrackee with proper sport types, GPS tracks, and metadata.
+
+**Acceptance Scenarios**:
+
+1. **Given** I have backed-up activities with GPS data, **When** I run the FitTrackee export command with valid FitTrackee credentials, **Then** activities are uploaded to FitTrackee with correct sport type mapping.
+2. **Given** an activity has GPS and sensor data (heart rate, cadence, power), **When** the activity is exported, **Then** all available sensor streams are included in the GPX file uploaded to FitTrackee.
+3. **Given** I have already exported some activities, **When** I run the export again, **Then** only new activities are exported (no duplicates created in FitTrackee).
+4. **Given** an activity has a title and description, **When** exported to FitTrackee, **Then** the title (max 255 chars) and notes (max 500 chars) are preserved.
+5. **Given** an activity's Strava sport type has no direct FitTrackee equivalent, **When** exported, **Then** a sensible fallback sport type is used and a warning is logged.
+6. **Given** the FitTrackee API returns an error during export, **When** the error occurs, **Then** it is logged with details and export continues with remaining activities.
+
+---
+
 ### Edge Cases
 
 - What happens when an activity has no GPS data (e.g., treadmill runs, manual entries)?
   - Activity metadata and photos are still backed up; map view shows activity in list but not on map.
+  - For FitTrackee export: Activity is skipped (FitTrackee requires GPX for outdoor activities); warning logged.
 - What happens when Strava API rate limits are hit during backup?
   - Backup pauses and resumes automatically when rate limit resets; progress is saved so no re-downloading occurs.
 - What happens when a photo URL expires or becomes unavailable?
@@ -100,11 +120,18 @@ As an athlete, I want to browse my backed-up activities locally without needing 
   - Backup runs incrementally; only fetches new/modified activities after initial sync.
 - What happens when Strava authentication token expires?
   - User is prompted to re-authenticate; backup resumes from where it left off.
+- What happens when FitTrackee API rate limit is hit (default 300 req/5 min)?
+  - Export pauses and resumes automatically; progress tracked to avoid re-uploading.
+- What happens when FitTrackee file size limit (1MB) is exceeded?
+  - Large GPX files are simplified (reduced point density) before upload; original preserved locally.
+- What happens when FitTrackee authentication fails during export?
+  - User is prompted with clear error message to verify FitTrackee URL and API token.
 
 ## Clarifications
 
 ### Session 2025-12-18
 
+- Q: FitTrackee integration scope → A: Export from local backup to FitTrackee via REST API; GPX upload with sport mapping; integration tests via Docker
 - Q: Incremental updates efficiency → A: Daily runs expected; must efficiently fetch updates without refetching entire history
 - Q: Architecture pattern → A: MVC model with clear separation of model (stored files, layout), view (stats, visualizations), and efficient controller for incremental view updates
 - Q: Athlete filtering → A: Regex-based exclusion patterns for athletes to skip during backup
@@ -137,6 +164,12 @@ As an athlete, I want to browse my backed-up activities locally without needing 
 - **FR-015**: Controller MUST efficiently update views incrementally based on model changes, avoiding full re-rendering of statistics and visualizations when only partial updates are needed.
 - **FR-016**: System MUST maintain a `sessions.tsv` summary file at the athlete level, updated after each sync with comprehensive activity metrics.
 - **FR-017**: System MUST maintain a `gear.json` catalog at the athlete level with equipment details (id, name, type, brand, model, distance, primary, retired status).
+- **FR-018**: System MUST support export to FitTrackee via its REST API, uploading GPX files with sport type mapping and metadata.
+- **FR-019**: System MUST maintain a Strava-to-FitTrackee sport type mapping configuration (Running→5, Cycling→1, Hiking→3, etc.) with fallback handling for unmapped types.
+- **FR-020**: System MUST track export state per activity to enable incremental exports (no duplicate uploads to FitTrackee).
+- **FR-021**: System MUST generate GPX files with extended data (heart rate, cadence, power) when available in tracking data for FitTrackee upload.
+- **FR-022**: System MUST respect FitTrackee API rate limits (default 300 requests per 5 minutes) with automatic pause and resume.
+- **FR-023**: System MUST provide integration tests for FitTrackee export using a Docker-based FitTrackee instance.
 
 ### Key Entities
 
@@ -148,6 +181,8 @@ As an athlete, I want to browse my backed-up activities locally without needing 
 - **Exclusion Pattern**: A regex pattern used to filter out athletes by name or ID during backup operations.
 - **Statistics**: Aggregated metrics (distance, time, elevation, count) calculated from a set of activities.
 - **Gear**: Equipment (bikes, shoes) tracked by Strava with cumulative distance and lifecycle status.
+- **FitTrackee Export State**: Tracks which activities have been exported to FitTrackee, including FitTrackee workout ID and export timestamp.
+- **Sport Type Mapping**: Bidirectional mapping between Strava sport types and FitTrackee sport IDs.
 
 ### Data Model - File Structure
 
@@ -158,6 +193,8 @@ data/
 └── sub={username}/                    # Athlete partition (Strava username)
     ├── sessions.tsv                   # Summary of all sessions for this athlete
     ├── gear.json                      # Gear catalog: [{id, name, type, brand, model, distance_m, primary, retired}]
+    ├── exports/                       # Export state tracking
+    │   └── fittrackee.json            # FitTrackee export state: {url, exports: [{ses, ft_workout_id, exported_at}]}
     └── ses={datetime}/                # Session partition (ISO 8601 basic: 20251218T143022)
         ├── info.json                  # Activity metadata, comments, kudos, laps, segment efforts
         ├── tracking.parquet           # All time-series streams in columnar format
@@ -206,6 +243,9 @@ GROUP BY sport;
 - **SC-006**: Statistics calculations match Strava's own totals within 1% accuracy for distance and time metrics.
 - **SC-007**: Backed-up data remains accessible and browsable without internet connectivity.
 - **SC-008**: Users can filter and view activities from any specific month within 2 seconds.
+- **SC-009**: FitTrackee export correctly maps 95%+ of common Strava sport types to FitTrackee equivalents.
+- **SC-010**: FitTrackee integration tests pass against a Docker-based FitTrackee instance, verifying upload, sport mapping, and incremental export.
+- **SC-011**: Exported activities appear in FitTrackee with GPS tracks, sensor data (where available), and metadata preserved.
 
 ### Architecture
 
@@ -222,6 +262,8 @@ The system follows an **MVC (Model-View-Controller)** pattern with clear separat
 - **TC-003**: Controller MUST maintain a change manifest indicating which activities were added/modified during sync, enabling targeted view regeneration.
 - **TC-004**: File structure MUST follow Hive partitioning conventions (`key=value/` directories) for native DuckDB compatibility via `read_parquet('data/**/tracking.parquet', hive_partitioning=true)`.
 - **TC-005**: Parquet files MUST use PyArrow for generation to ensure broad compatibility with analysis tools.
+- **TC-006**: FitTrackee export MUST use the `requests` library for REST API calls with proper OAuth2 token handling.
+- **TC-007**: FitTrackee integration tests MUST use `pytest-docker` or similar to spin up a FitTrackee instance for testing.
 
 ## Assumptions
 
@@ -231,6 +273,8 @@ The system follows an **MVC (Model-View-Controller)** pattern with clear separat
 - User accepts that backing up activities from followed athletes is not possible via the API (Strava restricts this).
 - Photos are stored on CloudFront CDN with URLs that may expire; backup captures photos at time of sync.
 - Map visualization will use open-source map tiles (e.g., OpenStreetMap) to avoid dependency on proprietary services.
+- For FitTrackee export: User has a running FitTrackee instance (self-hosted) with API access enabled.
+- FitTrackee API follows documented behavior (v1.0.x); significant API changes may require updates.
 
 ## Scope Boundaries
 
@@ -240,6 +284,8 @@ The system follows an **MVC (Model-View-Controller)** pattern with clear separat
 - Statistics by time period
 - Offline browsing of backed-up data
 - GPX export of routes
+- Export to FitTrackee (self-hosted workout tracker) with sport type mapping and incremental sync
+- Integration tests for FitTrackee export using Docker-based FitTrackee instance
 
 ### Out of Scope
 - Backup of activities from followed athletes (API limitation)
