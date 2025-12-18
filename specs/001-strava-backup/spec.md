@@ -101,6 +101,15 @@ As an athlete, I want to browse my backed-up activities locally without needing 
 - What happens when Strava authentication token expires?
   - User is prompted to re-authenticate; backup resumes from where it left off.
 
+## Clarifications
+
+### Session 2025-12-18
+
+- Q: Incremental updates efficiency → A: Daily runs expected; must efficiently fetch updates without refetching entire history
+- Q: Architecture pattern → A: MVC model with clear separation of model (stored files, layout), view (stats, visualizations), and efficient controller for incremental view updates
+- Q: Athlete filtering → A: Regex-based exclusion patterns for athletes to skip during backup
+- Q: Strava API library → A: Use stravalib (https://github.com/stravalib/stravalib) for Strava API interactions
+
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
@@ -110,7 +119,7 @@ As an athlete, I want to browse my backed-up activities locally without needing 
 - **FR-003**: System MUST download GPS stream data for each activity and export it as GPX files.
 - **FR-004**: System MUST download all photos attached to activities in their highest available resolution.
 - **FR-005**: System MUST download comments and kudos for each activity.
-- **FR-006**: System MUST perform incremental backups, only fetching activities newer than the last backup.
+- **FR-006**: System MUST perform incremental backups, only fetching activities newer than the last backup. Designed for daily execution with minimal API calls and no re-downloading of existing data.
 - **FR-007**: System MUST respect Strava API rate limits (200 requests per 15 minutes, 2000 per day) and handle rate limiting gracefully.
 - **FR-008**: System MUST store backed-up data in a structured, human-readable format that can be browsed without special tools.
 - **FR-009**: System MUST generate an interactive map visualization showing all backed-up activities with GPS data.
@@ -118,6 +127,8 @@ As an athlete, I want to browse my backed-up activities locally without needing 
 - **FR-011**: System MUST allow filtering activities by date range (year, month, custom range).
 - **FR-012**: System MUST calculate and display statistics (total distance, time, elevation, count) for filtered activity sets.
 - **FR-013**: System MUST provide an offline-capable interface to browse backed-up activities, photos, and route maps.
+- **FR-014**: System MUST support athlete exclusion via regex patterns to skip specific athletes during backup operations.
+- **FR-015**: Controller MUST efficiently update views incrementally based on model changes, avoiding full re-rendering of statistics and visualizations when only partial updates are needed.
 
 ### Key Entities
 
@@ -125,7 +136,8 @@ As an athlete, I want to browse my backed-up activities locally without needing 
 - **GPS Track**: Geographic coordinate stream including latitude, longitude, altitude, and timestamps for an activity.
 - **Photo**: Image file associated with an activity, including metadata (timestamp, location if available).
 - **Comment**: Text feedback on an activity with author information and timestamp.
-- **Athlete**: The authenticated user whose data is being backed up; includes profile information.
+- **Athlete**: The authenticated user whose data is being backed up; includes profile information. Subject to exclusion filtering via regex patterns.
+- **Exclusion Pattern**: A regex pattern used to filter out athletes by name or ID during backup operations.
 - **Statistics**: Aggregated metrics (distance, time, elevation, count) calculated from a set of activities.
 
 ## Success Criteria *(mandatory)*
@@ -140,6 +152,20 @@ As an athlete, I want to browse my backed-up activities locally without needing 
 - **SC-006**: Statistics calculations match Strava's own totals within 1% accuracy for distance and time metrics.
 - **SC-007**: Backed-up data remains accessible and browsable without internet connectivity.
 - **SC-008**: Users can filter and view activities from any specific month within 2 seconds.
+
+### Architecture
+
+The system follows an **MVC (Model-View-Controller)** pattern with clear separation of concerns:
+
+- **Model**: File-based storage layer managing backed-up data (activities, GPS tracks, photos, comments). Structured directory layout with JSON metadata and binary assets. Maintains sync state for incremental updates.
+- **View**: All presentation layers including HTML statistics pages, interactive maps, heatmaps, and activity detail views. Views are generated/updated only when underlying model data changes.
+- **Controller**: Orchestrates data flow between Strava API and local model. Handles incremental sync logic, tracks which views need regeneration based on model changes, and coordinates efficient partial updates rather than full rebuilds.
+
+### Technical Constraints
+
+- **TC-001**: System MUST use `stravalib` Python library (https://github.com/stravalib/stravalib) for all Strava API interactions.
+- **TC-002**: Model layer MUST track modification timestamps to enable efficient incremental view updates.
+- **TC-003**: Controller MUST maintain a change manifest indicating which activities were added/modified during sync, enabling targeted view regeneration.
 
 ## Assumptions
 
