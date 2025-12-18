@@ -109,6 +109,12 @@ As an athlete, I want to browse my backed-up activities locally without needing 
 - Q: Architecture pattern → A: MVC model with clear separation of model (stored files, layout), view (stats, visualizations), and efficient controller for incremental view updates
 - Q: Athlete filtering → A: Regex-based exclusion patterns for athletes to skip during backup
 - Q: Strava API library → A: Use stravalib (https://github.com/stravalib/stravalib) for Strava API interactions
+- Q: File storage structure → A: Hive-partitioned layout for DuckDB compatibility: `sub={username}/ses={datetime}/` with parquet files for queryable data
+- Q: Session datetime format → A: ISO 8601 basic format without special characters: `ses=20251218T143022`
+- Q: Time-series data storage → A: Single `tracking.parquet` file with all streams (GPS, HR, cadence, power, etc.) plus `tracking.json` manifest describing available columns
+- Q: Sessions summary content → A: Comprehensive TSV with datetime, type, sport, name, distance_m, moving_time_s, elapsed_time_s, elevation_gain_m, calories, avg_hr, max_hr, avg_watts, gear_id, athletes, kudos_count, comment_count, has_gps, has_photos, photo_count
+- Q: Photo naming convention → A: Photo-specific timestamp from Strava metadata: `20251218T144532.jpg`
+- Q: Gear catalog storage → A: Athlete-level `gear.json` with id, name, type, brand, model, distance_m, primary, retired
 
 ## Requirements *(mandatory)*
 
@@ -116,12 +122,12 @@ As an athlete, I want to browse my backed-up activities locally without needing 
 
 - **FR-001**: System MUST authenticate with Strava using OAuth2 and securely store refresh tokens for ongoing access.
 - **FR-002**: System MUST download all activities for the authenticated athlete including metadata (title, description, type, sport type, distance, moving time, elapsed time, elevation gain, start date, start location).
-- **FR-003**: System MUST download GPS stream data for each activity and export it as GPX files.
+- **FR-003**: System MUST download GPS and sensor stream data for each activity and store it in `tracking.parquet` format with a `tracking.json` manifest describing available columns. GPX export is supported for interoperability.
 - **FR-004**: System MUST download all photos attached to activities in their highest available resolution.
 - **FR-005**: System MUST download comments and kudos for each activity.
 - **FR-006**: System MUST perform incremental backups, only fetching activities newer than the last backup. Designed for daily execution with minimal API calls and no re-downloading of existing data.
 - **FR-007**: System MUST respect Strava API rate limits (200 requests per 15 minutes, 2000 per day) and handle rate limiting gracefully.
-- **FR-008**: System MUST store backed-up data in a structured, human-readable format that can be browsed without special tools.
+- **FR-008**: System MUST store backed-up data in a Hive-partitioned directory structure (`sub={username}/ses={datetime}/`) with JSON for metadata, Parquet for time-series data, and TSV for session summaries. This enables both human browsing and efficient DuckDB queries.
 - **FR-009**: System MUST generate an interactive map visualization showing all backed-up activities with GPS data.
 - **FR-010**: System MUST support heatmap visualization mode to show frequently-traveled routes.
 - **FR-011**: System MUST allow filtering activities by date range (year, month, custom range).
@@ -129,6 +135,8 @@ As an athlete, I want to browse my backed-up activities locally without needing 
 - **FR-013**: System MUST provide an offline-capable interface to browse backed-up activities, photos, and route maps.
 - **FR-014**: System MUST support athlete exclusion via regex patterns to skip specific athletes during backup operations.
 - **FR-015**: Controller MUST efficiently update views incrementally based on model changes, avoiding full re-rendering of statistics and visualizations when only partial updates are needed.
+- **FR-016**: System MUST maintain a `sessions.tsv` summary file at the athlete level, updated after each sync with comprehensive activity metrics.
+- **FR-017**: System MUST maintain a `gear.json` catalog at the athlete level with equipment details (id, name, type, brand, model, distance, primary, retired status).
 
 ### Key Entities
 
@@ -139,6 +147,52 @@ As an athlete, I want to browse my backed-up activities locally without needing 
 - **Athlete**: The authenticated user whose data is being backed up; includes profile information. Subject to exclusion filtering via regex patterns.
 - **Exclusion Pattern**: A regex pattern used to filter out athletes by name or ID during backup operations.
 - **Statistics**: Aggregated metrics (distance, time, elevation, count) calculated from a set of activities.
+- **Gear**: Equipment (bikes, shoes) tracked by Strava with cumulative distance and lifecycle status.
+
+### Data Model - File Structure
+
+The model layer uses a **Hive-partitioned directory layout** optimized for DuckDB queries:
+
+```
+data/
+└── sub={username}/                    # Athlete partition (Strava username)
+    ├── sessions.tsv                   # Summary of all sessions for this athlete
+    ├── gear.json                      # Gear catalog: [{id, name, type, brand, model, distance_m, primary, retired}]
+    └── ses={datetime}/                # Session partition (ISO 8601 basic: 20251218T143022)
+        ├── info.json                  # Activity metadata, comments, kudos, laps, segment efforts
+        ├── tracking.parquet           # All time-series streams in columnar format
+        ├── tracking.json              # Manifest: {columns: ["time", "lat", "lng", ...], row_count: N}
+        └── photos/                    # Activity photos
+            └── {datetime}.{ext}       # Photo timestamp from Strava metadata: 20251218T144532.jpg
+```
+
+**`info.json` contents**:
+- Core: id, name, description, type, sport_type, start_date, timezone
+- Metrics: distance, moving_time, elapsed_time, total_elevation_gain, calories
+- Performance: average_speed, max_speed, average_heartrate, max_heartrate, average_watts, max_watts, average_cadence
+- Context: gear_id, device_name, trainer, commute, private
+- Social: kudos_count, comment_count, athlete_count, achievement_count, pr_count
+- Nested: comments[], kudos[], laps[], segment_efforts[]
+
+**`tracking.parquet` columns** (as available per activity):
+- time (seconds from start), lat, lng, altitude, distance
+- heartrate, cadence, watts, temp, velocity_smooth, grade_smooth
+
+**`sessions.tsv` columns**:
+datetime, type, sport, name, distance_m, moving_time_s, elapsed_time_s, elevation_gain_m, calories, avg_hr, max_hr, avg_watts, gear_id, athletes, kudos_count, comment_count, has_gps, has_photos, photo_count
+
+**Example DuckDB queries**:
+```sql
+-- Query all GPS tracks with Hive partitioning
+SELECT sub, ses, lat, lng, heartrate
+FROM read_parquet('data/**/tracking.parquet', hive_partitioning=true)
+WHERE heartrate > 160;
+
+-- Aggregate stats from sessions summary
+SELECT sport, SUM(distance_m)/1000 as total_km, COUNT(*) as sessions
+FROM read_csv_auto('data/sub=*/sessions.tsv')
+GROUP BY sport;
+```
 
 ## Success Criteria *(mandatory)*
 
@@ -166,6 +220,8 @@ The system follows an **MVC (Model-View-Controller)** pattern with clear separat
 - **TC-001**: System MUST use `stravalib` Python library (https://github.com/stravalib/stravalib) for all Strava API interactions.
 - **TC-002**: Model layer MUST track modification timestamps to enable efficient incremental view updates.
 - **TC-003**: Controller MUST maintain a change manifest indicating which activities were added/modified during sync, enabling targeted view regeneration.
+- **TC-004**: File structure MUST follow Hive partitioning conventions (`key=value/` directories) for native DuckDB compatibility via `read_parquet('data/**/tracking.parquet', hive_partitioning=true)`.
+- **TC-005**: Parquet files MUST use PyArrow for generation to ensure broad compatibility with analysis tools.
 
 ## Assumptions
 
