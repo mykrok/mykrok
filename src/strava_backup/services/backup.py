@@ -28,7 +28,13 @@ from strava_backup.models.activity import (
     update_sessions_tsv,
 )
 from strava_backup.models.athlete import Athlete, update_gear_from_strava
-from strava_backup.models.state import load_sync_state, save_sync_state
+from strava_backup.models.state import (
+    FailureType,
+    load_retry_queue,
+    load_sync_state,
+    save_retry_queue,
+    save_sync_state,
+)
 from strava_backup.models.tracking import save_tracking_data
 from strava_backup.services.strava import StravaClient
 
@@ -97,8 +103,9 @@ class BackupService:
         logger.info("Syncing for athlete: %s", username)
         log(f"Syncing activities for {username}...")
 
-        # Load sync state
+        # Load sync state and retry queue
         state = load_sync_state(self.data_dir, username)
+        retry_queue = load_retry_queue(self.data_dir, username)
 
         # Determine sync window
         sync_after: float | None = None
@@ -117,7 +124,7 @@ class BackupService:
         activities_new = 0
         activities_updated = 0
         photos_downloaded = 0
-        errors: list[dict[str, str]] = []
+        errors: list[dict[str, Any]] = []
 
         if dry_run:
             log("Dry run mode - no changes will be made")
@@ -138,17 +145,37 @@ class BackupService:
             logger.info("Filtering to activity IDs: %s", activity_id_filter)
             activity_list = [a for a in activity_list if a.id in activity_id_filter]
 
+        # Add activities from retry queue that are due for retry
+        due_retries = retry_queue.get_due_retries()
+        retry_activity_ids = {f.activity_id for f in due_retries}
+        existing_activity_ids = {a.id for a in activity_list}
+
+        # Only add retry activities that aren't already in the list
+        retry_ids_to_add = retry_activity_ids - existing_activity_ids
+        if retry_ids_to_add:
+            logger.info("Adding %d activities from retry queue", len(retry_ids_to_add))
+            log(f"Retrying {len(retry_ids_to_add)} previously failed activities...")
+
         total = len(activity_list)
-        logger.info("Found %d activities to process", total)
-        log(f"Found {total} activities to process")
+        retry_count = len(retry_ids_to_add)
+        logger.info("Found %d activities to process (%d new/updated, %d retries)",
+                   total + retry_count, total, retry_count)
+        log(f"Found {total} activities to process" + (f" + {retry_count} retries" if retry_count else ""))
 
         latest_activity_date: datetime | None = None
+        retries_succeeded = 0
+        retries_failed = 0
 
+        # Process regular activities first
         for i, strava_activity in enumerate(activity_list, 1):
+            activity_id = strava_activity.id
+            is_retry = activity_id in retry_activity_ids
+
             try:
-                logger.debug("[%d/%d] Processing activity %d", i, total, strava_activity.id)
+                logger.debug("[%d/%d] Processing activity %d%s", i, total, activity_id,
+                           " (retry)" if is_retry else "")
                 # Get detailed activity
-                detailed = self.strava.get_activity(strava_activity.id)
+                detailed = self.strava.get_activity(activity_id)
                 activity = Activity.from_strava_activity(detailed)
                 logger.debug("Activity: %s (%s)", activity.name, activity.start_date)
 
@@ -234,18 +261,136 @@ class BackupService:
                 else:
                     activities_updated += 1
 
+                # Remove from retry queue if this was a retry
+                if is_retry:
+                    retry_queue.remove(activity_id)
+                    retries_succeeded += 1
+                    logger.info("Retry succeeded for activity %d", activity_id)
+
                 distance_km = activity.distance / 1000 if activity.distance else 0
-                log(f"  [{i}/{total}] {activity.name} ({format_session_datetime(activity.start_date)}) - {distance_km:.1f} km")
+                retry_marker = " [RETRY OK]" if is_retry else ""
+                log(f"  [{i}/{total}] {activity.name} ({format_session_datetime(activity.start_date)}) - {distance_km:.1f} km{retry_marker}")
 
             except Exception as e:
                 error_msg = str(e)
                 logger.error("Error processing activity %d: %s",
-                           strava_activity.id, error_msg, exc_info=True)
+                           activity_id, error_msg, exc_info=True)
+
+                # Add to retry queue (or update existing entry)
+                failure_entry = retry_queue.add_failure(activity_id, e)
+                failure_type = FailureType.from_error(e)
+
+                if is_retry:
+                    retries_failed += 1
+
                 errors.append({
-                    "activity_id": str(strava_activity.id),
+                    "activity_id": str(activity_id),
                     "error": error_msg,
+                    "failure_type": failure_type.value,
+                    "retry_count": failure_entry.retry_count,
+                    "next_retry": failure_entry.next_retry_after.isoformat() if failure_entry.next_retry_after else None,
                 })
-                log(f"  [{i}/{total}] Error: {error_msg}")
+
+                retry_info = ""
+                if failure_entry.next_retry_after:
+                    retry_info = f" (will retry after {failure_entry.next_retry_after.strftime('%H:%M:%S')})"
+                elif failure_entry.is_permanently_failed():
+                    retry_info = " (no more retries)"
+
+                log(f"  [{i}/{total}] Error: {error_msg}{retry_info}")
+
+        # Process retry-only activities (not in the regular activity list)
+        if retry_ids_to_add and not dry_run:
+            log(f"Processing {len(retry_ids_to_add)} retry-only activities...")
+            for retry_activity_id in retry_ids_to_add:
+                try:
+                    logger.debug("Processing retry activity %d", retry_activity_id)
+
+                    # Get detailed activity
+                    detailed = self.strava.get_activity(retry_activity_id)
+                    activity = Activity.from_strava_activity(detailed)
+
+                    # Track latest activity
+                    if latest_activity_date is None or activity.start_date > latest_activity_date:
+                        latest_activity_date = activity.start_date
+
+                    # Create session directory
+                    session_dir = ensure_session_dir(self.data_dir, username, activity.start_date)
+
+                    # Fetch and save streams
+                    if include_streams:
+                        try:
+                            streams = self.strava.get_activity_streams(activity.id)
+                            if streams:
+                                _, manifest = save_tracking_data(session_dir, streams)
+                                activity.has_gps = manifest.has_gps
+                        except Exception as e:
+                            logger.warning("Failed to get streams for activity %d: %s",
+                                          activity.id, e)
+
+                    # Fetch photos
+                    if include_photos:
+                        try:
+                            photos = self.strava.get_activity_photos(activity.id)
+                            if photos:
+                                activity.photos = photos
+                                activity.has_photos = True
+                                activity.photo_count = len(photos)
+                                photos_downloaded += self._download_photos(session_dir, photos, log)
+                        except Exception as e:
+                            logger.warning("Failed to get photos for activity %d: %s",
+                                          activity.id, e)
+
+                    # Fetch comments and kudos
+                    if include_comments:
+                        try:
+                            activity.comments = self.strava.get_activity_comments(activity.id)
+                            activity.comment_count = len(activity.comments)
+                        except Exception:
+                            pass
+                        try:
+                            activity.kudos = self.strava.get_activity_kudos(activity.id)
+                            activity.kudos_count = len(activity.kudos)
+                        except Exception:
+                            pass
+
+                    # Save activity
+                    save_activity(self.data_dir, username, activity)
+                    activities_synced += 1
+                    activities_new += 1
+
+                    # Remove from retry queue
+                    retry_queue.remove(retry_activity_id)
+                    retries_succeeded += 1
+                    logger.info("Retry succeeded for activity %d", retry_activity_id)
+
+                    distance_km = activity.distance / 1000 if activity.distance else 0
+                    log(f"  [RETRY] {activity.name} ({format_session_datetime(activity.start_date)}) - {distance_km:.1f} km [OK]")
+
+                except Exception as e:
+                    error_msg = str(e)
+                    logger.error("Error processing retry activity %d: %s",
+                               retry_activity_id, error_msg, exc_info=True)
+
+                    # Update retry queue entry
+                    failure_entry = retry_queue.add_failure(retry_activity_id, e)
+                    retries_failed += 1
+
+                    errors.append({
+                        "activity_id": str(retry_activity_id),
+                        "error": error_msg,
+                        "failure_type": FailureType.from_error(e).value,
+                        "retry_count": failure_entry.retry_count,
+                        "next_retry": failure_entry.next_retry_after.isoformat() if failure_entry.next_retry_after else None,
+                    })
+
+                    retry_info = ""
+                    if failure_entry.next_retry_after:
+                        retry_info = f" (will retry after {failure_entry.next_retry_after.strftime('%H:%M:%S')})"
+                    elif failure_entry.is_permanently_failed():
+                        retry_info = " (no more retries)"
+
+                    log(f"  [RETRY] Error: {error_msg}{retry_info}")
 
         # Update gear catalog
         if not dry_run:
@@ -267,9 +412,28 @@ class BackupService:
             state.total_activities = activities_synced
             save_sync_state(self.data_dir, username, state)
 
-        logger.info("Sync complete: %d activities (%d new, %d updated), %d photos, %d errors",
+            # Save retry queue
+            save_retry_queue(self.data_dir, username, retry_queue)
+
+            # Report retry queue status
+            pending_retries = retry_queue.get_pending_count()
+            if pending_retries > 0:
+                log(f"Retry queue: {pending_retries} activities pending retry", 1)
+                # Show next retry time
+                due = retry_queue.get_due_retries()
+                if not due and retry_queue.failed_activities:
+                    next_retry = min(
+                        (f.next_retry_after for f in retry_queue.failed_activities if f.next_retry_after),
+                        default=None
+                    )
+                    if next_retry:
+                        log(f"  Next retry scheduled for: {next_retry.strftime('%Y-%m-%d %H:%M:%S')}", 1)
+
+        logger.info("Sync complete: %d activities (%d new, %d updated), %d photos, %d errors, "
+                   "%d retries succeeded, %d retries failed, %d pending",
                    activities_synced, activities_new, activities_updated,
-                   photos_downloaded, len(errors))
+                   photos_downloaded, len(errors), retries_succeeded, retries_failed,
+                   retry_queue.get_pending_count())
 
         return {
             "athlete": username,
@@ -278,6 +442,9 @@ class BackupService:
             "activities_updated": activities_updated,
             "photos_downloaded": photos_downloaded,
             "errors": errors,
+            "retries_succeeded": retries_succeeded,
+            "retries_failed": retries_failed,
+            "pending_retries": retry_queue.get_pending_count(),
         }
 
     def _download_photos(
