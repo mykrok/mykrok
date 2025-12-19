@@ -584,6 +584,11 @@ def stats(
     help="Generate heatmap instead of individual routes",
 )
 @click.option(
+    "--photos",
+    is_flag=True,
+    help="Show geotagged photos as markers on the map",
+)
+@click.option(
     "--serve",
     is_flag=True,
     help="Start local HTTP server to view map",
@@ -601,10 +606,16 @@ def map_cmd(
     before: Any | None,
     activity_type: str | None,
     heatmap: bool,
+    photos: bool,
     serve: bool,
     port: int,
 ) -> None:
-    """Generate interactive map visualization."""
+    """Generate interactive map visualization.
+
+    By default, shows activity routes as colored polylines. Use --heatmap
+    for a density visualization. Use --photos to overlay geotagged photos
+    as clickable markers with preview popups.
+    """
     from strava_backup.views.map import generate_map, serve_map
 
     config = ctx.config
@@ -619,6 +630,7 @@ def map_cmd(
             before=before,
             activity_type=activity_type,
             heatmap=heatmap,
+            show_photos=photos,
         )
 
         if serve:
