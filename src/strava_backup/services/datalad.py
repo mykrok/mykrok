@@ -40,7 +40,8 @@ client_secret = ""  # Your Strava API Client Secret (required)
 
 [data]
 # Directory where activity data will be stored (relative to this file)
-directory = "./data"
+# Data is stored in Hive-partitioned structure: sub={username}/ses={datetime}/
+directory = "."
 
 [sync]
 # What to download during sync
@@ -124,14 +125,13 @@ strava-backup browse
 ├── .strava-backup.toml    # Configuration (credentials)
 ├── Makefile               # Automation commands
 ├── README.md              # This file
-└── data/                  # Backed-up activities
-    └── sub={username}/
-        ├── sessions.tsv
-        ├── gear.json
-        └── ses={datetime}/
-            ├── info.json
-            ├── tracking.parquet
-            └── photos/
+└── sub={username}/        # Backed-up activities (Hive-partitioned)
+    ├── sessions.tsv
+    ├── gear.json
+    └── ses={datetime}/
+        ├── info.json
+        ├── tracking.parquet
+        └── photos/
 ```
 
 ## Reproducibility
@@ -184,13 +184,13 @@ all: sync
 # Incremental sync - only fetch new activities
 sync:
 	datalad run -m "Sync new Strava activities" \\
-		-o "data/" \\
+		-o "sub=*" \\
 		"strava-backup sync"
 
 # Full sync - re-download everything
 sync-full:
 	datalad run -m "Full Strava sync" \\
-		-o "data/" \\
+		-o "sub=*" \\
 		"strava-backup sync --full"
 
 # Authenticate with Strava (interactive)
@@ -298,7 +298,6 @@ def create_datalad_dataset(
     makefile_path = path / "Makefile"
     gitignore_path = path / ".gitignore"
     gitattributes_path = path / ".gitattributes"
-    data_dir = path / "data"
 
     # Write .gitattributes FIRST to ensure config file goes to git-annex
     # This must be committed before the config file is added
@@ -348,10 +347,6 @@ def create_datalad_dataset(
     existing_gitignore = gitignore_path.read_text() if gitignore_path.exists() else ""
     gitignore_path.write_text(existing_gitignore + "\n" + GITIGNORE_TEMPLATE)
 
-    # Create data directory
-    data_dir.mkdir(exist_ok=True)
-    (data_dir / ".gitkeep").touch()
-
     # Save the files to the dataset
     # We use the dataset object directly to avoid confusion with parent datasets
     try:
@@ -386,6 +381,5 @@ def create_datalad_dataset(
         "config_file": str(config_path),
         "readme_file": str(readme_path),
         "makefile": str(makefile_path),
-        "data_dir": str(data_dir),
         "status": "created",
     }

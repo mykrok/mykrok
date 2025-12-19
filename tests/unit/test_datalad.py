@@ -72,16 +72,21 @@ class TestDataladDatasetCreation:
         assert "sync:" in makefile_content
         assert "strava-backup sync" in makefile_content
 
-    def test_create_dataset_data_dir(self, tmp_path: Path) -> None:
-        """Test that data directory is created."""
+    def test_create_dataset_no_data_subdir(self, tmp_path: Path) -> None:
+        """Test that data is stored in root (no data/ subdirectory)."""
         from strava_backup.services.datalad import create_datalad_dataset
 
         dataset_path = tmp_path / "test-dataset"
         create_datalad_dataset(dataset_path)
 
+        # Data should go directly in root, not in data/ subdirectory
         data_dir = dataset_path / "data"
-        assert data_dir.exists()
-        assert data_dir.is_dir()
+        assert not data_dir.exists(), "data/ subdirectory should not be created"
+
+        # Config should reference current directory
+        config_file = dataset_path / ".strava-backup.toml"
+        config_content = config_file.read_text()
+        assert 'directory = "."' in config_content
 
     def test_create_dataset_gitignore(self, tmp_path: Path) -> None:
         """Test that .gitignore is created/updated."""
