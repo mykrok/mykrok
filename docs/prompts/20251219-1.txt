@@ -1,0 +1,43 @@
+immediate feedback from immediate changes:
+
+very good, besides that you ran it for december of the last year! I now did manual run for this december and it worked nicely! 
+
+- Add to templated README.md recommendation to install visidata with
+  pyarrow to view those parquet and other structured records files. 
+
+- Spurious logs: even running strava-backup sync --help produces log file!
+  that's undesired -- see so that running --help or --version does not
+  produce logs!  
+
+- log filenames and --after/--before options: use the same datetime formatting
+   and use format like 20251202T222856 not 20251202-222856 as you do in
+  the logs now so no spaces/dashes (keep allowing for dates or date times). 
+
+- "kudos" entries in info.json seems to lack athlete_id -- set to null,
+  investigate and fix.  
+
+- sub=yhalchenko/sessions.tsv issues:
+
+  - has columns "type" and "sport" with root= prefix and then in quotes
+    -- is that necessary?  I think we could just store value, e.g. just
+    `Workout` instead of `root='Workout'`.  Add to spec needing QA unittests to
+    ensure that values in such files stored correctly and then add such a test
+
+  - instead of "has_photos" column, add column "photos_path" which would be the
+    path to the photos folder if thereare photos, and empty if not, e.g.
+    ses=20241224T121430/photos/
+
+    then I could use visidata to open that folder
+
+- Also then adjust spec, refactor code and testing to move
+  .strava-backup.toml under .strava-backup/config.toml (do not forget to adjust
+  git-annex settings etc) and also split away the changing part of
+  authentication (access_token, refresh_token, token_expires_at) to reside in
+  some .strava-backup/oauth-tokens.toml which would be gitignore'd in that
+  folder -- there is no point to commit/track those at all in annex or not
+
+FYI I have tagged current state of that existing backup repo
+/home/yoh/proj/strava-backup-mine as _revert-20251219-1 and then git reset hard
+to that prior state where we had no succesfull run so we coul retry on this
+month (not 2024).  Use `datalad run` when you do execution as you provisioned
+in Makefile as well.
