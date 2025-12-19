@@ -6,6 +6,7 @@ GPS tracks, photos, comments, and kudos.
 
 from __future__ import annotations
 
+import logging
 import time
 from datetime import datetime
 from pathlib import Path
@@ -14,6 +15,8 @@ from typing import TYPE_CHECKING, Any
 import requests
 
 from strava_backup.config import Config, ensure_data_dir
+
+logger = logging.getLogger("strava_backup.backup")
 from strava_backup.lib.paths import (
     ensure_photos_dir,
     ensure_session_dir,
@@ -54,6 +57,7 @@ class BackupService:
         after: datetime | None = None,
         before: datetime | None = None,
         limit: int | None = None,
+        activity_id_filter: list[int] | None = None,
         include_photos: bool = True,
         include_streams: bool = True,
         include_comments: bool = True,
@@ -67,6 +71,7 @@ class BackupService:
             after: Only sync activities after this date.
             before: Only sync activities before this date.
             limit: Maximum number of activities to sync.
+            activity_id_filter: Only sync these specific activity IDs.
             include_photos: Download activity photos.
             include_streams: Download GPS/sensor streams.
             include_comments: Download comments and kudos.
@@ -81,11 +86,15 @@ class BackupService:
             if log_callback:
                 log_callback(msg, level)
 
+        logger.info("Starting sync")
+
         # Get athlete info
+        logger.debug("Fetching athlete info")
         athlete_data = self.strava.get_athlete()
         athlete = Athlete.from_strava_athlete(athlete_data)
         username = athlete.username
 
+        logger.info("Syncing for athlete: %s", username)
         log(f"Syncing activities for {username}...")
 
         # Load sync state
@@ -114,6 +123,8 @@ class BackupService:
             log("Dry run mode - no changes will be made")
 
         # Get activities from Strava
+        logger.debug("Fetching activities (after=%s, before=%s, limit=%s)",
+                     sync_after, sync_before, limit)
         activities = self.strava.get_activities(
             after=sync_after,
             before=sync_before,
@@ -121,16 +132,25 @@ class BackupService:
         )
 
         activity_list = list(activities)
+
+        # Filter by activity IDs if specified
+        if activity_id_filter:
+            logger.info("Filtering to activity IDs: %s", activity_id_filter)
+            activity_list = [a for a in activity_list if a.id in activity_id_filter]
+
         total = len(activity_list)
+        logger.info("Found %d activities to process", total)
         log(f"Found {total} activities to process")
 
         latest_activity_date: datetime | None = None
 
         for i, strava_activity in enumerate(activity_list, 1):
             try:
+                logger.debug("[%d/%d] Processing activity %d", i, total, strava_activity.id)
                 # Get detailed activity
                 detailed = self.strava.get_activity(strava_activity.id)
                 activity = Activity.from_strava_activity(detailed)
+                logger.debug("Activity: %s (%s)", activity.name, activity.start_date)
 
                 # Track latest activity
                 if latest_activity_date is None or activity.start_date > latest_activity_date:
@@ -155,17 +175,23 @@ class BackupService:
                 # Fetch and save streams
                 if include_streams:
                     try:
+                        logger.debug("Fetching streams for activity %d", activity.id)
                         streams = self.strava.get_activity_streams(activity.id)
                         if streams:
                             _, manifest = save_tracking_data(session_dir, streams)
                             activity.has_gps = manifest.has_gps
+                            logger.debug("Saved tracking data (%d points, GPS=%s)",
+                                        manifest.row_count, manifest.has_gps)
                             log(f"    Saved tracking data ({manifest.row_count} points)", 2)
                     except Exception as e:
+                        logger.warning("Failed to get streams for activity %d: %s",
+                                      activity.id, e, exc_info=True)
                         log(f"    Warning: Failed to get streams: {e}", 1)
 
                 # Fetch photos
                 if include_photos:
                     try:
+                        logger.debug("Fetching photos for activity %d", activity.id)
                         photos = self.strava.get_activity_photos(activity.id)
                         if photos:
                             activity.photos = photos
@@ -177,7 +203,10 @@ class BackupService:
                                 session_dir, photos, log
                             )
                             photos_downloaded += downloaded
+                            logger.debug("Downloaded %d photos", downloaded)
                     except Exception as e:
+                        logger.warning("Failed to get photos for activity %d: %s",
+                                      activity.id, e)
                         log(f"    Warning: Failed to get photos: {e}", 1)
 
                 # Fetch comments and kudos
@@ -210,6 +239,8 @@ class BackupService:
 
             except Exception as e:
                 error_msg = str(e)
+                logger.error("Error processing activity %d: %s",
+                           strava_activity.id, error_msg, exc_info=True)
                 errors.append({
                     "activity_id": str(strava_activity.id),
                     "error": error_msg,
@@ -235,6 +266,10 @@ class BackupService:
                 state.last_activity_date = latest_activity_date
             state.total_activities = activities_synced
             save_sync_state(self.data_dir, username, state)
+
+        logger.info("Sync complete: %d activities (%d new, %d updated), %d photos, %d errors",
+                   activities_synced, activities_new, activities_updated,
+                   photos_downloaded, len(errors))
 
         return {
             "athlete": username,

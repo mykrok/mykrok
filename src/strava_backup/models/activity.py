@@ -8,7 +8,7 @@ from __future__ import annotations
 import csv
 import json
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +19,39 @@ from strava_backup.lib.paths import (
     get_sessions_tsv_path,
     iter_session_dirs,
 )
+
+
+def _duration_to_seconds(duration: Any) -> int:
+    """Convert a duration value to seconds.
+
+    Handles stravalib Duration objects, timedelta, and numeric values.
+
+    Args:
+        duration: Duration value (stravalib Duration, timedelta, or number).
+
+    Returns:
+        Duration in seconds as integer.
+    """
+    if duration is None:
+        return 0
+
+    # Python timedelta
+    if isinstance(duration, timedelta):
+        return int(duration.total_seconds())
+
+    # stravalib Duration - check for seconds attribute
+    if hasattr(duration, "seconds"):
+        return int(duration.seconds)
+
+    # Already a number
+    if isinstance(duration, int | float):
+        return int(duration)
+
+    # Try to convert to int (stravalib Duration may be int-like)
+    try:
+        return int(duration)
+    except (TypeError, ValueError):
+        return 0
 
 
 @dataclass
@@ -84,8 +117,8 @@ class Activity:
             start_date_local=strava_activity.start_date_local,
             timezone=str(strava_activity.timezone),
             distance=float(strava_activity.distance) if strava_activity.distance else 0.0,
-            moving_time=int(strava_activity.moving_time.total_seconds()) if strava_activity.moving_time else 0,
-            elapsed_time=int(strava_activity.elapsed_time.total_seconds()) if strava_activity.elapsed_time else 0,
+            moving_time=_duration_to_seconds(strava_activity.moving_time),
+            elapsed_time=_duration_to_seconds(strava_activity.elapsed_time),
             total_elevation_gain=float(strava_activity.total_elevation_gain) if strava_activity.total_elevation_gain else None,
             calories=strava_activity.calories,
             average_speed=float(strava_activity.average_speed) if strava_activity.average_speed else None,

@@ -127,6 +127,10 @@ def main(
     Back up your Strava activities, view statistics, generate maps,
     and export to FitTrackee.
     """
+    import logging
+
+    from strava_backup.lib.logging import setup_logging
+
     ctx.verbose = verbose
     ctx.quiet = quiet
     ctx.json_output = json_output
@@ -138,6 +142,19 @@ def main(
     # Override data directory if specified
     if data_dir is not None:
         ctx.config.data.directory = data_dir
+
+    # Set up logging
+    # Console level based on verbosity, file always at DEBUG
+    console_level = logging.WARNING if quiet else (
+        logging.DEBUG if verbose >= 2 else
+        logging.INFO if verbose >= 1 else
+        logging.INFO
+    )
+    setup_logging(
+        config=ctx.config,
+        console_level=console_level,
+        quiet=quiet,
+    )
 
 
 @main.command()
@@ -276,6 +293,10 @@ def auth(
     is_flag=True,
     help="Show what would be synced without downloading",
 )
+@click.option(
+    "--activity-ids",
+    help="Comma-separated list of activity IDs to sync",
+)
 @pass_context
 def sync(
     ctx: Context,
@@ -287,6 +308,7 @@ def sync(
     no_streams: bool,
     no_comments: bool,
     dry_run: bool,
+    activity_ids: str | None,
 ) -> None:
     """Synchronize activities from Strava.
 
@@ -300,6 +322,15 @@ def sync(
         ctx.error("Configuration not loaded")
         sys.exit(1)
 
+    # Parse activity IDs if provided
+    activity_id_list: list[int] | None = None
+    if activity_ids:
+        try:
+            activity_id_list = [int(aid.strip()) for aid in activity_ids.split(",")]
+        except ValueError:
+            ctx.error("Invalid activity ID format. Use comma-separated integers.")
+            sys.exit(2)
+
     try:
         service = BackupService(config)
         result = service.sync(
@@ -307,6 +338,7 @@ def sync(
             after=after,
             before=before,
             limit=limit,
+            activity_id_filter=activity_id_list,
             include_photos=not no_photos and config.sync.photos,
             include_streams=not no_streams and config.sync.streams,
             include_comments=not no_comments and config.sync.comments,

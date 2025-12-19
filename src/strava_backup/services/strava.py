@@ -133,7 +133,13 @@ class StravaClient:
         Yields:
             Activity objects from stravalib.
         """
-        activities = self.client.get_activities(after=after, before=before)
+        from datetime import datetime, timezone
+
+        # Convert timestamps to datetime objects for stravalib
+        after_dt = datetime.fromtimestamp(after, tz=timezone.utc) if after else None
+        before_dt = datetime.fromtimestamp(before, tz=timezone.utc) if before else None
+
+        activities = self.client.get_activities(after=after_dt, before=before_dt)
 
         for count, activity in enumerate(activities):
             if limit is not None and count >= limit:

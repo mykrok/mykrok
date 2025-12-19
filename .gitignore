@@ -13,6 +13,7 @@ downloads/
 eggs/
 .eggs/
 lib/
+!src/strava_backup/lib/
 lib64/
 parts/
 sdist/
