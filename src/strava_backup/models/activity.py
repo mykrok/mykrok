@@ -313,7 +313,7 @@ def save_activity(data_dir: Path, username: str, activity: Activity) -> Path:
     session_dir.mkdir(parents=True, exist_ok=True)
 
     info_path = get_info_path(session_dir)
-    with open(info_path, "w") as f:
+    with open(info_path, "w", encoding="utf-8") as f:
         json.dump(activity.to_dict(), f, indent=2, default=str)
 
     return info_path
@@ -332,7 +332,7 @@ def load_activity(session_dir: Path) -> Activity | None:
     if not info_path.exists():
         return None
 
-    with open(info_path) as f:
+    with open(info_path, encoding="utf-8") as f:
         data = json.load(f)
 
     return Activity.from_dict(data)
@@ -423,7 +423,7 @@ def update_sessions_tsv(data_dir: Path, username: str) -> Path:
     activities.sort(key=lambda a: a.start_date)
 
     # Write TSV
-    with open(sessions_path, "w", newline="") as f:
+    with open(sessions_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=SESSIONS_TSV_COLUMNS, delimiter="\t")
         writer.writeheader()
 
@@ -474,7 +474,7 @@ def read_sessions_tsv(data_dir: Path, username: str) -> list[dict[str, Any]]:
         return []
 
     sessions: list[dict[str, Any]] = []
-    with open(sessions_path, newline="") as f:
+    with open(sessions_path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f, delimiter="\t")
         for row in reader:
             # Convert types

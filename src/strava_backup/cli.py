@@ -623,12 +623,12 @@ def map_cmd(
 
         if serve:
             output_path = output or Path("./map.html")
-            output_path.write_text(html)
+            output_path.write_text(html, encoding="utf-8")
             ctx.log(f"Map saved to {output_path}")
             ctx.log(f"Starting server at http://127.0.0.1:{port}")
             serve_map(output_path, port=port)
         elif output:
-            output.write_text(html)
+            output.write_text(html, encoding="utf-8")
             ctx.log(f"Map saved to {output}")
         else:
             click.echo(html)

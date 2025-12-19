@@ -131,7 +131,7 @@ def save_tracking_data(
 
     # Write manifest
     manifest_path = get_tracking_manifest_path(session_dir)
-    with open(manifest_path, "w") as f:
+    with open(manifest_path, "w", encoding="utf-8") as f:
         json.dump(manifest.to_dict(), f, indent=2)
 
     return parquet_path, manifest
@@ -150,7 +150,7 @@ def load_tracking_manifest(session_dir: Path) -> TrackingManifest | None:
     if not manifest_path.exists():
         return None
 
-    with open(manifest_path) as f:
+    with open(manifest_path, encoding="utf-8") as f:
         data = json.load(f)
 
     return TrackingManifest.from_dict(data)

@@ -321,8 +321,12 @@ def create_datalad_dataset(
 
     # Write .gitattributes FIRST to ensure config file goes to git-annex
     # This must be committed before the config file is added
-    existing_gitattributes = gitattributes_path.read_text() if gitattributes_path.exists() else ""
-    gitattributes_path.write_text(existing_gitattributes + "\n" + GITATTRIBUTES_TEMPLATE)
+    existing_gitattributes = (
+        gitattributes_path.read_text(encoding="utf-8") if gitattributes_path.exists() else ""
+    )
+    gitattributes_path.write_text(
+        existing_gitattributes + "\n" + GITATTRIBUTES_TEMPLATE, encoding="utf-8"
+    )
 
     # Commit .gitattributes first so the rules are in effect
     try:
@@ -355,20 +359,22 @@ def create_datalad_dataset(
 
     # Write config template (will now be tracked by git-annex due to .gitattributes)
     # The file will be added unlocked due to annex.addunlocked config
-    config_path.write_text(CONFIG_TEMPLATE)
+    config_path.write_text(CONFIG_TEMPLATE, encoding="utf-8")
 
     # Write .gitignore inside .strava-backup/ to exclude oauth-tokens.toml
-    config_gitignore_path.write_text(CONFIG_GITIGNORE_TEMPLATE)
+    config_gitignore_path.write_text(CONFIG_GITIGNORE_TEMPLATE, encoding="utf-8")
 
     # Write README
-    readme_path.write_text(README_TEMPLATE)
+    readme_path.write_text(README_TEMPLATE, encoding="utf-8")
 
     # Write Makefile
-    makefile_path.write_text(MAKEFILE_TEMPLATE)
+    makefile_path.write_text(MAKEFILE_TEMPLATE, encoding="utf-8")
 
     # Append to .gitignore (DataLad creates one)
-    existing_gitignore = gitignore_path.read_text() if gitignore_path.exists() else ""
-    gitignore_path.write_text(existing_gitignore + "\n" + GITIGNORE_TEMPLATE)
+    existing_gitignore = (
+        gitignore_path.read_text(encoding="utf-8") if gitignore_path.exists() else ""
+    )
+    gitignore_path.write_text(existing_gitignore + "\n" + GITIGNORE_TEMPLATE, encoding="utf-8")
 
     # Save the files to the dataset
     # We use the dataset object directly to avoid confusion with parent datasets

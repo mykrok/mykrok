@@ -205,7 +205,7 @@ def save_gear_catalog(data_dir: Path, username: str, catalog: GearCatalog) -> Pa
     athlete_dir.mkdir(parents=True, exist_ok=True)
 
     gear_path = get_gear_json_path(athlete_dir)
-    with open(gear_path, "w") as f:
+    with open(gear_path, "w", encoding="utf-8") as f:
         json.dump(catalog.to_dict(), f, indent=2)
 
     return gear_path
@@ -227,7 +227,7 @@ def load_gear_catalog(data_dir: Path, username: str) -> GearCatalog:
     if not gear_path.exists():
         return GearCatalog()
 
-    with open(gear_path) as f:
+    with open(gear_path, encoding="utf-8") as f:
         data = json.load(f)
 
     return GearCatalog.from_dict(data)

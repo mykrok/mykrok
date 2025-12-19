@@ -284,7 +284,7 @@ def save_tokens(config: Config, access_token: str, refresh_token: str, expires_a
 
     # Load existing tokens file or create new document
     if tokens_path.exists():
-        with open(tokens_path) as f:
+        with open(tokens_path, encoding="utf-8") as f:
             doc = tomlkit.load(f)
     else:
         doc = tomlkit.document()
@@ -302,7 +302,7 @@ def save_tokens(config: Config, access_token: str, refresh_token: str, expires_a
     doc["strava"]["token_expires_at"] = expires_at  # type: ignore[index]
 
     # Write tokens file
-    with open(tokens_path, "w") as f:
+    with open(tokens_path, "w", encoding="utf-8") as f:
         f.write(tomlkit.dumps(doc))
 
     # Update in-memory config
@@ -333,7 +333,7 @@ def _write_toml(path: Path, data: dict[str, Any]) -> None:
                     lines.append(f"{key} = {_format_toml_value(value)}")
             lines.append("")
 
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 
 

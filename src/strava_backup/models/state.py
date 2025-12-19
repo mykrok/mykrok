@@ -216,7 +216,7 @@ def load_sync_state(data_dir: Path, username: str) -> SyncState:
     if not state_path.exists():
         return SyncState()
 
-    with open(state_path) as f:
+    with open(state_path, encoding="utf-8") as f:
         data = json.load(f)
 
     return SyncState.from_dict(data)
@@ -237,7 +237,7 @@ def save_sync_state(data_dir: Path, username: str, state: SyncState) -> Path:
     athlete_dir.mkdir(parents=True, exist_ok=True)
 
     state_path = get_sync_state_path(athlete_dir)
-    with open(state_path, "w") as f:
+    with open(state_path, "w", encoding="utf-8") as f:
         json.dump(state.to_dict(), f, indent=2)
 
     return state_path
@@ -259,7 +259,7 @@ def load_fittrackee_export_state(data_dir: Path, username: str) -> FitTrackeeExp
     if not export_path.exists():
         return FitTrackeeExportState()
 
-    with open(export_path) as f:
+    with open(export_path, encoding="utf-8") as f:
         data = json.load(f)
 
     return FitTrackeeExportState.from_dict(data)
@@ -284,7 +284,7 @@ def save_fittrackee_export_state(
     ensure_exports_dir(athlete_dir)
 
     export_path = get_fittrackee_export_path(athlete_dir)
-    with open(export_path, "w") as f:
+    with open(export_path, "w", encoding="utf-8") as f:
         json.dump(state.to_dict(), f, indent=2)
 
     return export_path
