@@ -68,6 +68,36 @@ Documentation = "https://github.com/yourusername/strava-backup#readme"
 Repository = "https://github.com/yourusername/strava-backup"
 Issues = "https://github.com/yourusername/strava-backup/issues"
 
+[tool.hatch.build]
+exclude = [
+    # VCS and editor
+    ".git",
+    ".gitignore",
+    # Build/cache directories
+    ".cache",
+    ".tox",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".venv",
+    ".local",
+    "*.egg-info",
+    "__pycache__",
+    "dist",
+    "build",
+    # Project-specific non-essential
+    ".claude",
+    ".datalad",
+    ".specify",
+    ".noannex",
+    "CLAUDE.md",
+    "docs",
+    "specs",
+    "logs",
+    "*.log",
+    "uv.lock",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/strava_backup"]
 
