@@ -173,6 +173,30 @@
 
 ---
 
+## Phase 8b: User Story 7 - DataLad Dataset Creation (Priority: P7)
+
+**Goal**: Create a DataLad dataset for version-controlled, reproducible Strava backups
+
+**Independent Test**: Run `strava-backup create-datalad-dataset ./my-strava` and verify:
+- DataLad dataset is created with text2git configuration
+- Sample config file with comments is generated
+- README.md describing the dataset is created
+- Makefile with `datalad run` sync target is generated
+
+### Implementation for User Story 7
+
+- [X] T077 [US7] Add datalad dependency to pyproject.toml
+- [X] T078 [US7] Implement DataLad dataset creation service in src/strava_backup/services/datalad.py
+- [X] T079 [US7] Create template for sample .strava-backup.toml config with comments
+- [X] T080 [US7] Create template for dataset README.md
+- [X] T081 [US7] Create template for Makefile with `datalad run` sync target
+- [X] T082 [US7] Implement `strava-backup create-datalad-dataset` command in src/strava_backup/cli.py
+- [X] T083 [US7] [P] Create unit tests for DataLad dataset creation in tests/unit/test_datalad.py
+
+**Checkpoint**: User Story 7 complete - can create reproducible DataLad datasets for backups
+
+---
+
 ## Phase 9: Polish & Cross-Cutting Concerns
 
 **Purpose**: Improvements that affect multiple user stories
@@ -211,6 +235,7 @@
 - **User Story 4 (P4)**: Extends US1 backup service - can develop in parallel
 - **User Story 5 (P5)**: Depends on backed-up data (US1 must be complete)
 - **User Story 6 (P6)**: Depends on backed-up data and GPX generation (US1 must be complete)
+- **User Story 7 (P7)**: Independent - creates dataset structure for future sync operations
 
 ### Within Each User Story
 

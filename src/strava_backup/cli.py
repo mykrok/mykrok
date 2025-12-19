@@ -746,5 +746,71 @@ def fittrackee(
         sys.exit(1)
 
 
+@main.command("create-datalad-dataset")
+@click.argument("path", type=click.Path(path_type=Path))
+@click.option(
+    "--force",
+    "-f",
+    is_flag=True,
+    help="Overwrite existing files if present",
+)
+@pass_context
+def create_datalad_dataset_cmd(ctx: Context, path: Path, force: bool) -> None:
+    """Create a DataLad dataset for Strava backups.
+
+    Creates a new DataLad dataset at PATH with:
+
+    \b
+    - text2git configuration (text in git, binaries in git-annex)
+    - Sample .strava-backup.toml config with comments
+    - README.md explaining the dataset
+    - Makefile for reproducible syncs using `datalad run`
+
+    Example:
+
+    \b
+        strava-backup create-datalad-dataset ./my-strava-backup
+        cd my-strava-backup
+        # Edit .strava-backup.toml with your credentials
+        strava-backup auth
+        make sync
+    """
+    from strava_backup.services.datalad import create_datalad_dataset
+
+    try:
+        result = create_datalad_dataset(path, force=force)
+
+        if ctx.json_output:
+            ctx.output.update({
+                "status": "success",
+                **result,
+            })
+            ctx.output.output()
+        else:
+            ctx.log(f"Created DataLad dataset at: {result['path']}")
+            ctx.log("")
+            ctx.log("Next steps:")
+            ctx.log(f"  1. cd {result['path']}")
+            ctx.log("  2. Edit .strava-backup.toml with your Strava API credentials")
+            ctx.log("  3. Run: strava-backup auth")
+            ctx.log("  4. Run: make sync")
+
+    except FileExistsError as e:
+        ctx.error(str(e))
+        if ctx.json_output:
+            ctx.output.output()
+        sys.exit(1)
+    except RuntimeError as e:
+        ctx.error(str(e))
+        if ctx.json_output:
+            ctx.output.output()
+        sys.exit(1)
+    except ImportError:
+        ctx.error("DataLad is not installed. Install with: pip install datalad")
+        if ctx.json_output:
+            ctx.output.output()
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     main()

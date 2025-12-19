@@ -211,6 +211,39 @@ strava-backup export fittrackee --dry-run
 strava-backup export fittrackee --full
 ```
 
+### Create DataLad Dataset
+
+Create a version-controlled dataset for reproducible backups using [DataLad](https://www.datalad.org/):
+
+```bash
+# Create a new DataLad dataset
+strava-backup create-datalad-dataset ./my-strava-backup
+
+# Navigate to the dataset
+cd my-strava-backup
+
+# Edit config with your Strava API credentials
+nano .strava-backup.toml
+
+# Authenticate
+strava-backup auth
+
+# Sync using datalad run (creates versioned commit)
+make sync
+```
+
+This creates a dataset with:
+- **text2git configuration**: Text files (JSON, TSV) tracked by git, binary files (photos, Parquet) by git-annex
+- **Sample config**: `.strava-backup.toml` with comments explaining each setting
+- **README**: Documentation for the dataset
+- **Makefile**: Targets for `make sync`, `make stats`, `make map`, etc. using `datalad run`
+
+Benefits of DataLad integration:
+- Full version history of all backups
+- Reproducible sync operations with `datalad run`
+- Efficient storage of binary files with git-annex
+- Easy to clone and share datasets
+
 ## Data Storage
 
 Activities are stored in a Hive-partitioned directory structure:
