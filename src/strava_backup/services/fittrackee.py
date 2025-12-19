@@ -308,7 +308,7 @@ class FitTrackeeExporter:
         if "data" in result and "workouts" in result["data"]:
             workouts = result["data"]["workouts"]
             if workouts:
-                return workouts[0]["id"]
+                return int(workouts[0]["id"])
 
         raise RuntimeError("No workout ID in FitTrackee response")
 

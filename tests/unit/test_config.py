@@ -79,11 +79,13 @@ client_secret = "local_secret"
         assert config.config_path.name == ".strava-backup.toml"
 
     def test_save_tokens_preserves_comments(self, tmp_path: Path) -> None:
-        """Test that save_tokens preserves comments in config file."""
+        """Test that save_tokens saves to separate tokens file."""
         from strava_backup.config import Config, StravaConfig, save_tokens
 
-        # Create config file with comments
-        config_path = tmp_path / "config.toml"
+        # Create config directory with config file
+        config_dir = tmp_path / ".strava-backup"
+        config_dir.mkdir()
+        config_path = config_dir / "config.toml"
         config_path.write_text("""\
 # This is an important comment
 [strava]
@@ -93,7 +95,7 @@ client_secret = "my_secret"  # Keep this secret!
 
 [data]
 # Where to store activity data
-directory = "."
+directory = ".."
 
 [sync]
 photos = true  # Download photos
@@ -108,21 +110,17 @@ photos = true  # Download photos
         # Save tokens
         save_tokens(config, "new_access_token", "new_refresh_token", 1234567890)
 
-        # Read back and verify comments are preserved
-        content = config_path.read_text()
+        # Check that original config file is unchanged
+        config_content = config_path.read_text()
+        assert "# This is an important comment" in config_content
+        assert "# Client credentials from" in config_content
+        assert "# Keep this secret!" in config_content
+        assert "new_access_token" not in config_content  # Tokens are NOT in config
 
-        # Check comments are preserved
-        assert "# This is an important comment" in content
-        assert "# Client credentials from" in content
-        assert "# Keep this secret!" in content
-        assert "# Where to store activity data" in content
-        assert "# Download photos" in content
-
-        # Check tokens are saved
-        assert "new_access_token" in content
-        assert "new_refresh_token" in content
-        assert "1234567890" in content
-
-        # Check original values are preserved
-        assert "my_id" in content
-        assert "my_secret" in content
+        # Check that tokens are saved to separate file
+        tokens_path = config_dir / "oauth-tokens.toml"
+        assert tokens_path.exists()
+        tokens_content = tokens_path.read_text()
+        assert "new_access_token" in tokens_content
+        assert "new_refresh_token" in tokens_content
+        assert "1234567890" in tokens_content

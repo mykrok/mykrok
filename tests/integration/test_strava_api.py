@@ -2,18 +2,13 @@
 
 from __future__ import annotations
 
-import json
-import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-import responses
 
-from strava_backup.config import Config, StravaConfig, DataConfig, SyncConfig
-from strava_backup.models.activity import Activity, load_activity
-from strava_backup.lib.paths import get_session_dir
+from strava_backup.config import Config, DataConfig, StravaConfig, SyncConfig
 
 
 @pytest.fixture

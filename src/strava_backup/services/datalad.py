@@ -12,8 +12,7 @@ from typing import Any
 
 import datalad.api as dl
 
-
-# Template for .strava-backup.toml config file with comments
+# Template for .strava-backup/config.toml config file with comments
 CONFIG_TEMPLATE = """\
 # Strava Backup Configuration
 # ===========================
@@ -33,15 +32,13 @@ CONFIG_TEMPLATE = """\
 client_id = ""      # Your Strava API Client ID (required)
 client_secret = ""  # Your Strava API Client Secret (required)
 
-# These fields are auto-populated after running: strava-backup auth
-# access_token = ""
-# refresh_token = ""
-# token_expires_at = 0
+# NOTE: OAuth tokens are stored separately in oauth-tokens.toml (gitignored)
+# They are auto-populated after running: strava-backup auth
 
 [data]
-# Directory where activity data will be stored (relative to this file)
+# Directory where activity data will be stored (relative to dataset root)
 # Data is stored in Hive-partitioned structure: sub={username}/ses={datetime}/
-directory = "."
+directory = ".."
 
 [sync]
 # What to download during sync
@@ -54,6 +51,12 @@ comments = true  # Download comments and kudos
 # url = "https://fittrackee.example.com"
 # email = "your@email.com"
 # password can be set via FITTRACKEE_PASSWORD environment variable
+"""
+
+# Template for .gitignore in .strava-backup/ directory
+CONFIG_GITIGNORE_TEMPLATE = """\
+# OAuth tokens - do not commit to version control
+oauth-tokens.toml
 """
 
 # Template for README.md in the dataset
@@ -71,7 +74,7 @@ using [strava-backup](https://github.com/yourusername/strava-backup).
 
 ## Setup
 
-1. Edit `.strava-backup.toml` with your Strava API credentials:
+1. Edit `.strava-backup/config.toml` with your Strava API credentials:
    - Get credentials from https://www.strava.com/settings/api
    - Fill in `client_id` and `client_secret`
 
@@ -105,6 +108,16 @@ strava-backup view stats
 strava-backup view stats --year 2025 --by-month
 ```
 
+### View Data Files
+
+[visidata](https://www.visidata.org/) is recommended for exploring Parquet and TSV files:
+
+```bash
+pip install visidata pyarrow
+vd sub=*/sessions.tsv                     # View all sessions
+vd sub=*/ses=*/tracking.parquet           # View GPS/sensor data
+```
+
 ### Generate Map
 
 ```bash
@@ -122,7 +135,9 @@ strava-backup browse
 
 ```
 ./
-├── .strava-backup.toml    # Configuration (credentials)
+├── .strava-backup/        # Configuration directory
+│   ├── config.toml        # Strava API credentials
+│   └── oauth-tokens.toml  # OAuth tokens (gitignored)
 ├── Makefile               # Automation commands
 ├── README.md              # This file
 └── sub={username}/        # Backed-up activities (Hive-partitioned)
@@ -162,9 +177,9 @@ datalad get data/  # Download all data files
 
 - Text files (JSON, TSV) are tracked directly in git
 - Binary files (photos, Parquet) are tracked by git-annex
-- **`.strava-backup.toml` is tracked by git-annex** (not plain git) because it
-  contains OAuth tokens after authentication
+- **`.strava-backup/config.toml` is tracked by git-annex** (not plain git) for security
 - The config file has git-annex metadata `distribution-restrictions=sensitive`
+- OAuth tokens in `.strava-backup/oauth-tokens.toml` are gitignored (never committed)
 
 **Important**: Consider keeping this dataset private if it contains your
 actual Strava data, as it may include personal location information.
@@ -232,8 +247,8 @@ help:
 # Template for .gitignore additions
 GITIGNORE_TEMPLATE = """\
 # Strava Backup
-# Note: .strava-backup.toml is tracked by git-annex (not git) for security
-# It contains OAuth tokens after authentication
+# Note: .strava-backup/config.toml is tracked by git-annex (not git) for security
+# OAuth tokens in .strava-backup/oauth-tokens.toml are gitignored (see .strava-backup/.gitignore)
 
 # Temporary files
 *.pyc
@@ -247,9 +262,9 @@ __pycache__/
 
 # Template for .gitattributes - forces config file to git-annex
 GITATTRIBUTES_TEMPLATE = """\
-# Force .strava-backup.toml to be tracked by git-annex (contains sensitive tokens)
-# This ensures credentials are not stored in plain git history
-.strava-backup.toml annex.largefiles=anything
+# Force .strava-backup/config.toml to be tracked by git-annex (contains sensitive data)
+# This ensures API credentials are not stored in plain git history
+.strava-backup/config.toml annex.largefiles=anything
 """
 
 
@@ -292,12 +307,17 @@ def create_datalad_dataset(
     except Exception as e:
         raise RuntimeError(f"Failed to create DataLad dataset: {e}") from e
 
-    # Create template files
-    config_path = path / ".strava-backup.toml"
+    # Create paths for template files
+    config_dir = path / ".strava-backup"
+    config_path = config_dir / "config.toml"
+    config_gitignore_path = config_dir / ".gitignore"
     readme_path = path / "README.md"
     makefile_path = path / "Makefile"
     gitignore_path = path / ".gitignore"
     gitattributes_path = path / ".gitattributes"
+
+    # Create .strava-backup directory
+    config_dir.mkdir(parents=True, exist_ok=True)
 
     # Write .gitattributes FIRST to ensure config file goes to git-annex
     # This must be committed before the config file is added
@@ -320,7 +340,7 @@ def create_datalad_dataset(
             [
                 "git", "annex", "config",
                 "--set", "annex.addunlocked",
-                "include=.strava-backup.toml",
+                "include=.strava-backup/config.toml",
             ],
             cwd=str(path),
             check=True,
@@ -336,6 +356,9 @@ def create_datalad_dataset(
     # Write config template (will now be tracked by git-annex due to .gitattributes)
     # The file will be added unlocked due to annex.addunlocked config
     config_path.write_text(CONFIG_TEMPLATE)
+
+    # Write .gitignore inside .strava-backup/ to exclude oauth-tokens.toml
+    config_gitignore_path.write_text(CONFIG_GITIGNORE_TEMPLATE)
 
     # Write README
     readme_path.write_text(README_TEMPLATE)
@@ -363,7 +386,7 @@ def create_datalad_dataset(
             [
                 "git", "annex", "metadata",
                 "-s", "distribution-restrictions=sensitive",
-                ".strava-backup.toml",
+                ".strava-backup/config.toml",
             ],
             cwd=str(path),
             check=True,

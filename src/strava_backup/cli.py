@@ -78,7 +78,7 @@ class Context:
 pass_context = click.make_pass_decorator(Context, ensure=True)
 
 
-@click.group()
+@click.group(invoke_without_command=True)
 @click.option(
     "--config",
     "-c",
@@ -113,9 +113,9 @@ pass_context = click.make_pass_decorator(Context, ensure=True)
     help="Output in JSON format",
 )
 @click.version_option(version=__version__, prog_name="strava-backup")
-@pass_context
+@click.pass_context
 def main(
-    ctx: Context,
+    click_ctx: click.Context,
     config_path: Path | None,
     data_dir: Path | None,
     verbose: int,
@@ -127,34 +127,46 @@ def main(
     Back up your Strava activities, view statistics, generate maps,
     and export to FitTrackee.
     """
-    import logging
-
-    from strava_backup.lib.logging import setup_logging
+    # Create our context object
+    ctx = Context()
+    click_ctx.obj = ctx
 
     ctx.verbose = verbose
     ctx.quiet = quiet
     ctx.json_output = json_output
     ctx.output = JSONOutput(json_output)
 
-    # Load configuration
-    ctx.config = load_config(config_path)
+    # Store options for deferred initialization
+    ctx._config_path = config_path  # type: ignore[attr-defined]
+    ctx._data_dir = data_dir  # type: ignore[attr-defined]
 
-    # Override data directory if specified
-    if data_dir is not None:
-        ctx.config.data.directory = data_dir
+    # Only initialize config and logging when running an actual command
+    # Skip for --help/--version to avoid creating log files
+    help_requested = any(arg in sys.argv for arg in ("--help", "-h", "--version"))
+    if click_ctx.invoked_subcommand is not None and not help_requested:
+        import logging
 
-    # Set up logging
-    # Console level based on verbosity, file always at DEBUG
-    console_level = logging.WARNING if quiet else (
-        logging.DEBUG if verbose >= 2 else
-        logging.INFO if verbose >= 1 else
-        logging.INFO
-    )
-    setup_logging(
-        config=ctx.config,
-        console_level=console_level,
-        quiet=quiet,
-    )
+        from strava_backup.lib.logging import setup_logging
+
+        # Load configuration
+        ctx.config = load_config(config_path)
+
+        # Override data directory if specified
+        if data_dir is not None:
+            ctx.config.data.directory = data_dir
+
+        # Set up logging
+        # Console level based on verbosity, file always at DEBUG
+        console_level = logging.WARNING if quiet else (
+            logging.DEBUG if verbose >= 2 else
+            logging.INFO if verbose >= 1 else
+            logging.INFO
+        )
+        setup_logging(
+            config=ctx.config,
+            console_level=console_level,
+            quiet=quiet,
+        )
 
 
 @main.command()
@@ -794,7 +806,7 @@ def create_datalad_dataset_cmd(ctx: Context, path: Path, force: bool) -> None:
 
     \b
     - text2git configuration (text in git, binaries in git-annex)
-    - Sample .strava-backup.toml config with comments
+    - Sample .strava-backup/config.toml config with comments
     - README.md explaining the dataset
     - Makefile for reproducible syncs using `datalad run`
 
@@ -803,7 +815,7 @@ def create_datalad_dataset_cmd(ctx: Context, path: Path, force: bool) -> None:
     \b
         strava-backup create-datalad-dataset ./my-strava-backup
         cd my-strava-backup
-        # Edit .strava-backup.toml with your credentials
+        # Edit .strava-backup/config.toml with your credentials
         strava-backup auth
         make sync
     """
@@ -823,7 +835,7 @@ def create_datalad_dataset_cmd(ctx: Context, path: Path, force: bool) -> None:
             ctx.log("")
             ctx.log("Next steps:")
             ctx.log(f"  1. cd {result['path']}")
-            ctx.log("  2. Edit .strava-backup.toml with your Strava API credentials")
+            ctx.log("  2. Edit .strava-backup/config.toml with your Strava API credentials")
             ctx.log("  3. Run: strava-backup auth")
             ctx.log("  4. Run: make sync")
 

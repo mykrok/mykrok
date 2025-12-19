@@ -34,8 +34,13 @@ class TestDataladDatasetCreation:
         dataset_path = tmp_path / "test-dataset"
         create_datalad_dataset(dataset_path)
 
+        # Check config directory and files
+        config_dir = dataset_path / ".strava-backup"
+        assert config_dir.exists()
+        assert config_dir.is_dir()
+
         # Check config file
-        config_file = dataset_path / ".strava-backup.toml"
+        config_file = config_dir / "config.toml"
         assert config_file.exists()
         config_content = config_file.read_text()
         assert "[strava]" in config_content
@@ -43,6 +48,11 @@ class TestDataladDatasetCreation:
         assert "client_secret" in config_content
         assert "[data]" in config_content
         assert "[sync]" in config_content
+
+        # Check .gitignore for oauth-tokens.toml
+        config_gitignore = config_dir / ".gitignore"
+        assert config_gitignore.exists()
+        assert "oauth-tokens.toml" in config_gitignore.read_text()
 
     def test_create_dataset_readme(self, tmp_path: Path) -> None:
         """Test that README.md is created with proper content."""
@@ -83,10 +93,10 @@ class TestDataladDatasetCreation:
         data_dir = dataset_path / "data"
         assert not data_dir.exists(), "data/ subdirectory should not be created"
 
-        # Config should reference current directory
-        config_file = dataset_path / ".strava-backup.toml"
+        # Config should reference parent directory (.strava-backup/config.toml -> ..)
+        config_file = dataset_path / ".strava-backup" / "config.toml"
         config_content = config_file.read_text()
-        assert 'directory = "."' in config_content
+        assert 'directory = ".."' in config_content
 
     def test_create_dataset_gitignore(self, tmp_path: Path) -> None:
         """Test that .gitignore is created/updated."""
@@ -137,7 +147,7 @@ class TestDataladDatasetCreation:
         dataset_path = tmp_path / "test-dataset"
         create_datalad_dataset(dataset_path)
 
-        config_file = dataset_path / ".strava-backup.toml"
+        config_file = dataset_path / ".strava-backup" / "config.toml"
         config_content = config_file.read_text()
 
         # Check for helpful comments
@@ -169,7 +179,7 @@ class TestDataladDatasetCreation:
         assert gitattributes.exists()
         content = gitattributes.read_text()
         # Should have rule to track config in git-annex
-        assert ".strava-backup.toml" in content
+        assert ".strava-backup/config.toml" in content
         assert "annex.largefiles" in content
 
     def test_create_dataset_config_is_annexed_unlocked(self, tmp_path: Path) -> None:
@@ -181,7 +191,7 @@ class TestDataladDatasetCreation:
         dataset_path = tmp_path / "test-dataset"
         create_datalad_dataset(dataset_path)
 
-        config_file = dataset_path / ".strava-backup.toml"
+        config_file = dataset_path / ".strava-backup" / "config.toml"
         assert config_file.exists()
 
         # Config should be a regular file (unlocked), not a symlink
@@ -191,7 +201,7 @@ class TestDataladDatasetCreation:
 
         # Verify it's tracked by git-annex using whereis
         result = subprocess.run(
-            ["git", "annex", "whereis", ".strava-backup.toml"],
+            ["git", "annex", "whereis", ".strava-backup/config.toml"],
             cwd=str(dataset_path),
             capture_output=True,
             text=True,

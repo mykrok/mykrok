@@ -96,7 +96,7 @@ class StravaClient:
 
         temp_client = Client()
         token_response = temp_client.refresh_access_token(
-            client_id=self.config.strava.client_id,
+            client_id=int(self.config.strava.client_id),
             client_secret=self.config.strava.client_secret,
             refresh_token=self.config.strava.refresh_token,
         )
@@ -191,7 +191,7 @@ class StravaClient:
             streams = self.client.get_activity_streams(
                 activity_id,
                 types=types,
-                resolution=resolution,
+                resolution=resolution,  # type: ignore[arg-type]
             )
         except Exception:
             # Activity may not have stream data
@@ -199,7 +199,7 @@ class StravaClient:
 
         result: dict[str, list[Any]] = {}
         for stream_type, stream in streams.items():
-            result[stream_type] = stream.data
+            result[stream_type] = list(stream.data) if stream.data else []
 
         return result
 
@@ -269,9 +269,10 @@ class StravaClient:
             kudos = self.client.get_activity_kudos(activity_id)
             return [
                 {
-                    "athlete_id": k.id,
-                    "firstname": k.firstname,
-                    "lastname": k.lastname,
+                    # Explicitly handle None/missing athlete_id for private/deleted users
+                    "athlete_id": getattr(k, "id", None),
+                    "firstname": getattr(k, "firstname", None),
+                    "lastname": getattr(k, "lastname", None),
                 }
                 for k in kudos
             ]
@@ -397,9 +398,9 @@ def authenticate(
     client = Client()
     redirect_uri = f"http://localhost:{port}/callback"
     auth_url = client.authorization_url(
-        client_id=cid,
+        client_id=int(cid),
         redirect_uri=redirect_uri,
-        scope=OAUTH_SCOPES,
+        scope=OAUTH_SCOPES,  # type: ignore[arg-type]
     )
 
     # Start callback server

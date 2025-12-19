@@ -62,8 +62,8 @@ def setup_logging(
     # Create log directory if it doesn't exist
     log_dir.mkdir(parents=True, exist_ok=True)
 
-    # File handler with timestamp-based filename
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    # File handler with timestamp-based filename (ISO 8601 basic format)
+    timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
     log_file = log_dir / f"strava-backup-{timestamp}.log"
 
     file_handler = logging.FileHandler(log_file, encoding="utf-8")

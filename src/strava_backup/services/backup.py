@@ -15,8 +15,6 @@ from typing import TYPE_CHECKING, Any
 import requests
 
 from strava_backup.config import Config, ensure_data_dir
-
-logger = logging.getLogger("strava_backup.backup")
 from strava_backup.lib.paths import (
     ensure_photos_dir,
     ensure_session_dir,
@@ -36,6 +34,8 @@ from strava_backup.services.strava import StravaClient
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+logger = logging.getLogger("strava_backup.backup")
 
 
 class BackupService:

@@ -19,8 +19,12 @@ else:
 
 
 DEFAULT_CONFIG_PATH = Path.home() / ".config" / "strava-backup" / "config.toml"
-LOCAL_CONFIG_PATH = Path(".strava-backup.toml")
-DEFAULT_DATA_DIR = Path("./data")
+LOCAL_CONFIG_DIR = Path(".strava-backup")
+LOCAL_CONFIG_PATH = LOCAL_CONFIG_DIR / "config.toml"
+LOCAL_TOKENS_PATH = LOCAL_CONFIG_DIR / "oauth-tokens.toml"
+# Legacy path for backward compatibility
+LEGACY_LOCAL_CONFIG_PATH = Path(".strava-backup.toml")
+DEFAULT_DATA_DIR = Path(".")
 
 
 @dataclass
@@ -90,9 +94,13 @@ def load_config(config_path: Path | None = None) -> Config:
     Configuration is loaded with the following precedence (highest to lowest):
     1. Environment variables
     2. Explicit config_path argument
-    3. Local .strava-backup.toml in current directory
-    4. Global ~/.config/strava-backup/config.toml
-    5. Default values
+    3. Local .strava-backup/config.toml in current directory
+    4. Legacy .strava-backup.toml in current directory (backward compatibility)
+    5. Global ~/.config/strava-backup/config.toml
+    6. Default values
+
+    OAuth tokens are loaded separately from .strava-backup/oauth-tokens.toml
+    if present, keeping sensitive tokens separate from config.
 
     Args:
         config_path: Path to configuration file. If None, searches default locations.
@@ -108,9 +116,12 @@ def load_config(config_path: Path | None = None) -> Config:
         env_config = _get_env_value("STRAVA_BACKUP_CONFIG")
         if env_config:
             config_path = Path(env_config)
-        # Then check local .strava-backup.toml
+        # Check new .strava-backup/config.toml
         elif LOCAL_CONFIG_PATH.exists():
             config_path = LOCAL_CONFIG_PATH
+        # Then check legacy .strava-backup.toml for backward compatibility
+        elif LEGACY_LOCAL_CONFIG_PATH.exists():
+            config_path = LEGACY_LOCAL_CONFIG_PATH
         # Finally fall back to global config
         else:
             config_path = DEFAULT_CONFIG_PATH
@@ -120,6 +131,16 @@ def load_config(config_path: Path | None = None) -> Config:
     # Load from file if exists
     if config_path.exists():
         config = _load_from_file(config_path, config)
+
+    # Load tokens from separate file if it exists
+    # Tokens file is in the same directory as the config file
+    if config_path.parent == LOCAL_CONFIG_DIR or config_path == LOCAL_CONFIG_PATH:
+        tokens_path = LOCAL_TOKENS_PATH
+    else:
+        tokens_path = config_path.parent / "oauth-tokens.toml"
+
+    if tokens_path.exists():
+        config = _load_tokens_from_file(tokens_path, config)
 
     # Override with environment variables
     config = _apply_env_overrides(config)
@@ -145,6 +166,7 @@ def _load_from_file(path: Path, config: Config) -> Config:
         strava = data["strava"]
         config.strava.client_id = strava.get("client_id", config.strava.client_id)
         config.strava.client_secret = strava.get("client_secret", config.strava.client_secret)
+        # Also load tokens from main config for backward compatibility
         config.strava.access_token = strava.get("access_token", config.strava.access_token)
         config.strava.refresh_token = strava.get("refresh_token", config.strava.refresh_token)
         config.strava.token_expires_at = strava.get(
@@ -174,6 +196,32 @@ def _load_from_file(path: Path, config: Config) -> Config:
         config.sync.photos = sync.get("photos", config.sync.photos)
         config.sync.streams = sync.get("streams", config.sync.streams)
         config.sync.comments = sync.get("comments", config.sync.comments)
+
+    return config
+
+
+def _load_tokens_from_file(path: Path, config: Config) -> Config:
+    """Load OAuth tokens from separate tokens file.
+
+    Args:
+        path: Path to tokens TOML file.
+        config: Existing config to update.
+
+    Returns:
+        Updated Config object.
+    """
+    with open(path, "rb") as f:
+        data = tomllib.load(f)
+
+    # Tokens override any tokens in main config
+    if "strava" in data:
+        strava = data["strava"]
+        if "access_token" in strava:
+            config.strava.access_token = strava["access_token"]
+        if "refresh_token" in strava:
+            config.strava.refresh_token = strava["refresh_token"]
+        if "token_expires_at" in strava:
+            config.strava.token_expires_at = strava["token_expires_at"]
 
     return config
 
@@ -209,9 +257,10 @@ def _apply_env_overrides(config: Config) -> Config:
 
 
 def save_tokens(config: Config, access_token: str, refresh_token: str, expires_at: int) -> None:
-    """Save OAuth tokens to configuration file.
+    """Save OAuth tokens to a separate tokens file.
 
-    Preserves comments and formatting in the existing config file.
+    Tokens are saved separately from the main config file so they can be
+    gitignored while the main config remains version-controlled.
 
     Args:
         config: Current configuration.
@@ -224,27 +273,36 @@ def save_tokens(config: Config, access_token: str, refresh_token: str, expires_a
     if config.config_path is None:
         config.config_path = DEFAULT_CONFIG_PATH
 
-    # Ensure config directory exists
-    config.config_path.parent.mkdir(parents=True, exist_ok=True)
+    # Determine tokens file path - same directory as config
+    if config.config_path.parent == LOCAL_CONFIG_DIR or config.config_path == LOCAL_CONFIG_PATH:
+        tokens_path = LOCAL_TOKENS_PATH
+    else:
+        tokens_path = config.config_path.parent / "oauth-tokens.toml"
 
-    # Load existing config preserving comments, or create new document
-    if config.config_path.exists():
-        with open(config.config_path) as f:
+    # Ensure directory exists
+    tokens_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Load existing tokens file or create new document
+    if tokens_path.exists():
+        with open(tokens_path) as f:
             doc = tomlkit.load(f)
     else:
         doc = tomlkit.document()
+        doc.add(tomlkit.comment("OAuth tokens for strava-backup"))
+        doc.add(tomlkit.comment("This file is auto-generated and should be gitignored"))
+        doc.add(tomlkit.nl())
 
     # Ensure strava section exists
     if "strava" not in doc:
         doc["strava"] = tomlkit.table()
 
-    # Update only the token fields, preserving everything else
-    doc["strava"]["access_token"] = access_token
-    doc["strava"]["refresh_token"] = refresh_token
-    doc["strava"]["token_expires_at"] = expires_at
+    # Update token fields (type: ignore for tomlkit's imprecise stubs)
+    doc["strava"]["access_token"] = access_token  # type: ignore[index]
+    doc["strava"]["refresh_token"] = refresh_token  # type: ignore[index]
+    doc["strava"]["token_expires_at"] = expires_at  # type: ignore[index]
 
-    # Write back preserving comments and formatting
-    with open(config.config_path, "w") as f:
+    # Write tokens file
+    with open(tokens_path, "w") as f:
         f.write(tomlkit.dumps(doc))
 
     # Update in-memory config

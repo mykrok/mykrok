@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -52,6 +53,42 @@ def _duration_to_seconds(duration: Any) -> int:
         return int(duration)
     except (TypeError, ValueError):
         return 0
+
+
+def _extract_enum_value(enum_value: Any) -> str:
+    """Extract string value from stravalib enum/pydantic model.
+
+    stravalib uses pydantic models for enums that stringify as "root='Value'"
+    instead of just "Value". This extracts the actual value.
+
+    Args:
+        enum_value: An enum-like value from stravalib (e.g., ActivityType).
+
+    Returns:
+        The string value (e.g., "Workout" instead of "root='Workout'").
+    """
+    if enum_value is None:
+        return ""
+
+    # If it has a root attribute (pydantic model), use that
+    if hasattr(enum_value, "root"):
+        return str(enum_value.root)
+
+    # If it's already a string, return as-is
+    if isinstance(enum_value, str):
+        return enum_value
+
+    # Fallback: convert to string
+    result = str(enum_value)
+
+    # Handle cases where str() gives "root='Value'" format
+    if result.startswith("root="):
+        # Extract value between quotes
+        match = re.search(r"root=['\"]([^'\"]+)['\"]", result)
+        if match:
+            return match.group(1)
+
+    return result
 
 
 @dataclass
@@ -107,12 +144,16 @@ class Activity:
         Returns:
             Activity instance.
         """
+        # stravalib uses pydantic models for enums; extract the actual value
+        activity_type = _extract_enum_value(strava_activity.type)
+        sport_type = _extract_enum_value(strava_activity.sport_type) or activity_type
+
         return cls(
             id=strava_activity.id,
             name=strava_activity.name or "Untitled",
             description=strava_activity.description,
-            type=str(strava_activity.type),
-            sport_type=str(strava_activity.sport_type) if strava_activity.sport_type else str(strava_activity.type),
+            type=activity_type,
+            sport_type=sport_type,
             start_date=strava_activity.start_date,
             start_date_local=strava_activity.start_date_local,
             timezone=str(strava_activity.timezone),
@@ -199,13 +240,21 @@ class Activity:
             Activity instance.
         """
         # Parse datetime strings
-        start_date = data.get("start_date")
-        if isinstance(start_date, str):
-            start_date = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
+        start_date_raw = data.get("start_date")
+        if isinstance(start_date_raw, str):
+            start_date = datetime.fromisoformat(start_date_raw.replace("Z", "+00:00"))
+        elif isinstance(start_date_raw, datetime):
+            start_date = start_date_raw
+        else:
+            start_date = datetime.now()  # Fallback
 
-        start_date_local = data.get("start_date_local")
-        if isinstance(start_date_local, str):
-            start_date_local = datetime.fromisoformat(start_date_local)
+        start_date_local_raw = data.get("start_date_local")
+        if isinstance(start_date_local_raw, str):
+            start_date_local = datetime.fromisoformat(start_date_local_raw)
+        elif isinstance(start_date_local_raw, datetime):
+            start_date_local = start_date_local_raw
+        else:
+            start_date_local = start_date  # Fallback to start_date
 
         return cls(
             id=data["id"],
@@ -347,7 +396,7 @@ SESSIONS_TSV_COLUMNS = [
     "kudos_count",
     "comment_count",
     "has_gps",
-    "has_photos",
+    "photos_path",  # Path to photos folder if photos exist, empty otherwise
     "photo_count",
 ]
 
@@ -379,8 +428,12 @@ def update_sessions_tsv(data_dir: Path, username: str) -> Path:
         writer.writeheader()
 
         for activity in activities:
+            # Build photos_path: ses={datetime}/photos/ if photos exist, empty otherwise
+            session_key = activity.start_date.strftime("%Y%m%dT%H%M%S")
+            photos_path = f"ses={session_key}/photos/" if activity.has_photos else ""
+
             writer.writerow({
-                "datetime": activity.start_date.strftime("%Y%m%dT%H%M%S"),
+                "datetime": session_key,
                 "type": activity.type,
                 "sport": activity.sport_type,
                 "name": activity.name,
@@ -397,7 +450,7 @@ def update_sessions_tsv(data_dir: Path, username: str) -> Path:
                 "kudos_count": activity.kudos_count,
                 "comment_count": activity.comment_count,
                 "has_gps": "true" if activity.has_gps else "false",
-                "has_photos": "true" if activity.has_photos else "false",
+                "photos_path": photos_path,
                 "photo_count": activity.photo_count,
             })
 
@@ -438,7 +491,10 @@ def read_sessions_tsv(data_dir: Path, username: str) -> list[dict[str, Any]]:
             session["kudos_count"] = int(row["kudos_count"]) if row["kudos_count"] else 0
             session["comment_count"] = int(row["comment_count"]) if row["comment_count"] else 0
             session["has_gps"] = row["has_gps"].lower() == "true"
-            session["has_photos"] = row["has_photos"].lower() == "true"
+            # photos_path is non-empty if photos exist
+            photos_path = row.get("photos_path", "")
+            session["photos_path"] = photos_path
+            session["has_photos"] = bool(photos_path)
             session["photo_count"] = int(row["photo_count"]) if row["photo_count"] else 0
             sessions.append(session)
 

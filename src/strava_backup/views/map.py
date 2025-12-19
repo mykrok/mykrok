@@ -105,7 +105,7 @@ def _generate_routes_html(routes: list[dict[str, Any]]) -> str:
         all_coords.extend(route["coords"])
 
     if not all_coords:
-        center = [0, 0]
+        center: list[float] = [0.0, 0.0]
         zoom = 2
     else:
         lats = [c[0] for c in all_coords]
@@ -255,7 +255,7 @@ def _generate_heatmap_html(points: list[tuple[float, float]]) -> str:
         HTML content.
     """
     if not points:
-        center = [0, 0]
+        center: list[float] = [0.0, 0.0]
         zoom = 2
     else:
         lats = [p[0] for p in points]
