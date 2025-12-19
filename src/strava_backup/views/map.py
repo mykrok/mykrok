@@ -9,7 +9,6 @@ from __future__ import annotations
 import http.server
 import json
 import socketserver
-import webbrowser
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -72,8 +71,16 @@ def _collect_geotagged_photos(
             photos_dir = get_photos_dir(session_dir)
 
             for photo in activity.photos:
-                location = photo.get("location")
-                if not location or len(location) < 2:
+                location_raw = photo.get("location")
+                if not location_raw or len(location_raw) == 0:
+                    continue
+
+                # Extract coordinates from nested structure: [["root", [lat, lng]]]
+                try:
+                    location = location_raw[0][1]
+                    if not location or len(location) < 2:
+                        continue
+                except (IndexError, TypeError):
                     continue
 
                 # Get photo file path (for local serving)
@@ -763,7 +770,6 @@ def serve_map(
     html_path: Path,
     port: int = 8080,
     host: str = "127.0.0.1",
-    open_browser: bool = True,
 ) -> None:
     """Start a local HTTP server to serve the map.
 
@@ -771,7 +777,6 @@ def serve_map(
         html_path: Path to the HTML file.
         port: Server port.
         host: Server host.
-        open_browser: Open browser automatically.
     """
     # Change to directory containing the HTML file
     directory = html_path.parent
@@ -783,13 +788,13 @@ def serve_map(
         def log_message(self, format: str, *args: object) -> None:
             pass  # Suppress logging
 
+    # Allow port reuse to avoid "Address already in use" errors
+    socketserver.TCPServer.allow_reuse_address = True
+
     with socketserver.TCPServer((host, port), Handler) as httpd:
         url = f"http://{host}:{port}/{html_path.name}"
         print(f"Serving at {url}")
         print("Press Ctrl+C to stop")
-
-        if open_browser:
-            webbrowser.open(url)
 
         try:
             httpd.serve_forever()

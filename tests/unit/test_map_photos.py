@@ -35,13 +35,13 @@ class TestCollectGeotaggedPhotos:
                 {
                     "unique_id": "photo1",
                     "created_at": "2025-01-15T08:15:00Z",
-                    "location": [40.7128, -74.0060],  # NYC
+                    "location": [["root", [40.7128, -74.0060]]],  # NYC
                     "urls": {"256": "http://example.com/photo1_256.jpg", "600": "http://example.com/photo1_600.jpg"},
                 },
                 {
                     "unique_id": "photo2",
                     "created_at": "2025-01-15T08:30:00Z",
-                    "location": [40.7580, -73.9855],  # Times Square
+                    "location": [["root", [40.7580, -73.9855]]],  # Times Square
                     "urls": {"256": "http://example.com/photo2_256.jpg"},
                 },
             ],
@@ -105,7 +105,7 @@ class TestCollectGeotaggedPhotos:
             moving_time=1800,
             elapsed_time=1900,
             has_photos=True,
-            photos=[{"unique_id": "p1", "location": [40.0, -74.0], "urls": {"256": "http://a.com/1.jpg"}}],
+            photos=[{"unique_id": "p1", "location": [["root", [40.0, -74.0]]], "urls": {"256": "http://a.com/1.jpg"}}],
         )
 
         # Activity 2: March
@@ -121,7 +121,7 @@ class TestCollectGeotaggedPhotos:
             moving_time=1800,
             elapsed_time=1900,
             has_photos=True,
-            photos=[{"unique_id": "p2", "location": [41.0, -73.0], "urls": {"256": "http://a.com/2.jpg"}}],
+            photos=[{"unique_id": "p2", "location": [["root", [41.0, -73.0]]], "urls": {"256": "http://a.com/2.jpg"}}],
         )
 
         save_activity(temp_data_dir, "testuser", activity1)
@@ -152,7 +152,7 @@ class TestGenerateMapWithPhotos:
             moving_time=1200,
             elapsed_time=1200,
             has_photos=True,
-            photos=[{"unique_id": "px", "location": [42.0, -71.0], "urls": {"256": "http://x.com/x.jpg"}}],
+            photos=[{"unique_id": "px", "location": [["root", [42.0, -71.0]]], "urls": {"256": "http://x.com/x.jpg"}}],
         )
 
         save_activity(temp_data_dir, "testuser", activity)
@@ -180,7 +180,7 @@ class TestGenerateMapWithPhotos:
             moving_time=1200,
             elapsed_time=1200,
             has_photos=True,
-            photos=[{"unique_id": "py", "location": [43.0, -70.0], "urls": {"256": "http://y.com/y.jpg"}}],
+            photos=[{"unique_id": "py", "location": [["root", [43.0, -70.0]]], "urls": {"256": "http://y.com/y.jpg"}}],
         )
 
         save_activity(temp_data_dir, "testuser", activity)
