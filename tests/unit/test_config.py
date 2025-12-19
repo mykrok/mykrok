@@ -56,3 +56,24 @@ photos = false
             assert config.strava.client_id == "file_id"
             assert config.sync.photos is False
             assert str(config.data.directory) == "/custom/path"
+
+    def test_load_config_from_local_file(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """Test loading configuration from local .strava-backup.toml file."""
+        # Create local config file
+        local_config = tmp_path / ".strava-backup.toml"
+        local_config.write_text("""
+[strava]
+client_id = "local_id"
+client_secret = "local_secret"
+        """)
+
+        # Change to temp directory and test
+        monkeypatch.chdir(tmp_path)
+
+        config = load_config()
+
+        assert config.strava.client_id == "local_id"
+        assert config.strava.client_secret == "local_secret"
+        # Config path should be the local file (relative path)
+        assert config.config_path is not None
+        assert config.config_path.name == ".strava-backup.toml"

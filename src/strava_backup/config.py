@@ -19,6 +19,7 @@ else:
 
 
 DEFAULT_CONFIG_PATH = Path.home() / ".config" / "strava-backup" / "config.toml"
+LOCAL_CONFIG_PATH = Path(".strava-backup.toml")
 DEFAULT_DATA_DIR = Path("./data")
 
 
@@ -88,21 +89,31 @@ def load_config(config_path: Path | None = None) -> Config:
 
     Configuration is loaded with the following precedence (highest to lowest):
     1. Environment variables
-    2. Configuration file
-    3. Default values
+    2. Explicit config_path argument
+    3. Local .strava-backup.toml in current directory
+    4. Global ~/.config/strava-backup/config.toml
+    5. Default values
 
     Args:
-        config_path: Path to configuration file. If None, uses default location.
+        config_path: Path to configuration file. If None, searches default locations.
 
     Returns:
         Populated Config object.
     """
     config = Config()
 
-    # Determine config path
+    # Determine config path with precedence
     if config_path is None:
+        # Check environment variable first
         env_config = _get_env_value("STRAVA_BACKUP_CONFIG")
-        config_path = Path(env_config) if env_config else DEFAULT_CONFIG_PATH
+        if env_config:
+            config_path = Path(env_config)
+        # Then check local .strava-backup.toml
+        elif LOCAL_CONFIG_PATH.exists():
+            config_path = LOCAL_CONFIG_PATH
+        # Finally fall back to global config
+        else:
+            config_path = DEFAULT_CONFIG_PATH
 
     config.config_path = config_path
 
