@@ -1,0 +1,135 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "strava-backup"
+version = "0.1.0"
+description = "CLI tool to backup Strava activities with incremental sync, map visualization, and FitTrackee export"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+keywords = ["strava", "backup", "fitness", "gpx", "fittrackee"]
+authors = [
+    { name = "strava-backup contributors" }
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: System :: Archiving :: Backup",
+]
+dependencies = [
+    "stravalib>=2.0",
+    "pyarrow>=14.0",
+    "requests>=2.28",
+    "duckdb>=0.9",
+    "click>=8.0",
+    "tomli>=2.0; python_version < '3.11'",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-timeout>=2.0",
+    "pytest-docker>=2.0",
+    "responses>=0.23",
+]
+devel = [
+    "strava-backup[test]",
+    "ruff>=0.1.0",
+    "mypy>=1.0",
+    "types-requests",
+    "tox>=4.0",
+    "tox-uv>=1.0",
+]
+ci = [
+    "strava-backup[devel]",
+    "tox-gh-actions>=3.0",
+]
+
+[project.scripts]
+strava-backup = "strava_backup.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/strava-backup"
+Documentation = "https://github.com/yourusername/strava-backup#readme"
+Repository = "https://github.com/yourusername/strava-backup"
+Issues = "https://github.com/yourusername/strava-backup/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/strava_backup"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ARG",    # flake8-unused-arguments
+    "SIM",    # flake8-simplify
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "B008",   # do not perform function calls in argument defaults
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["strava_backup"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "stravalib.*",
+    "pyarrow.*",
+    "duckdb.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+markers = [
+    "ai_generated: marks tests as AI-generated",
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
+
+[tool.coverage.run]
+source = ["src/strava_backup"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]

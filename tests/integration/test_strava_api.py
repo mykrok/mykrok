@@ -1,0 +1,346 @@
+"""Integration tests for Strava API (mocked)."""
+
+from __future__ import annotations
+
+import json
+import tempfile
+from datetime import datetime, timedelta
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
+import responses
+
+from strava_backup.config import Config, StravaConfig, DataConfig, SyncConfig
+from strava_backup.models.activity import Activity, load_activity
+from strava_backup.lib.paths import get_session_dir
+
+
+@pytest.fixture
+def mock_config(tmp_path: Path) -> Config:
+    """Create a mock configuration for testing."""
+    return Config(
+        strava=StravaConfig(
+            client_id="test_client_id",
+            client_secret="test_client_secret",
+            access_token="test_access_token",
+            refresh_token="test_refresh_token",
+            token_expires_at=int((datetime.now() + timedelta(hours=1)).timestamp()),
+        ),
+        data=DataConfig(directory=tmp_path / "data"),
+        sync=SyncConfig(photos=True, streams=True, comments=True),
+    )
+
+
+@pytest.fixture
+def sample_strava_activity() -> dict:
+    """Sample activity response from Strava API."""
+    return {
+        "id": 12345678901,
+        "name": "Morning Run",
+        "description": "Easy recovery run",
+        "type": "Run",
+        "sport_type": "Run",
+        "start_date": datetime(2025, 12, 18, 6, 30, 0),
+        "start_date_local": datetime(2025, 12, 18, 7, 30, 0),
+        "timezone": "(GMT+01:00) Europe/Berlin",
+        "distance": 5234.5,
+        "moving_time": 1800,
+        "elapsed_time": 1850,
+        "total_elevation_gain": 45.2,
+        "calories": 350,
+        "average_speed": 2.91,
+        "max_speed": 3.85,
+        "average_heartrate": 142.5,
+        "max_heartrate": 165,
+        "average_cadence": 85.0,
+        "gear_id": "g12345",
+        "device_name": "Garmin Forerunner 265",
+        "trainer": False,
+        "commute": False,
+        "private": False,
+        "kudos_count": 5,
+        "comment_count": 2,
+        "athlete_count": 1,
+        "start_latlng": [40.7128, -74.0060],
+    }
+
+
+@pytest.fixture
+def sample_strava_streams() -> dict:
+    """Sample stream response from Strava API."""
+    return {
+        "time": {"data": [0, 1, 2, 3, 4, 5], "series_type": "time", "resolution": "high"},
+        "latlng": {
+            "data": [
+                [40.7128, -74.0060],
+                [40.7129, -74.0059],
+                [40.7130, -74.0058],
+                [40.7131, -74.0057],
+                [40.7132, -74.0056],
+                [40.7133, -74.0055],
+            ],
+            "series_type": "latlng",
+            "resolution": "high",
+        },
+        "altitude": {"data": [10.0, 10.2, 10.5, 10.8, 11.0, 11.2], "series_type": "altitude"},
+        "heartrate": {"data": [135, 138, 140, 142, 145, 148], "series_type": "heartrate"},
+        "distance": {"data": [0, 10, 20, 30, 40, 50], "series_type": "distance"},
+    }
+
+
+@pytest.mark.ai_generated
+@pytest.mark.integration
+class TestStravaClientMocked:
+    """Integration tests for Strava API client with mocked responses."""
+
+    def test_get_athlete(self, mock_config: Config) -> None:
+        """Test fetching athlete profile."""
+        from strava_backup.services.strava import StravaClient
+
+        mock_athlete = MagicMock()
+        mock_athlete.id = 12345
+        mock_athlete.username = "testathlete"
+        mock_athlete.firstname = "Test"
+        mock_athlete.lastname = "Athlete"
+        mock_athlete.profile = "https://example.com/profile.jpg"
+        mock_athlete.city = "Berlin"
+        mock_athlete.country = "Germany"
+        mock_athlete.bikes = []
+        mock_athlete.shoes = []
+
+        with patch("strava_backup.services.strava.Client") as MockClient:
+            mock_client_instance = MagicMock()
+            mock_client_instance.get_athlete.return_value = mock_athlete
+            MockClient.return_value = mock_client_instance
+
+            client = StravaClient(mock_config)
+            client._client = mock_client_instance
+
+            athlete = client.get_athlete()
+
+            assert athlete.id == 12345
+            assert athlete.username == "testathlete"
+
+    def test_get_activities(self, mock_config: Config, sample_strava_activity: dict) -> None:
+        """Test fetching activities list."""
+        from strava_backup.services.strava import StravaClient
+
+        mock_activity = MagicMock()
+        for key, value in sample_strava_activity.items():
+            setattr(mock_activity, key, value)
+
+        with patch("strava_backup.services.strava.Client") as MockClient:
+            mock_client_instance = MagicMock()
+            mock_client_instance.get_activities.return_value = iter([mock_activity])
+            MockClient.return_value = mock_client_instance
+
+            client = StravaClient(mock_config)
+            client._client = mock_client_instance
+
+            activities = list(client.get_activities(limit=10))
+
+            assert len(activities) == 1
+            assert activities[0].id == 12345678901
+            assert activities[0].name == "Morning Run"
+
+    def test_get_activity_streams(
+        self, mock_config: Config, sample_strava_streams: dict
+    ) -> None:
+        """Test fetching activity streams."""
+        from strava_backup.services.strava import StravaClient
+
+        # Create mock stream objects
+        mock_streams = {}
+        for stream_type, stream_data in sample_strava_streams.items():
+            mock_stream = MagicMock()
+            mock_stream.data = stream_data["data"]
+            mock_streams[stream_type] = mock_stream
+
+        with patch("strava_backup.services.strava.Client") as MockClient:
+            mock_client_instance = MagicMock()
+            mock_client_instance.get_activity_streams.return_value = mock_streams
+            MockClient.return_value = mock_client_instance
+
+            client = StravaClient(mock_config)
+            client._client = mock_client_instance
+
+            streams = client.get_activity_streams(12345678901)
+
+            assert "time" in streams
+            assert "latlng" in streams
+            assert "heartrate" in streams
+            assert len(streams["time"]) == 6
+
+    def test_get_activity_comments(self, mock_config: Config) -> None:
+        """Test fetching activity comments."""
+        from strava_backup.services.strava import StravaClient
+
+        mock_comment = MagicMock()
+        mock_comment.id = 1001
+        mock_comment.text = "Great run!"
+        mock_comment.created_at = datetime(2025, 12, 18, 8, 0, 0)
+        mock_comment.athlete = MagicMock()
+        mock_comment.athlete.id = 54321
+        mock_comment.athlete.firstname = "Jane"
+        mock_comment.athlete.lastname = "Doe"
+
+        with patch("strava_backup.services.strava.Client") as MockClient:
+            mock_client_instance = MagicMock()
+            mock_client_instance.get_activity_comments.return_value = [mock_comment]
+            MockClient.return_value = mock_client_instance
+
+            client = StravaClient(mock_config)
+            client._client = mock_client_instance
+
+            comments = client.get_activity_comments(12345678901)
+
+            assert len(comments) == 1
+            assert comments[0]["text"] == "Great run!"
+            assert comments[0]["athlete_firstname"] == "Jane"
+
+    def test_get_activity_kudos(self, mock_config: Config) -> None:
+        """Test fetching activity kudos."""
+        from strava_backup.services.strava import StravaClient
+
+        mock_kudo = MagicMock()
+        mock_kudo.id = 54321
+        mock_kudo.firstname = "John"
+        mock_kudo.lastname = "Smith"
+
+        with patch("strava_backup.services.strava.Client") as MockClient:
+            mock_client_instance = MagicMock()
+            mock_client_instance.get_activity_kudos.return_value = [mock_kudo]
+            MockClient.return_value = mock_client_instance
+
+            client = StravaClient(mock_config)
+            client._client = mock_client_instance
+
+            kudos = client.get_activity_kudos(12345678901)
+
+            assert len(kudos) == 1
+            assert kudos[0]["firstname"] == "John"
+
+
+@pytest.mark.ai_generated
+@pytest.mark.integration
+class TestBackupServiceMocked:
+    """Integration tests for backup service with mocked Strava client."""
+
+    def test_sync_creates_activity_files(
+        self,
+        mock_config: Config,
+        sample_strava_activity: dict,
+        sample_strava_streams: dict,
+    ) -> None:
+        """Test that sync creates proper activity files."""
+        from strava_backup.services.backup import BackupService
+
+        # Create mock athlete
+        mock_athlete = MagicMock()
+        mock_athlete.id = 12345
+        mock_athlete.username = "testathlete"
+        mock_athlete.firstname = "Test"
+        mock_athlete.lastname = "Athlete"
+        mock_athlete.profile = None
+        mock_athlete.city = None
+        mock_athlete.country = None
+        mock_athlete.bikes = []
+        mock_athlete.shoes = []
+
+        # Create mock activity
+        mock_activity = MagicMock()
+        for key, value in sample_strava_activity.items():
+            setattr(mock_activity, key, value)
+        # Add timedelta objects for time fields
+        mock_activity.moving_time = timedelta(seconds=1800)
+        mock_activity.elapsed_time = timedelta(seconds=1850)
+
+        # Create mock streams
+        mock_streams = {}
+        for stream_type, stream_data in sample_strava_streams.items():
+            mock_stream = MagicMock()
+            mock_stream.data = stream_data["data"]
+            mock_streams[stream_type] = mock_stream
+
+        with patch("strava_backup.services.backup.StravaClient") as MockStravaClient:
+            mock_strava = MagicMock()
+            mock_strava.get_athlete.return_value = mock_athlete
+            mock_strava.get_activities.return_value = iter([mock_activity])
+            mock_strava.get_activity.return_value = mock_activity
+            mock_strava.get_activity_streams.return_value = {
+                k: v["data"] for k, v in sample_strava_streams.items()
+            }
+            mock_strava.get_activity_photos.return_value = []
+            mock_strava.get_activity_comments.return_value = []
+            mock_strava.get_activity_kudos.return_value = []
+            mock_strava.get_athlete_gear.return_value = []
+            MockStravaClient.return_value = mock_strava
+
+            service = BackupService(mock_config)
+            service.strava = mock_strava
+
+            result = service.sync(limit=1)
+
+            assert result["activities_synced"] == 1
+            assert result["activities_new"] == 1
+            assert result["athlete"] == "testathlete"
+
+            # Verify files were created
+            data_dir = mock_config.data.directory
+            athlete_dir = data_dir / "sub=testathlete"
+            assert athlete_dir.exists()
+
+            # Check for sessions.tsv
+            sessions_file = athlete_dir / "sessions.tsv"
+            assert sessions_file.exists()
+
+    def test_sync_dry_run_no_files(
+        self,
+        mock_config: Config,
+        sample_strava_activity: dict,
+    ) -> None:
+        """Test that dry run doesn't create files."""
+        from strava_backup.services.backup import BackupService
+
+        # Create mock athlete
+        mock_athlete = MagicMock()
+        mock_athlete.id = 12345
+        mock_athlete.username = "testathlete"
+        mock_athlete.firstname = "Test"
+        mock_athlete.lastname = "Athlete"
+        mock_athlete.profile = None
+        mock_athlete.city = None
+        mock_athlete.country = None
+        mock_athlete.bikes = []
+        mock_athlete.shoes = []
+
+        # Create mock activity
+        mock_activity = MagicMock()
+        for key, value in sample_strava_activity.items():
+            setattr(mock_activity, key, value)
+        mock_activity.moving_time = timedelta(seconds=1800)
+        mock_activity.elapsed_time = timedelta(seconds=1850)
+
+        with patch("strava_backup.services.backup.StravaClient") as MockStravaClient:
+            mock_strava = MagicMock()
+            mock_strava.get_athlete.return_value = mock_athlete
+            mock_strava.get_activities.return_value = iter([mock_activity])
+            mock_strava.get_activity.return_value = mock_activity
+            mock_strava.get_athlete_gear.return_value = []
+            MockStravaClient.return_value = mock_strava
+
+            service = BackupService(mock_config)
+            service.strava = mock_strava
+
+            result = service.sync(limit=1, dry_run=True)
+
+            # In dry_run, activities_synced counts processed activities
+            assert result["activities_synced"] >= 0
+
+            # Verify no session directories were created
+            data_dir = mock_config.data.directory
+            athlete_dir = data_dir / "sub=testathlete"
+            # Athlete dir shouldn't have session subdirectories
+            session_dirs = list(athlete_dir.glob("ses=*")) if athlete_dir.exists() else []
+            assert len(session_dirs) == 0

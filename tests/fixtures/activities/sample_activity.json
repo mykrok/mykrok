@@ -1,0 +1,61 @@
+{
+  "id": 12345678901,
+  "name": "Morning Run",
+  "description": "Easy recovery run in the park",
+  "type": "Run",
+  "sport_type": "Run",
+  "start_date": "2025-12-18T06:30:00Z",
+  "start_date_local": "2025-12-18T07:30:00",
+  "timezone": "(GMT+01:00) Europe/Berlin",
+  "distance": 5234.5,
+  "moving_time": 1800,
+  "elapsed_time": 1850,
+  "total_elevation_gain": 45.2,
+  "calories": 350,
+  "average_speed": 2.91,
+  "max_speed": 3.85,
+  "average_heartrate": 142.5,
+  "max_heartrate": 165,
+  "average_watts": null,
+  "max_watts": null,
+  "average_cadence": 85.0,
+  "gear_id": "g12345",
+  "device_name": "Garmin Forerunner 265",
+  "trainer": false,
+  "commute": false,
+  "private": false,
+  "kudos_count": 5,
+  "comment_count": 2,
+  "athlete_count": 1,
+  "achievement_count": 3,
+  "pr_count": 1,
+  "has_gps": true,
+  "has_photos": true,
+  "photo_count": 2,
+  "comments": [
+    {
+      "id": 1001,
+      "text": "Great run!",
+      "created_at": "2025-12-18T08:00:00Z",
+      "athlete_id": 54321,
+      "athlete_firstname": "Jane",
+      "athlete_lastname": "Doe"
+    }
+  ],
+  "kudos": [
+    {"athlete_id": 54321, "firstname": "Jane", "lastname": "Doe"},
+    {"athlete_id": 54322, "firstname": "John", "lastname": "Smith"}
+  ],
+  "laps": [
+    {
+      "id": 1,
+      "name": "Lap 1",
+      "elapsed_time": 600,
+      "moving_time": 595,
+      "distance": 1745.5,
+      "average_speed": 2.93,
+      "average_heartrate": 138.0
+    }
+  ],
+  "segment_efforts": []
+}
