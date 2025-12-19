@@ -6,6 +6,7 @@ with reproducible sync operations using `datalad run`.
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -159,10 +160,11 @@ datalad get data/  # Download all data files
 
 ## Data Safety
 
-- Text files (JSON, TSV, config) are tracked directly in git
+- Text files (JSON, TSV) are tracked directly in git
 - Binary files (photos, Parquet) are tracked by git-annex
-- Your credentials in `.strava-backup.toml` are in `.gitignore`
-  (but access/refresh tokens are saved there after auth)
+- **`.strava-backup.toml` is tracked by git-annex** (not plain git) because it
+  contains OAuth tokens after authentication
+- The config file has git-annex metadata `distribution-restrictions=sensitive`
 
 **Important**: Consider keeping this dataset private if it contains your
 actual Strava data, as it may include personal location information.
@@ -230,8 +232,8 @@ help:
 # Template for .gitignore additions
 GITIGNORE_TEMPLATE = """\
 # Strava Backup
-# Don't commit credentials (tokens are saved in config after auth)
-# Note: .strava-backup.toml contains tokens after auth - be careful!
+# Note: .strava-backup.toml is tracked by git-annex (not git) for security
+# It contains OAuth tokens after authentication
 
 # Temporary files
 *.pyc
@@ -241,6 +243,13 @@ __pycache__/
 # Generated files that shouldn't be tracked
 *.html
 !README.html
+"""
+
+# Template for .gitattributes - forces config file to git-annex
+GITATTRIBUTES_TEMPLATE = """\
+# Force .strava-backup.toml to be tracked by git-annex (contains sensitive tokens)
+# This ensures credentials are not stored in plain git history
+.strava-backup.toml annex.largefiles=anything
 """
 
 
@@ -288,9 +297,24 @@ def create_datalad_dataset(
     readme_path = path / "README.md"
     makefile_path = path / "Makefile"
     gitignore_path = path / ".gitignore"
+    gitattributes_path = path / ".gitattributes"
     data_dir = path / "data"
 
-    # Write config template
+    # Write .gitattributes FIRST to ensure config file goes to git-annex
+    # This must be committed before the config file is added
+    existing_gitattributes = gitattributes_path.read_text() if gitattributes_path.exists() else ""
+    gitattributes_path.write_text(existing_gitattributes + "\n" + GITATTRIBUTES_TEMPLATE)
+
+    # Commit .gitattributes first so the rules are in effect
+    try:
+        dataset.save(
+            path=[str(gitattributes_path)],
+            message="Configure git-annex to track sensitive config file",
+        )
+    except Exception as e:
+        raise RuntimeError(f"Failed to save .gitattributes: {e}") from e
+
+    # Write config template (will now be tracked by git-annex due to .gitattributes)
     config_path.write_text(CONFIG_TEMPLATE)
 
     # Write README
@@ -315,6 +339,26 @@ def create_datalad_dataset(
         )
     except Exception as e:
         raise RuntimeError(f"Failed to save dataset: {e}") from e
+
+    # Add git-annex metadata to mark config file as sensitive
+    # This helps tools understand this file contains private data
+    try:
+        subprocess.run(
+            [
+                "git", "annex", "metadata",
+                "-s", "distribution-restrictions=sensitive",
+                ".strava-backup.toml",
+            ],
+            cwd=str(path),
+            check=True,
+            capture_output=True,
+        )
+    except subprocess.CalledProcessError:
+        # Metadata setting is best-effort; don't fail if it doesn't work
+        pass
+    except FileNotFoundError:
+        # git-annex not available; skip metadata
+        pass
 
     return {
         "path": str(path),

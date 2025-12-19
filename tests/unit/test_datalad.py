@@ -152,3 +152,29 @@ class TestDataladDatasetCreation:
         makefile_content = makefile.read_text()
 
         assert "help:" in makefile_content or ".PHONY:" in makefile_content
+
+    def test_create_dataset_gitattributes(self, tmp_path: Path) -> None:
+        """Test that .gitattributes is created with annex rules."""
+        from strava_backup.services.datalad import create_datalad_dataset
+
+        dataset_path = tmp_path / "test-dataset"
+        create_datalad_dataset(dataset_path)
+
+        gitattributes = dataset_path / ".gitattributes"
+        assert gitattributes.exists()
+        content = gitattributes.read_text()
+        # Should have rule to track config in git-annex
+        assert ".strava-backup.toml" in content
+        assert "annex.largefiles" in content
+
+    def test_create_dataset_config_is_annexed(self, tmp_path: Path) -> None:
+        """Test that config file is tracked by git-annex (symlink)."""
+        from strava_backup.services.datalad import create_datalad_dataset
+
+        dataset_path = tmp_path / "test-dataset"
+        create_datalad_dataset(dataset_path)
+
+        config_file = dataset_path / ".strava-backup.toml"
+        assert config_file.exists()
+        # Config should be a symlink to .git/annex (git-annex tracks it)
+        assert config_file.is_symlink(), "Config file should be tracked by git-annex (symlink)"
