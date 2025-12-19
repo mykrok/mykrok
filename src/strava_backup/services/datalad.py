@@ -314,7 +314,28 @@ def create_datalad_dataset(
     except Exception as e:
         raise RuntimeError(f"Failed to save .gitattributes: {e}") from e
 
+    # Configure git-annex to add the config file unlocked (regular file, not symlink)
+    # This makes it easier to edit the config file directly
+    try:
+        subprocess.run(
+            [
+                "git", "annex", "config",
+                "--set", "annex.addunlocked",
+                "include=.strava-backup.toml",
+            ],
+            cwd=str(path),
+            check=True,
+            capture_output=True,
+        )
+    except subprocess.CalledProcessError:
+        # Config setting is best-effort; don't fail if it doesn't work
+        pass
+    except FileNotFoundError:
+        # git-annex not available; skip
+        pass
+
     # Write config template (will now be tracked by git-annex due to .gitattributes)
+    # The file will be added unlocked due to annex.addunlocked config
     config_path.write_text(CONFIG_TEMPLATE)
 
     # Write README

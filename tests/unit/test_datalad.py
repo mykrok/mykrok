@@ -167,8 +167,10 @@ class TestDataladDatasetCreation:
         assert ".strava-backup.toml" in content
         assert "annex.largefiles" in content
 
-    def test_create_dataset_config_is_annexed(self, tmp_path: Path) -> None:
-        """Test that config file is tracked by git-annex (symlink)."""
+    def test_create_dataset_config_is_annexed_unlocked(self, tmp_path: Path) -> None:
+        """Test that config file is tracked by git-annex but unlocked (regular file)."""
+        import subprocess
+
         from strava_backup.services.datalad import create_datalad_dataset
 
         dataset_path = tmp_path / "test-dataset"
@@ -176,5 +178,18 @@ class TestDataladDatasetCreation:
 
         config_file = dataset_path / ".strava-backup.toml"
         assert config_file.exists()
-        # Config should be a symlink to .git/annex (git-annex tracks it)
-        assert config_file.is_symlink(), "Config file should be tracked by git-annex (symlink)"
+
+        # Config should be a regular file (unlocked), not a symlink
+        # This makes it easier to edit
+        assert not config_file.is_symlink(), "Config file should be unlocked (not a symlink)"
+        assert config_file.is_file(), "Config file should be a regular file"
+
+        # Verify it's tracked by git-annex using whereis
+        result = subprocess.run(
+            ["git", "annex", "whereis", ".strava-backup.toml"],
+            cwd=str(dataset_path),
+            capture_output=True,
+            text=True,
+        )
+        # whereis should succeed (exit 0) if file is tracked by annex
+        assert result.returncode == 0, "Config should be tracked by git-annex"

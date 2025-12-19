@@ -192,6 +192,7 @@
 - [X] T081 [US7] Create template for Makefile with `datalad run` sync target
 - [X] T082 [US7] Implement `strava-backup create-datalad-dataset` command in src/strava_backup/cli.py
 - [X] T083 [US7] [P] Create unit tests for DataLad dataset creation in tests/unit/test_datalad.py
+- [X] T084 [US7] Configure git-annex to add config file unlocked (annex.addunlocked) for easy editing
 
 **Checkpoint**: User Story 7 complete - can create reproducible DataLad datasets for backups
 
