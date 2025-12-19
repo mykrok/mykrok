@@ -6,12 +6,17 @@ and rate limiting for Strava API operations.
 
 from __future__ import annotations
 
+import os
 import time
 import webbrowser
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qs, urlparse
+
+# Silence stravalib warnings about environment variables
+# We read credentials from config file, not environment
+os.environ.setdefault("SILENCE_TOKEN_WARNINGS", "true")
 
 from stravalib import Client
 from stravalib.util.limiter import DefaultRateLimiter
@@ -403,8 +408,12 @@ def authenticate(
 
     # Wait for callback
     print("Waiting for authorization...")
-    while OAuthCallbackHandler.authorization_code is None:
-        server.handle_request()
+    try:
+        while OAuthCallbackHandler.authorization_code is None:
+            server.handle_request()
+    finally:
+        # Close the server socket to avoid ResourceWarning
+        server.server_close()
 
     code = OAuthCallbackHandler.authorization_code
     if not code:

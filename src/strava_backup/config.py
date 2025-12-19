@@ -211,34 +211,41 @@ def _apply_env_overrides(config: Config) -> Config:
 def save_tokens(config: Config, access_token: str, refresh_token: str, expires_at: int) -> None:
     """Save OAuth tokens to configuration file.
 
+    Preserves comments and formatting in the existing config file.
+
     Args:
         config: Current configuration.
         access_token: OAuth access token.
         refresh_token: OAuth refresh token.
         expires_at: Token expiration timestamp.
     """
+    import tomlkit
+
     if config.config_path is None:
         config.config_path = DEFAULT_CONFIG_PATH
 
     # Ensure config directory exists
     config.config_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Load existing config or start fresh
-    existing_data: dict[str, Any] = {}
+    # Load existing config preserving comments, or create new document
     if config.config_path.exists():
-        with open(config.config_path, "rb") as f:
-            existing_data = tomllib.load(f)
+        with open(config.config_path) as f:
+            doc = tomlkit.load(f)
+    else:
+        doc = tomlkit.document()
 
-    # Update strava section
-    if "strava" not in existing_data:
-        existing_data["strava"] = {}
+    # Ensure strava section exists
+    if "strava" not in doc:
+        doc["strava"] = tomlkit.table()
 
-    existing_data["strava"]["access_token"] = access_token
-    existing_data["strava"]["refresh_token"] = refresh_token
-    existing_data["strava"]["token_expires_at"] = expires_at
+    # Update only the token fields, preserving everything else
+    doc["strava"]["access_token"] = access_token
+    doc["strava"]["refresh_token"] = refresh_token
+    doc["strava"]["token_expires_at"] = expires_at
 
-    # Write back as TOML
-    _write_toml(config.config_path, existing_data)
+    # Write back preserving comments and formatting
+    with open(config.config_path, "w") as f:
+        f.write(tomlkit.dumps(doc))
 
     # Update in-memory config
     config.strava.access_token = access_token

@@ -193,6 +193,9 @@
 - [X] T082 [US7] Implement `strava-backup create-datalad-dataset` command in src/strava_backup/cli.py
 - [X] T083 [US7] [P] Create unit tests for DataLad dataset creation in tests/unit/test_datalad.py
 - [X] T084 [US7] Configure git-annex to add config file unlocked (annex.addunlocked) for easy editing
+- [X] T085 [US7] Preserve comments when saving OAuth tokens using tomlkit
+- [X] T086 [US7] Suppress spurious stravalib warnings about environment variables
+- [X] T087 [US7] Fix unclosed socket warning after OAuth authentication
 
 **Checkpoint**: User Story 7 complete - can create reproducible DataLad datasets for backups
 
