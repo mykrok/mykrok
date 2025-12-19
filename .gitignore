@@ -30,6 +30,10 @@ venvs/
 ENV/
 env/
 
+# Cache directories
+.cache/
+.local/
+
 # Testing
 .tox/
 .nox/
