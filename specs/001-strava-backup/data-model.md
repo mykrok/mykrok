@@ -7,7 +7,7 @@
 ```
 ┌──────────────────┐
 │     Athlete      │ 1
-│  (sub={username})│────────────────────────┐
+│ (athl={username})│────────────────────────┐
 └────────┬─────────┘                        │
          │ 1                                │
          │                                  │
@@ -33,7 +33,7 @@
 
 **Description**: The authenticated Strava user whose data is being backed up.
 
-**Storage**: Directory partition `sub={username}/`
+**Storage**: Directory partition `athl={username}/`
 
 **Fields**:
 

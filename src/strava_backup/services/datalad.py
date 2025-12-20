@@ -37,7 +37,7 @@ client_secret = ""  # Your Strava API Client Secret (required)
 
 [data]
 # Directory where activity data will be stored (relative to dataset root)
-# Data is stored in Hive-partitioned structure: sub={username}/ses={datetime}/
+# Data is stored in Hive-partitioned structure: athl={username}/ses={datetime}/
 directory = ".."
 
 [sync]
@@ -114,8 +114,8 @@ strava-backup view stats --year 2025 --by-month
 
 ```bash
 pip install visidata pyarrow
-vd sub=*/sessions.tsv                     # View all sessions
-vd sub=*/ses=*/tracking.parquet           # View GPS/sensor data
+vd athl=*/sessions.tsv                    # View all sessions
+vd athl=*/ses=*/tracking.parquet          # View GPS/sensor data
 ```
 
 ### Generate Map
@@ -140,7 +140,7 @@ strava-backup browse
 │   └── oauth-tokens.toml  # OAuth tokens (gitignored)
 ├── Makefile               # Automation commands
 ├── README.md              # This file
-└── sub={username}/        # Backed-up activities (Hive-partitioned)
+└── athl={username}/       # Backed-up activities (Hive-partitioned)
     ├── sessions.tsv
     ├── gear.json
     └── ses={datetime}/
@@ -199,13 +199,13 @@ all: sync
 # Incremental sync - only fetch new activities
 sync:
 	datalad run -m "Sync new Strava activities" \\
-		-o "sub=*" \\
+		-o "athl=*" \\
 		"strava-backup sync"
 
 # Full sync - re-download everything
 sync-full:
 	datalad run -m "Full Strava sync" \\
-		-o "sub=*" \\
+		-o "athl=*" \\
 		"strava-backup sync --full"
 
 # Authenticate with Strava (interactive)

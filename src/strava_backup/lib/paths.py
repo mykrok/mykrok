@@ -2,7 +2,8 @@
 
 Manages the directory structure for storing activities:
     data/
-    └── sub={username}/
+    ├── athletes.tsv
+    └── athl={username}/
         ├── sessions.tsv
         ├── gear.json
         ├── exports/
@@ -19,6 +20,11 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+# Partition prefixes
+ATHLETE_PREFIX = "athl="
+ATHLETE_PREFIX_LEGACY = "sub="  # Legacy prefix, used only for migration detection
+SESSION_PREFIX = "ses="
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -39,7 +45,19 @@ def get_athlete_dir(data_dir: Path, username: str) -> Path:
     Returns:
         Path to athlete's partition directory.
     """
-    return data_dir / f"sub={username}"
+    return data_dir / f"{ATHLETE_PREFIX}{username}"
+
+
+def get_athletes_tsv_path(data_dir: Path) -> Path:
+    """Get path to top-level athletes.tsv file.
+
+    Args:
+        data_dir: Base data directory.
+
+    Returns:
+        Path to athletes.tsv.
+    """
+    return data_dir / "athletes.tsv"
 
 
 def get_session_dir(data_dir: Path, username: str, start_date: datetime) -> Path:
@@ -248,6 +266,9 @@ def iter_session_dirs(athlete_dir: Path) -> Iterator[tuple[str, Path]]:
 def iter_athlete_dirs(data_dir: Path) -> Iterator[tuple[str, Path]]:
     """Iterate over all athlete directories.
 
+    Only looks for athl= prefixes. Run 'strava-backup migrate' first if you have
+    legacy sub= directories.
+
     Args:
         data_dir: Base data directory.
 
@@ -258,8 +279,8 @@ def iter_athlete_dirs(data_dir: Path) -> Iterator[tuple[str, Path]]:
         return
 
     for entry in data_dir.iterdir():
-        if entry.is_dir() and entry.name.startswith("sub="):
-            username = entry.name[4:]  # Remove 'sub=' prefix
+        if entry.is_dir() and entry.name.startswith(ATHLETE_PREFIX):
+            username = entry.name[len(ATHLETE_PREFIX):]
             yield (username, entry)
 
 
@@ -303,6 +324,24 @@ def extract_username_from_path(path: Path) -> str | None:
         Username if found, None otherwise.
     """
     for part in path.parts:
-        if part.startswith("sub="):
-            return part[4:]
+        if part.startswith(ATHLETE_PREFIX):
+            return part[len(ATHLETE_PREFIX):]
     return None
+
+
+def needs_migration(data_dir: Path) -> bool:
+    """Check if data directory has legacy sub= prefixes that need migration.
+
+    Args:
+        data_dir: Base data directory.
+
+    Returns:
+        True if any sub= directories exist.
+    """
+    if not data_dir.exists():
+        return False
+
+    for entry in data_dir.iterdir():
+        if entry.is_dir() and entry.name.startswith(ATHLETE_PREFIX_LEGACY):
+            return True
+    return False

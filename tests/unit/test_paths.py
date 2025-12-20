@@ -41,11 +41,11 @@ class TestPathUtils:
         """Test athlete directory path generation."""
         result = get_athlete_dir(temp_data_dir, "testuser")
 
-        assert result == temp_data_dir / "sub=testuser"
+        assert result == temp_data_dir / "athl=testuser"
 
     def test_get_session_dir(self, temp_data_dir: Path) -> None:
         """Test session directory path generation."""
         dt = datetime(2025, 12, 18, 6, 30, 0)
         result = get_session_dir(temp_data_dir, "testuser", dt)
 
-        assert result == temp_data_dir / "sub=testuser" / "ses=20251218T063000"
+        assert result == temp_data_dir / "athl=testuser" / "ses=20251218T063000"

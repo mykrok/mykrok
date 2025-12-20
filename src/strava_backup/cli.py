@@ -584,6 +584,11 @@ def stats(
     help="Generate heatmap instead of individual routes",
 )
 @click.option(
+    "--photos",
+    is_flag=True,
+    help="Show geotagged photos as markers on the map",
+)
+@click.option(
     "--serve",
     is_flag=True,
     help="Start local HTTP server to view map",
@@ -601,10 +606,16 @@ def map_cmd(
     before: Any | None,
     activity_type: str | None,
     heatmap: bool,
+    photos: bool,
     serve: bool,
     port: int,
 ) -> None:
-    """Generate interactive map visualization."""
+    """Generate interactive map visualization.
+
+    By default, shows activity routes as colored polylines. Use --heatmap
+    for a density visualization. Use --photos to overlay geotagged photos
+    as clickable markers with preview popups.
+    """
     from strava_backup.views.map import generate_map, serve_map
 
     config = ctx.config
@@ -619,10 +630,15 @@ def map_cmd(
             before=before,
             activity_type=activity_type,
             heatmap=heatmap,
+            show_photos=photos,
         )
 
         if serve:
-            output_path = output or Path("./map.html")
+            # When serving with photos, save HTML in data directory for local photo paths
+            if photos and not output:
+                output_path = config.data.directory / "map.html"
+            else:
+                output_path = output or Path("./map.html")
             output_path.write_text(html, encoding="utf-8")
             ctx.log(f"Map saved to {output_path}")
             ctx.log(f"Starting server at http://127.0.0.1:{port}")
@@ -676,6 +692,70 @@ def browse(ctx: Context, port: int, host: str, no_open: bool) -> None:
         )
     except Exception as e:
         ctx.error(f"Browser failed: {e}")
+        sys.exit(1)
+
+
+@main.command()
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Show what would be done without making changes",
+)
+@pass_context
+def migrate(ctx: Context, dry_run: bool) -> None:
+    """Migrate data directory to latest format.
+
+    Performs the following migrations:
+    - Renames sub= directories to athl= prefix
+    - Updates Makefile and README.md to use athl= prefix
+    - Generates top-level athletes.tsv
+    - Adds center GPS coordinates to sessions.tsv files
+    """
+    from strava_backup.services.migrate import run_full_migration
+
+    config = ctx.config
+    if config is None:
+        ctx.error("Configuration not loaded")
+        sys.exit(1)
+
+    data_dir = config.data.directory
+
+    if dry_run:
+        ctx.log("Dry run - no changes will be made")
+
+    try:
+        results = run_full_migration(data_dir, dry_run=dry_run)
+
+        # Report prefix renames
+        if results["prefix_renames"]:
+            ctx.log(f"Directory renames: {len(results['prefix_renames'])}")
+            for old, new in results["prefix_renames"]:
+                action = "Would rename" if dry_run else "Renamed"
+                ctx.log(f"  {action}: {old} -> {new}")
+        else:
+            ctx.log("No directory renames needed")
+
+        # Report dataset file updates
+        if results["dataset_files_updated"]:
+            ctx.log(f"Dataset files updated: {len(results['dataset_files_updated'])}")
+            for filepath in results["dataset_files_updated"]:
+                action = "Would update" if dry_run else "Updated"
+                ctx.log(f"  {action}: {filepath}")
+
+        if not dry_run:
+            # Report athletes.tsv
+            if results["athletes_tsv"]:
+                ctx.log(f"Generated: {results['athletes_tsv']}")
+
+            # Report sessions updates
+            ctx.log(f"Sessions with center coords added: {results['sessions_updated']}")
+
+            ctx.log("Migration complete")
+        else:
+            ctx.log("Dry run complete - run without --dry-run to apply changes")
+
+    except Exception as e:
+        ctx.error(f"Migration failed: {e}")
         sys.exit(1)
 
 
