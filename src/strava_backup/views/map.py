@@ -1059,9 +1059,15 @@ def _generate_heatmap_html(
 
 
 def generate_lightweight_map(data_dir: Path) -> str:
-    """Generate lightweight HTML that loads data on demand.
+    """Generate lightweight HTML SPA that loads data on demand.
 
-    This version creates a small HTML file that fetches data from:
+    This version creates a full single-page application with:
+    - App shell with header and tab navigation
+    - Map view: fetches data from TSV/Parquet files
+    - Sessions view: placeholder for session list
+    - Stats view: placeholder for statistics
+
+    Data sources:
     - athletes.tsv for athlete list
     - athl={username}/sessions.tsv for session metadata
     - athl={username}/ses={datetime}/tracking.parquet for track coordinates
@@ -1089,11 +1095,106 @@ def generate_lightweight_map(data_dir: Path) -> str:
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Strava Activities Map</title>
+    <title>Strava Backup</title>
     <link rel="stylesheet" href="assets/leaflet/leaflet.css">
     <style>
-        body {{ margin: 0; padding: 0; }}
-        #map {{ position: absolute; top: 0; bottom: 0; width: 100%; }}
+        /* ===== CSS Reset & Base ===== */
+        * {{
+            box-sizing: border-box;
+        }}
+        body {{
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f5;
+        }}
+
+        /* ===== App Shell ===== */
+        .app-header {{
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+        }}
+
+        .app-logo {{
+            font-size: 20px;
+            font-weight: 600;
+            color: #fc4c02;
+            margin-right: 32px;
+            white-space: nowrap;
+        }}
+
+        .app-nav {{
+            display: flex;
+            gap: 4px;
+            flex: 1;
+        }}
+
+        .nav-tab {{
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.2s, color 0.2s;
+        }}
+
+        .nav-tab:hover {{
+            background: #f0f0f0;
+        }}
+
+        .nav-tab.active {{
+            color: #fc4c02;
+            background: rgba(252, 76, 2, 0.1);
+        }}
+
+        .athlete-selector {{
+            margin-left: auto;
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: #fff;
+            color: #333;
+        }}
+
+        /* ===== Main Content ===== */
+        .app-main {{
+            margin-top: 56px;
+            height: calc(100vh - 56px);
+            position: relative;
+        }}
+
+        .view {{
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }}
+
+        .view.active {{
+            display: block;
+        }}
+
+        /* ===== Map View ===== */
+        #map {{
+            width: 100%;
+            height: 100%;
+        }}
+
         .info {{
             padding: 6px 8px;
             font: 14px/16px Arial, Helvetica, sans-serif;
@@ -1102,10 +1203,12 @@ def generate_lightweight_map(data_dir: Path) -> str:
             box-shadow: 0 0 15px rgba(0,0,0,0.2);
             border-radius: 5px;
         }}
+
         .legend {{
             line-height: 18px;
             color: #555;
         }}
+
         .legend i {{
             width: 18px;
             height: 18px;
@@ -1113,34 +1216,40 @@ def generate_lightweight_map(data_dir: Path) -> str:
             margin-right: 8px;
             opacity: 0.7;
         }}
+
         .session-marker {{
             border: 2px solid white;
             border-radius: 50%;
             box-shadow: 0 2px 5px rgba(0,0,0,0.3);
             cursor: pointer;
         }}
+
         .photo-icon {{
             background: #E91E63;
             border: 2px solid white;
             border-radius: 50%;
             box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }}
+
         .photo-popup {{
             max-width: 350px;
         }}
+
         .photo-popup img {{
             max-width: 100%;
             height: auto;
             border-radius: 4px;
             cursor: pointer;
         }}
+
         .photo-popup .photo-meta {{
             font-size: 12px;
             color: #666;
             margin-top: 8px;
         }}
+
         .loading {{
-            position: fixed;
+            position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
@@ -1150,398 +1259,598 @@ def generate_lightweight_map(data_dir: Path) -> str:
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             z-index: 1000;
         }}
-        .loading.hidden {{ display: none; }}
+
+        .loading.hidden {{
+            display: none;
+        }}
+
+        /* ===== Sessions View ===== */
+        .view-placeholder {{
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #666;
+            text-align: center;
+            padding: 20px;
+        }}
+
+        .view-placeholder h2 {{
+            margin: 0 0 8px 0;
+            color: #333;
+        }}
+
+        .view-placeholder p {{
+            margin: 0;
+            font-size: 14px;
+        }}
+
+        /* ===== Mobile Bottom Navigation ===== */
+        .mobile-nav {{
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: #fff;
+            box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }}
+
+        .mobile-nav-inner {{
+            display: flex;
+            height: 100%;
+        }}
+
+        .mobile-nav-tab {{
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            background: transparent;
+            color: #666;
+            font-size: 12px;
+            cursor: pointer;
+            gap: 4px;
+        }}
+
+        .mobile-nav-tab svg {{
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }}
+
+        .mobile-nav-tab.active {{
+            color: #fc4c02;
+        }}
+
+        /* ===== Responsive ===== */
+        @media (max-width: 767px) {{
+            .app-nav {{
+                display: none;
+            }}
+
+            .mobile-nav {{
+                display: block;
+            }}
+
+            .app-main {{
+                height: calc(100vh - 56px - 56px);
+            }}
+
+            .app-logo {{
+                margin-right: 0;
+            }}
+        }}
     </style>
 </head>
 <body>
-    <div id="map"></div>
-    <div id="loading" class="loading">Loading sessions...</div>
+    <!-- App Header -->
+    <header class="app-header">
+        <div class="app-logo">Strava Backup</div>
+        <nav class="app-nav">
+            <button class="nav-tab active" data-view="map">Map</button>
+            <button class="nav-tab" data-view="sessions">Sessions</button>
+            <button class="nav-tab" data-view="stats">Stats</button>
+        </nav>
+        <select class="athlete-selector" id="athlete-selector">
+            <option value="">All Athletes</option>
+        </select>
+    </header>
+
+    <!-- Main Content -->
+    <main class="app-main">
+        <!-- Map View -->
+        <div id="view-map" class="view active">
+            <div id="map"></div>
+            <div id="loading" class="loading">Loading sessions...</div>
+        </div>
+
+        <!-- Sessions View -->
+        <div id="view-sessions" class="view">
+            <div class="view-placeholder">
+                <h2>Sessions</h2>
+                <p>Session list coming soon.</p>
+            </div>
+        </div>
+
+        <!-- Stats View -->
+        <div id="view-stats" class="view">
+            <div class="view-placeholder">
+                <h2>Statistics</h2>
+                <p>Statistics dashboard coming soon.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="mobile-nav">
+        <div class="mobile-nav-inner">
+            <button class="mobile-nav-tab active" data-view="map">
+                <svg viewBox="0 0 24 24"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+                Map
+            </button>
+            <button class="mobile-nav-tab" data-view="sessions">
+                <svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+                Sessions
+            </button>
+            <button class="mobile-nav-tab" data-view="stats">
+                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                Stats
+            </button>
+        </div>
+    </nav>
+
     <script src="assets/leaflet/leaflet.js"></script>
     <script type="module">
         import {{ parquetReadObjects }} from './assets/hyparquet/index.js';
 
-        const typeColors = {json.dumps(type_colors)};
+        // ===== Router =====
+        const Router = {{
+            views: ['map', 'sessions', 'stats'],
+            currentView: 'map',
 
-        // Parse TSV text to array of objects
-        function parseTSV(text) {{
-            // Normalize line endings (handle both CRLF and LF)
-            const lines = text.trim().replace(/\\r/g, '').split('\\n');
-            if (lines.length < 2) return [];
-            const headers = lines[0].split('\\t');
-            return lines.slice(1).map(line => {{
-                const values = line.split('\\t');
-                return Object.fromEntries(headers.map((h, i) => [h, values[i] || '']));
-            }});
-        }}
+            init() {{
+                // Handle hash changes
+                window.addEventListener('hashchange', () => this.handleRoute());
 
-        // Initialize map
-        const map = L.map('map', {{ preferCanvas: true }}).setView([40, -100], 4);
+                // Handle initial route
+                this.handleRoute();
 
-        L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
-            maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }}).addTo(map);
-
-        const bounds = L.latLngBounds();
-        const sessionsLayer = L.layerGroup().addTo(map);
-        const tracksLayer = L.layerGroup().addTo(map);
-        const photosLayer = L.layerGroup().addTo(map);
-        const loadedTracks = new Set();
-        const loadingTracks = new Set();
-        const loadedPhotos = new Set();
-        const allMarkers = [];  // Store all markers with their session data
-        let totalSessions = 0;
-        let loadedTrackCount = 0;
-        let totalPhotos = 0;
-
-        // Load a single track from parquet
-        async function loadTrack(athlete, session, color) {{
-            const trackKey = `${{athlete}}/${{session}}`;
-            if (loadedTracks.has(trackKey) || loadingTracks.has(trackKey)) return;
-            loadingTracks.add(trackKey);
-
-            try {{
-                const url = `athl=${{athlete}}/ses=${{session}}/tracking.parquet`;
-                const response = await fetch(url);
-                if (!response.ok) {{
-                    loadingTracks.delete(trackKey);
-                    return;
-                }}
-
-                const arrayBuffer = await response.arrayBuffer();
-
-                // Read lat/lng columns from parquet (returns array of row objects)
-                const rows = await parquetReadObjects({{
-                    file: arrayBuffer,
-                    columns: ['lat', 'lng']
-                }});
-
-                if (rows && rows.length > 0) {{
-                    const coords = [];
-                    for (const row of rows) {{
-                        if (row.lat != null && row.lng != null) {{
-                            coords.push([row.lat, row.lng]);
-                        }}
-                    }}
-                    if (coords.length > 0) {{
-                        L.polyline(coords, {{
-                            color: color,
-                            weight: 3,
-                            opacity: 0.7
-                        }}).addTo(tracksLayer);
-                        loadedTracks.add(trackKey);
-                        loadedTrackCount++;
-                        updateInfo();
-                    }}
-                }}
-            }} catch (e) {{
-                console.warn(`Failed to load track ${{trackKey}}:`, e);
-            }} finally {{
-                loadingTracks.delete(trackKey);
-            }}
-        }}
-
-        // Load photos for a session from info.json
-        async function loadPhotos(athlete, session, sessionName) {{
-            const photoKey = `${{athlete}}/${{session}}`;
-            if (loadedPhotos.has(photoKey)) return;
-            loadedPhotos.add(photoKey);
-
-            // Find and update the session marker to remove photo badge
-            const markerData = allMarkers.find(m => m.athlete === athlete && m.session === session);
-            if (markerData && markerData.hasPhotos) {{
-                // Replace with simple circle marker (no photo badge)
-                const newMarker = L.circleMarker(markerData.marker.getLatLng(), {{
-                    radius: 6,
-                    fillColor: markerData.color,
-                    color: 'white',
-                    weight: 2,
-                    opacity: 1,
-                    fillOpacity: 0.8,
-                    className: 'session-marker'
-                }});
-                // Copy popup
-                newMarker.bindPopup(markerData.marker.getPopup());
-                // Copy click handler
-                newMarker.on('click', () => {{
-                    loadTrack(athlete, session, markerData.color);
-                    loadPhotos(athlete, session, sessionName);
-                }});
-                // Replace in layer
-                sessionsLayer.removeLayer(markerData.marker);
-                newMarker.addTo(sessionsLayer);
-                markerData.marker = newMarker;
-            }}
-
-            try {{
-                const url = `athl=${{athlete}}/ses=${{session}}/info.json`;
-                const response = await fetch(url);
-                if (!response.ok) return;
-
-                const info = await response.json();
-                const photos = info.photos || [];
-
-                for (const photo of photos) {{
-                    // Parse location from nested structure: [["root", [lat, lng]]]
-                    const locationRaw = photo.location;
-                    if (!locationRaw || !locationRaw[0] || !locationRaw[0][1]) continue;
-
-                    const [lat, lng] = locationRaw[0][1];
-                    if (lat == null || lng == null) continue;
-
-                    // Get photo URLs
-                    const urls = photo.urls || {{}};
-                    const previewUrl = urls['600'] || urls['256'] || urls['1024'] || urls['2048'] || Object.values(urls)[0] || '';
-                    const fullUrl = urls['2048'] || urls['1024'] || urls['600'] || Object.values(urls)[0] || '';
-
-                    // Check for local photo file
-                    const createdAt = photo.created_at || '';
-                    let localPath = '';
-                    if (createdAt) {{
-                        // Parse created_at to match local filename format (YYYYMMDDTHHMMSS.jpg)
-                        const dt = createdAt.replace(/[-:]/g, '').replace(/\\+.*$/, '').substring(0, 15);
-                        localPath = `athl=${{athlete}}/ses=${{session}}/photos/${{dt}}.jpg`;
-                    }}
-
-                    // Create photo marker
-                    const photoIcon = L.divIcon({{
-                        html: '<div class="photo-icon" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;">' +
-                              '<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>' +
-                              '</div>',
-                        className: '',
-                        iconSize: [28, 28],
-                        iconAnchor: [14, 14]
+                // Set up tab click handlers
+                document.querySelectorAll('[data-view]').forEach(tab => {{
+                    tab.addEventListener('click', (e) => {{
+                        const view = e.currentTarget.dataset.view;
+                        this.navigate(view);
                     }});
+                }});
+            }},
 
-                    const marker = L.marker([lat, lng], {{ icon: photoIcon }});
+            handleRoute() {{
+                const hash = window.location.hash.slice(1) || '/map';
+                const view = hash.replace('/', '') || 'map';
 
-                    // Use local path if available, otherwise remote URL
-                    const imgSrc = localPath || previewUrl;
-                    const linkHref = localPath || fullUrl;
+                if (this.views.includes(view)) {{
+                    this.showView(view);
+                }} else {{
+                    this.navigate('map');
+                }}
+            }},
 
-                    marker.bindPopup(`
-                        <div class="photo-popup">
-                            ${{imgSrc ? `<a href="${{linkHref}}" target="_blank"><img src="${{imgSrc}}" alt="Photo"></a>` : '<p>No image available</p>'}}
-                            <div class="photo-meta">
-                                <strong>${{sessionName}}</strong><br>
-                                ${{session.substring(0, 8)}}
-                            </div>
-                        </div>
-                    `, {{ maxWidth: 350 }});
+            navigate(view) {{
+                window.location.hash = '/' + view;
+            }},
 
-                    marker.addTo(photosLayer);
-                    totalPhotos++;
+            showView(view) {{
+                this.currentView = view;
+
+                // Update view visibility
+                document.querySelectorAll('.view').forEach(v => {{
+                    v.classList.remove('active');
+                }});
+                const viewEl = document.getElementById('view-' + view);
+                if (viewEl) {{
+                    viewEl.classList.add('active');
                 }}
 
-                updateInfo();
-            }} catch (e) {{
-                console.warn(`Failed to load photos for ${{photoKey}}:`, e);
+                // Update desktop nav tabs
+                document.querySelectorAll('.nav-tab').forEach(tab => {{
+                    tab.classList.toggle('active', tab.dataset.view === view);
+                }});
+
+                // Update mobile nav tabs
+                document.querySelectorAll('.mobile-nav-tab').forEach(tab => {{
+                    tab.classList.toggle('active', tab.dataset.view === view);
+                }});
+
+                // Trigger resize for map when switching to map view
+                if (view === 'map' && window.mapInstance) {{
+                    setTimeout(() => window.mapInstance.invalidateSize(), 100);
+                }}
             }}
-        }}
+        }};
 
-        // Auto-load tracks for visible markers when zoomed in
-        const AUTO_LOAD_ZOOM = 11;  // Zoom level at which to auto-load tracks
+        // ===== Map Module =====
+        const MapView = {{
+            map: null,
+            typeColors: {json.dumps(type_colors)},
+            bounds: null,
+            sessionsLayer: null,
+            tracksLayer: null,
+            photosLayer: null,
+            loadedTracks: new Set(),
+            loadingTracks: new Set(),
+            loadedPhotos: new Set(),
+            allMarkers: [],
+            totalSessions: 0,
+            loadedTrackCount: 0,
+            totalPhotos: 0,
+            infoControl: null,
+            AUTO_LOAD_ZOOM: 11,
 
-        function loadVisibleTracks() {{
-            if (map.getZoom() < AUTO_LOAD_ZOOM) return;
+            init() {{
+                // Initialize map
+                this.map = L.map('map', {{ preferCanvas: true }}).setView([40, -100], 4);
+                window.mapInstance = this.map;
 
-            const mapBounds = map.getBounds();
-            for (const {{marker, athlete, session, color, hasPhotos, sessionName}} of allMarkers) {{
-                if (mapBounds.contains(marker.getLatLng())) {{
-                    loadTrack(athlete, session, color);
-                    if (hasPhotos) {{
-                        loadPhotos(athlete, session, sessionName);
-                    }}
-                }}
-            }}
-        }}
+                L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+                    maxZoom: 19,
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }}).addTo(this.map);
 
-        // Load sessions from TSV files
-        async function loadSessions() {{
-            const loading = document.getElementById('loading');
+                this.bounds = L.latLngBounds();
+                this.sessionsLayer = L.layerGroup().addTo(this.map);
+                this.tracksLayer = L.layerGroup().addTo(this.map);
+                this.photosLayer = L.layerGroup().addTo(this.map);
 
-            try {{
-                // Try to load athletes.tsv
-                let athletes = [];
-                try {{
-                    const athletesResp = await fetch('athletes.tsv');
-                    if (athletesResp.ok) {{
-                        const athletesText = await athletesResp.text();
-                        athletes = parseTSV(athletesText);
-                    }}
-                }} catch (e) {{
-                    console.warn('Could not load athletes.tsv, scanning directories...');
-                }}
+                // Set up legend
+                this.setupLegend();
 
-                // If no athletes.tsv, try to detect athlete directories
-                if (athletes.length === 0) {{
-                    // Fallback: look for known athlete directories
-                    // This won't work without server-side directory listing
-                    // So we'll just check for a single athlete
-                    loading.textContent = 'Looking for sessions...';
-                }}
-
-                // For each athlete, load their sessions
-                for (const athlete of athletes) {{
-                    const username = athlete.username;
-                    if (!username) continue;
-
-                    try {{
-                        const sessionsResp = await fetch(`athl=${{username}}/sessions.tsv`);
-                        if (!sessionsResp.ok) continue;
-
-                        const sessionsText = await sessionsResp.text();
-                        const sessions = parseTSV(sessionsText);
-
-                        for (const session of sessions) {{
-                            const lat = parseFloat(session.center_lat);
-                            const lng = parseFloat(session.center_lng);
-
-                            if (isNaN(lat) || isNaN(lng)) continue;
-
-                            const type = session.sport || session.type || 'Other';
-                            const color = typeColors[type] || typeColors.Other;
-                            const hasPhotos = parseInt(session.photo_count || '0') > 0;
-                            const photoCount = parseInt(session.photo_count || '0');
-
-                            // Use different marker style for sessions with photos
-                            let marker;
-                            if (hasPhotos) {{
-                                // Session with photos: show activity color circle with camera badge
-                                const icon = L.divIcon({{
-                                    html: `<div style="position:relative;">
-                                        <div style="width:12px;height:12px;background:${{color}};border:2px solid white;border-radius:50%;box-shadow:0 2px 5px rgba(0,0,0,0.3);"></div>
-                                        <div style="position:absolute;top:-6px;right:-8px;width:14px;height:14px;background:#E91E63;border:1.5px solid white;border-radius:50%;display:flex;align-items:center;justify-content:center;">
-                                            <svg width="8" height="8" viewBox="0 0 24 24" fill="white"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
-                                        </div>
-                                    </div>`,
-                                    className: '',
-                                    iconSize: [20, 20],
-                                    iconAnchor: [8, 8]
-                                }});
-                                marker = L.marker([lat, lng], {{ icon: icon }});
-                            }} else {{
-                                // Regular session: simple circle marker
-                                marker = L.circleMarker([lat, lng], {{
-                                    radius: 6,
-                                    fillColor: color,
-                                    color: 'white',
-                                    weight: 2,
-                                    opacity: 1,
-                                    fillOpacity: 0.8,
-                                    className: 'session-marker'
-                                }});
-                            }}
-
-                            const photoInfo = hasPhotos ? `<br>Photos: ${{photoCount}}` : '';
-                            marker.bindPopup(`
-                                <b>${{session.name || 'Activity'}}</b><br>
-                                Type: ${{type}}<br>
-                                Date: ${{session.datetime?.substring(0, 8) || ''}}${{photoInfo}}<br>
-                                Distance: ${{(parseFloat(session.distance_m || 0) / 1000).toFixed(2)}} km
-                            `);
-
-                            // Store marker data for auto-loading
-                            allMarkers.push({{
-                                marker: marker,
-                                athlete: username,
-                                session: session.datetime,
-                                color: color,
-                                hasGps: session.has_gps === 'true',
-                                hasPhotos: hasPhotos,
-                                sessionName: session.name || 'Activity'
-                            }});
-
-                            // Load track and photos on click
-                            marker.on('click', () => {{
-                                loadTrack(username, session.datetime, color);
-                                if (hasPhotos) {{
-                                    loadPhotos(username, session.datetime, session.name || 'Activity');
-                                }}
-                            }});
-
-                            marker.addTo(sessionsLayer);
-                            bounds.extend([lat, lng]);
-                            totalSessions++;
-                        }}
-                    }} catch (e) {{
-                        console.warn(`Failed to load sessions for ${{username}}:`, e);
-                    }}
-                }}
-
-                // Fit map to bounds
-                if (bounds.isValid()) {{
-                    map.fitBounds(bounds, {{ padding: [20, 20] }});
-                }}
-
-                loading.classList.add('hidden');
-
-                // Update info control
-                updateInfo();
+                // Set up layer control
+                L.control.layers(null, {{
+                    'Sessions': this.sessionsLayer,
+                    'Tracks': this.tracksLayer,
+                    'Photos': this.photosLayer
+                }}, {{ position: 'topleft' }}).addTo(this.map);
 
                 // Set up auto-loading on zoom/pan
-                map.on('moveend', loadVisibleTracks);
-                map.on('zoomend', loadVisibleTracks);
+                this.map.on('moveend', () => this.loadVisibleTracks());
+                this.map.on('zoomend', () => {{
+                    this.loadVisibleTracks();
+                    this.updateInfo();
+                }});
 
-            }} catch (e) {{
-                loading.textContent = 'Error loading data: ' + e.message;
-                console.error('Error loading sessions:', e);
-            }}
-        }}
+                // Start loading sessions
+                this.loadSessions();
+            }},
 
-        // Info control
-        function updateInfo() {{
-            if (infoControl) {{
-                infoControl.remove();
-            }}
-            infoControl = L.control({{ position: 'topright' }});
-            infoControl.onAdd = function() {{
-                const div = L.DomUtil.create('div', 'info');
-                let html = `<b>Activities</b><br>${{totalSessions}} sessions`;
-                if (loadedTrackCount > 0) {{
-                    html += `<br>${{loadedTrackCount}} tracks loaded`;
+            parseTSV(text) {{
+                const lines = text.trim().replace(/\\r/g, '').split('\\n');
+                if (lines.length < 2) return [];
+                const headers = lines[0].split('\\t');
+                return lines.slice(1).map(line => {{
+                    const values = line.split('\\t');
+                    return Object.fromEntries(headers.map((h, i) => [h, values[i] || '']));
+                }});
+            }},
+
+            async loadTrack(athlete, session, color) {{
+                const trackKey = `${{athlete}}/${{session}}`;
+                if (this.loadedTracks.has(trackKey) || this.loadingTracks.has(trackKey)) return;
+                this.loadingTracks.add(trackKey);
+
+                try {{
+                    const url = `athl=${{athlete}}/ses=${{session}}/tracking.parquet`;
+                    const response = await fetch(url);
+                    if (!response.ok) {{
+                        this.loadingTracks.delete(trackKey);
+                        return;
+                    }}
+
+                    const arrayBuffer = await response.arrayBuffer();
+                    const rows = await parquetReadObjects({{
+                        file: arrayBuffer,
+                        columns: ['lat', 'lng']
+                    }});
+
+                    if (rows && rows.length > 0) {{
+                        const coords = [];
+                        for (const row of rows) {{
+                            if (row.lat != null && row.lng != null) {{
+                                coords.push([row.lat, row.lng]);
+                            }}
+                        }}
+                        if (coords.length > 0) {{
+                            L.polyline(coords, {{
+                                color: color,
+                                weight: 3,
+                                opacity: 0.7
+                            }}).addTo(this.tracksLayer);
+                            this.loadedTracks.add(trackKey);
+                            this.loadedTrackCount++;
+                            this.updateInfo();
+                        }}
+                    }}
+                }} catch (e) {{
+                    console.warn(`Failed to load track ${{trackKey}}:`, e);
+                }} finally {{
+                    this.loadingTracks.delete(trackKey);
                 }}
-                if (totalPhotos > 0) {{
-                    html += `<br>${{totalPhotos}} photos`;
-                }}
-                const zoom = map.getZoom();
-                if (zoom < AUTO_LOAD_ZOOM) {{
-                    html += `<br><small>Zoom in to auto-load<br>(current: ${{zoom}}, need: ${{AUTO_LOAD_ZOOM}})</small>`;
-                }} else {{
-                    html += `<br><small>Click marker or pan to load</small>`;
-                }}
-                div.innerHTML = html;
-                return div;
-            }};
-            infoControl.addTo(map);
-        }}
-        let infoControl = null;
+            }},
 
-        // Update info when zoom changes
-        map.on('zoomend', updateInfo);
+            async loadPhotos(athlete, session, sessionName) {{
+                const photoKey = `${{athlete}}/${{session}}`;
+                if (this.loadedPhotos.has(photoKey)) return;
+                this.loadedPhotos.add(photoKey);
 
-        // Legend
-        const legend = L.control({{ position: 'bottomright' }});
-        legend.onAdd = function() {{
-            const div = L.DomUtil.create('div', 'info legend');
-            div.innerHTML = '<b>Activity Types</b><br>';
-            for (const [type, color] of Object.entries(typeColors)) {{
-                div.innerHTML += `<i style="background:${{color}}"></i> ${{type}}<br>`;
+                // Find and update the session marker to remove photo badge
+                const markerData = this.allMarkers.find(m => m.athlete === athlete && m.session === session);
+                if (markerData && markerData.hasPhotos) {{
+                    const newMarker = L.circleMarker(markerData.marker.getLatLng(), {{
+                        radius: 6,
+                        fillColor: markerData.color,
+                        color: 'white',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.8,
+                        className: 'session-marker'
+                    }});
+                    newMarker.bindPopup(markerData.marker.getPopup());
+                    newMarker.on('click', () => {{
+                        this.loadTrack(athlete, session, markerData.color);
+                        this.loadPhotos(athlete, session, sessionName);
+                    }});
+                    this.sessionsLayer.removeLayer(markerData.marker);
+                    newMarker.addTo(this.sessionsLayer);
+                    markerData.marker = newMarker;
+                }}
+
+                try {{
+                    const url = `athl=${{athlete}}/ses=${{session}}/info.json`;
+                    const response = await fetch(url);
+                    if (!response.ok) return;
+
+                    const info = await response.json();
+                    const photos = info.photos || [];
+
+                    for (const photo of photos) {{
+                        const locationRaw = photo.location;
+                        if (!locationRaw || !locationRaw[0] || !locationRaw[0][1]) continue;
+
+                        const [lat, lng] = locationRaw[0][1];
+                        if (lat == null || lng == null) continue;
+
+                        const urls = photo.urls || {{}};
+                        const previewUrl = urls['600'] || urls['256'] || urls['1024'] || urls['2048'] || Object.values(urls)[0] || '';
+                        const fullUrl = urls['2048'] || urls['1024'] || urls['600'] || Object.values(urls)[0] || '';
+
+                        const createdAt = photo.created_at || '';
+                        let localPath = '';
+                        if (createdAt) {{
+                            const dt = createdAt.replace(/[-:]/g, '').replace(/\\+.*$/, '').substring(0, 15);
+                            localPath = `athl=${{athlete}}/ses=${{session}}/photos/${{dt}}.jpg`;
+                        }}
+
+                        const photoIcon = L.divIcon({{
+                            html: '<div class="photo-icon" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;">' +
+                                  '<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>' +
+                                  '</div>',
+                            className: '',
+                            iconSize: [28, 28],
+                            iconAnchor: [14, 14]
+                        }});
+
+                        const marker = L.marker([lat, lng], {{ icon: photoIcon }});
+                        const imgSrc = localPath || previewUrl;
+                        const linkHref = localPath || fullUrl;
+
+                        marker.bindPopup(`
+                            <div class="photo-popup">
+                                ${{imgSrc ? `<a href="${{linkHref}}" target="_blank"><img src="${{imgSrc}}" alt="Photo"></a>` : '<p>No image available</p>'}}
+                                <div class="photo-meta">
+                                    <strong>${{sessionName}}</strong><br>
+                                    ${{session.substring(0, 8)}}
+                                </div>
+                            </div>
+                        `, {{ maxWidth: 350 }});
+
+                        marker.addTo(this.photosLayer);
+                        this.totalPhotos++;
+                    }}
+
+                    this.updateInfo();
+                }} catch (e) {{
+                    console.warn(`Failed to load photos for ${{photoKey}}:`, e);
+                }}
+            }},
+
+            loadVisibleTracks() {{
+                if (this.map.getZoom() < this.AUTO_LOAD_ZOOM) return;
+
+                const mapBounds = this.map.getBounds();
+                for (const {{marker, athlete, session, color, hasPhotos, sessionName}} of this.allMarkers) {{
+                    if (mapBounds.contains(marker.getLatLng())) {{
+                        this.loadTrack(athlete, session, color);
+                        if (hasPhotos) {{
+                            this.loadPhotos(athlete, session, sessionName);
+                        }}
+                    }}
+                }}
+            }},
+
+            async loadSessions() {{
+                const loading = document.getElementById('loading');
+
+                try {{
+                    let athletes = [];
+                    try {{
+                        const athletesResp = await fetch('athletes.tsv');
+                        if (athletesResp.ok) {{
+                            const athletesText = await athletesResp.text();
+                            athletes = this.parseTSV(athletesText);
+
+                            // Populate athlete selector
+                            const selector = document.getElementById('athlete-selector');
+                            athletes.forEach(athlete => {{
+                                const option = document.createElement('option');
+                                option.value = athlete.username;
+                                option.textContent = athlete.username;
+                                selector.appendChild(option);
+                            }});
+                        }}
+                    }} catch (e) {{
+                        console.warn('Could not load athletes.tsv, scanning directories...');
+                    }}
+
+                    if (athletes.length === 0) {{
+                        loading.textContent = 'Looking for sessions...';
+                    }}
+
+                    for (const athlete of athletes) {{
+                        const username = athlete.username;
+                        if (!username) continue;
+
+                        try {{
+                            const sessionsResp = await fetch(`athl=${{username}}/sessions.tsv`);
+                            if (!sessionsResp.ok) continue;
+
+                            const sessionsText = await sessionsResp.text();
+                            const sessions = this.parseTSV(sessionsText);
+
+                            for (const session of sessions) {{
+                                const lat = parseFloat(session.center_lat);
+                                const lng = parseFloat(session.center_lng);
+
+                                if (isNaN(lat) || isNaN(lng)) continue;
+
+                                const type = session.sport || session.type || 'Other';
+                                const color = this.typeColors[type] || this.typeColors.Other;
+                                const hasPhotos = parseInt(session.photo_count || '0') > 0;
+                                const photoCount = parseInt(session.photo_count || '0');
+
+                                let marker;
+                                if (hasPhotos) {{
+                                    const icon = L.divIcon({{
+                                        html: `<div style="position:relative;">
+                                            <div style="width:12px;height:12px;background:${{color}};border:2px solid white;border-radius:50%;box-shadow:0 2px 5px rgba(0,0,0,0.3);"></div>
+                                            <div style="position:absolute;top:-6px;right:-8px;width:14px;height:14px;background:#E91E63;border:1.5px solid white;border-radius:50%;display:flex;align-items:center;justify-content:center;">
+                                                <svg width="8" height="8" viewBox="0 0 24 24" fill="white"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                                            </div>
+                                        </div>`,
+                                        className: '',
+                                        iconSize: [20, 20],
+                                        iconAnchor: [8, 8]
+                                    }});
+                                    marker = L.marker([lat, lng], {{ icon: icon }});
+                                }} else {{
+                                    marker = L.circleMarker([lat, lng], {{
+                                        radius: 6,
+                                        fillColor: color,
+                                        color: 'white',
+                                        weight: 2,
+                                        opacity: 1,
+                                        fillOpacity: 0.8,
+                                        className: 'session-marker'
+                                    }});
+                                }}
+
+                                const photoInfo = hasPhotos ? `<br>Photos: ${{photoCount}}` : '';
+                                marker.bindPopup(`
+                                    <b>${{session.name || 'Activity'}}</b><br>
+                                    Type: ${{type}}<br>
+                                    Date: ${{session.datetime?.substring(0, 8) || ''}}${{photoInfo}}<br>
+                                    Distance: ${{(parseFloat(session.distance_m || 0) / 1000).toFixed(2)}} km
+                                `);
+
+                                this.allMarkers.push({{
+                                    marker: marker,
+                                    athlete: username,
+                                    session: session.datetime,
+                                    color: color,
+                                    hasGps: session.has_gps === 'true',
+                                    hasPhotos: hasPhotos,
+                                    sessionName: session.name || 'Activity'
+                                }});
+
+                                marker.on('click', () => {{
+                                    this.loadTrack(username, session.datetime, color);
+                                    if (hasPhotos) {{
+                                        this.loadPhotos(username, session.datetime, session.name || 'Activity');
+                                    }}
+                                }});
+
+                                marker.addTo(this.sessionsLayer);
+                                this.bounds.extend([lat, lng]);
+                                this.totalSessions++;
+                            }}
+                        }} catch (e) {{
+                            console.warn(`Failed to load sessions for ${{username}}:`, e);
+                        }}
+                    }}
+
+                    if (this.bounds.isValid()) {{
+                        this.map.fitBounds(this.bounds, {{ padding: [20, 20] }});
+                    }}
+
+                    loading.classList.add('hidden');
+                    this.updateInfo();
+
+                }} catch (e) {{
+                    loading.textContent = 'Error loading data: ' + e.message;
+                    console.error('Error loading sessions:', e);
+                }}
+            }},
+
+            updateInfo() {{
+                if (this.infoControl) {{
+                    this.infoControl.remove();
+                }}
+                this.infoControl = L.control({{ position: 'topright' }});
+                const self = this;
+                this.infoControl.onAdd = function() {{
+                    const div = L.DomUtil.create('div', 'info');
+                    let html = `<b>Activities</b><br>${{self.totalSessions}} sessions`;
+                    if (self.loadedTrackCount > 0) {{
+                        html += `<br>${{self.loadedTrackCount}} tracks loaded`;
+                    }}
+                    if (self.totalPhotos > 0) {{
+                        html += `<br>${{self.totalPhotos}} photos`;
+                    }}
+                    const zoom = self.map.getZoom();
+                    if (zoom < self.AUTO_LOAD_ZOOM) {{
+                        html += `<br><small>Zoom in to auto-load<br>(current: ${{zoom}}, need: ${{self.AUTO_LOAD_ZOOM}})</small>`;
+                    }} else {{
+                        html += `<br><small>Click marker or pan to load</small>`;
+                    }}
+                    div.innerHTML = html;
+                    return div;
+                }};
+                this.infoControl.addTo(this.map);
+            }},
+
+            setupLegend() {{
+                const legend = L.control({{ position: 'bottomright' }});
+                const self = this;
+                legend.onAdd = function() {{
+                    const div = L.DomUtil.create('div', 'info legend');
+                    div.innerHTML = '<b>Activity Types</b><br>';
+                    for (const [type, color] of Object.entries(self.typeColors)) {{
+                        div.innerHTML += `<i style="background:${{color}}"></i> ${{type}}<br>`;
+                    }}
+                    div.innerHTML += '<br><i style="background:#E91E63;border-radius:50%;"></i> Photos';
+                    return div;
+                }};
+                legend.addTo(this.map);
             }}
-            div.innerHTML += '<br><i style="background:#E91E63;border-radius:50%;"></i> Photos';
-            return div;
         }};
-        legend.addTo(map);
 
-        // Layer control
-        L.control.layers(null, {{
-            'Sessions': sessionsLayer,
-            'Tracks': tracksLayer,
-            'Photos': photosLayer
-        }}, {{ position: 'topleft' }}).addTo(map);
-
-        // Start loading
-        loadSessions();
+        // ===== Initialize App =====
+        Router.init();
+        MapView.init();
     </script>
 </body>
 </html>'''
