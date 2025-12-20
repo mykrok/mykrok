@@ -785,6 +785,116 @@ def browse(ctx: Context, port: int, host: str, no_open: bool) -> None:
 
 @main.command()
 @click.option(
+    "--output",
+    "-o",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Output directory for demo data (default: ./demo-data)",
+)
+@click.option(
+    "--port",
+    default=8080,
+    help="Server port (default: 8080)",
+)
+@click.option(
+    "--no-serve",
+    is_flag=True,
+    help="Generate demo data without starting server",
+)
+@click.option(
+    "--seed",
+    type=int,
+    default=42,
+    help="Random seed for reproducible data (default: 42)",
+)
+def demo(output: Path | None, port: int, no_serve: bool, seed: int) -> None:
+    """Generate demo data and view in browser.
+
+    Creates sample data for two athletes (alice and bob) with various
+    activity types, GPS tracks, photos, kudos, and comments. Useful for
+    testing and demonstrating the unified frontend.
+
+    The demo includes:
+    - 10 sessions for alice (runs, rides, swims, hikes)
+    - 5 sessions for bob (mostly rides)
+    - A shared run session (both athletes together)
+    - GPS tracks with heart rate, cadence, and power data
+    - Sample photos and social data (kudos/comments)
+
+    Example:
+        strava-backup demo                    # Generate and serve
+        strava-backup demo --no-serve         # Generate only
+        strava-backup demo -o /tmp/demo       # Custom output directory
+    """
+    import random
+    import shutil
+    import webbrowser
+    from http.server import HTTPServer, SimpleHTTPRequestHandler
+
+    from strava_backup.views.map import copy_assets_to_output, generate_lightweight_map
+
+    # Import fixture generator
+    fixtures_path = Path(__file__).parent.parent.parent / "tests" / "e2e" / "fixtures"
+    if fixtures_path.exists():
+        import sys as _sys
+        _sys.path.insert(0, str(fixtures_path))
+        from generate_fixtures import generate_fixtures
+    else:
+        click.echo("Error: Fixture generator not found. Run from project root.", err=True)
+        sys.exit(1)
+
+    output_dir = output or Path("./demo-data")
+    output_dir = output_dir.resolve()
+
+    click.echo(f"Generating demo data in: {output_dir}")
+
+    # Clean and create output directory
+    if output_dir.exists():
+        shutil.rmtree(output_dir)
+    output_dir.mkdir(parents=True)
+
+    # Generate fixtures with specified seed
+    random.seed(seed)
+    generate_fixtures(output_dir)
+
+    # Generate the SPA HTML
+    html = generate_lightweight_map(output_dir)
+    html_path = output_dir / "strava-backup.html"
+    html_path.write_text(html, encoding="utf-8")
+    click.echo(f"Generated: {html_path}")
+
+    # Copy assets
+    assets_dst = copy_assets_to_output(output_dir)
+    click.echo(f"Assets copied to: {assets_dst}")
+
+    if no_serve:
+        click.echo(f"\nTo view: python -m http.server --directory {output_dir} {port}")
+        click.echo(f"Then open: http://127.0.0.1:{port}/strava-backup.html")
+    else:
+        # Start server and open browser
+        import os
+        os.chdir(output_dir)
+
+        class QuietHandler(SimpleHTTPRequestHandler):
+            def log_message(self, format: str, *args: object) -> None:
+                pass  # Suppress request logs
+
+        server = HTTPServer(("127.0.0.1", port), QuietHandler)
+        url = f"http://127.0.0.1:{port}/strava-backup.html"
+        click.echo(f"\nStarting server at {url}")
+        click.echo("Press Ctrl+C to stop")
+
+        webbrowser.open(url)
+
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            click.echo("\nServer stopped")
+            server.shutdown()
+
+
+@main.command()
+@click.option(
     "--dry-run",
     is_flag=True,
     help="Show what would be done without making changes",
