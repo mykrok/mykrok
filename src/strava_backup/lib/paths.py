@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 
 # Partition prefixes
 ATHLETE_PREFIX = "athl="
-ATHLETE_PREFIX_LEGACY = "sub="  # For backward compatibility
+ATHLETE_PREFIX_LEGACY = "sub="  # Legacy prefix, used only for migration detection
 SESSION_PREFIX = "ses="
 
 if TYPE_CHECKING:
@@ -266,7 +266,8 @@ def iter_session_dirs(athlete_dir: Path) -> Iterator[tuple[str, Path]]:
 def iter_athlete_dirs(data_dir: Path) -> Iterator[tuple[str, Path]]:
     """Iterate over all athlete directories.
 
-    Supports both new (athl=) and legacy (sub=) prefixes.
+    Only looks for athl= prefixes. Run 'strava-backup migrate' first if you have
+    legacy sub= directories.
 
     Args:
         data_dir: Base data directory.
@@ -278,13 +279,9 @@ def iter_athlete_dirs(data_dir: Path) -> Iterator[tuple[str, Path]]:
         return
 
     for entry in data_dir.iterdir():
-        if entry.is_dir():
-            if entry.name.startswith(ATHLETE_PREFIX):
-                username = entry.name[len(ATHLETE_PREFIX):]
-                yield (username, entry)
-            elif entry.name.startswith(ATHLETE_PREFIX_LEGACY):
-                username = entry.name[len(ATHLETE_PREFIX_LEGACY):]
-                yield (username, entry)
+        if entry.is_dir() and entry.name.startswith(ATHLETE_PREFIX):
+            username = entry.name[len(ATHLETE_PREFIX):]
+            yield (username, entry)
 
 
 def get_photo_path(photos_dir: Path, photo_datetime: datetime, extension: str = "jpg") -> Path:
@@ -320,8 +317,6 @@ def extract_session_key_from_path(path: Path) -> str | None:
 def extract_username_from_path(path: Path) -> str | None:
     """Extract username from a path.
 
-    Supports both new (athl=) and legacy (sub=) prefixes.
-
     Args:
         path: Path that may contain an athlete directory.
 
@@ -331,8 +326,6 @@ def extract_username_from_path(path: Path) -> str | None:
     for part in path.parts:
         if part.startswith(ATHLETE_PREFIX):
             return part[len(ATHLETE_PREFIX):]
-        if part.startswith(ATHLETE_PREFIX_LEGACY):
-            return part[len(ATHLETE_PREFIX_LEGACY):]
     return None
 
 

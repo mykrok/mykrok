@@ -250,7 +250,7 @@ Activities are stored in a Hive-partitioned directory structure:
 
 ```
 data/
-└── sub={username}/
+└── athl={username}/
     ├── sessions.tsv              # Activity summary (TSV format)
     ├── gear.json                 # Equipment catalog
     └── ses={datetime}/           # Individual activity folder
@@ -270,7 +270,7 @@ duckdb
 ```sql
 -- Activity summary
 SELECT sport, SUM(distance_m)/1000 as km, COUNT(*) as activities
-FROM read_csv_auto('data/sub=*/sessions.tsv')
+FROM read_csv_auto('data/athl=*/sessions.tsv')
 GROUP BY sport;
 
 -- GPS track analysis

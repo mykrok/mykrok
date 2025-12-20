@@ -218,6 +218,36 @@ def add_center_coords_to_sessions(data_dir: Path) -> int:
     return updated_count
 
 
+def update_dataset_files(dataset_dir: Path, dry_run: bool = False) -> list[str]:
+    """Update Makefile and README.md to use athl= prefix instead of sub=.
+
+    Args:
+        dataset_dir: Dataset root directory (parent of data directory).
+        dry_run: If True, only report what would be done.
+
+    Returns:
+        List of updated file paths.
+    """
+    updated_files: list[str] = []
+
+    for filename in ["Makefile", "README.md"]:
+        filepath = dataset_dir / filename
+        if not filepath.exists():
+            continue
+
+        content = filepath.read_text(encoding="utf-8")
+        if "sub=" not in content:
+            continue
+
+        if not dry_run:
+            new_content = content.replace("sub=", "athl=")
+            filepath.write_text(new_content, encoding="utf-8")
+
+        updated_files.append(str(filepath))
+
+    return updated_files
+
+
 def run_full_migration(
     data_dir: Path,
     dry_run: bool = False,
@@ -225,8 +255,9 @@ def run_full_migration(
     """Run all migrations on the data directory.
 
     1. Rename sub= directories to athl=
-    2. Generate athletes.tsv
-    3. Add center coords to sessions.tsv
+    2. Update Makefile and README.md to use athl=
+    3. Generate athletes.tsv
+    4. Add center coords to sessions.tsv
 
     Args:
         data_dir: Base data directory.
@@ -237,6 +268,7 @@ def run_full_migration(
     """
     results: dict[str, Any] = {
         "prefix_renames": [],
+        "dataset_files_updated": [],
         "athletes_tsv": None,
         "sessions_updated": 0,
     }
@@ -246,12 +278,22 @@ def run_full_migration(
         renames = migrate_athlete_prefixes(data_dir, dry_run=dry_run)
         results["prefix_renames"] = [(str(old), str(new)) for old, new in renames]
 
+    # 2. Update Makefile and README.md in dataset root
+    # The dataset root is typically the parent of the data directory,
+    # or the data directory itself if it's the dataset root
+    dataset_dir = data_dir.parent if (data_dir.parent / ".datalad").exists() else data_dir
+    if not (dataset_dir / ".datalad").exists():
+        # Also check if data_dir itself is the dataset root
+        if (data_dir / ".datalad").exists():
+            dataset_dir = data_dir
+    results["dataset_files_updated"] = update_dataset_files(dataset_dir, dry_run=dry_run)
+
     if not dry_run:
-        # 2. Generate athletes.tsv
+        # 3. Generate athletes.tsv
         athletes_path = generate_athletes_tsv(data_dir)
         results["athletes_tsv"] = str(athletes_path)
 
-        # 3. Add center coords
+        # 4. Add center coords
         results["sessions_updated"] = add_center_coords_to_sessions(data_dir)
 
     return results

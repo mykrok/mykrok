@@ -13,7 +13,7 @@ CLI tool to backup Strava activities (metadata, GPS tracks, photos, comments, ku
 
 **Language/Version**: Python 3.10+ (type hints required per constitution)
 **Primary Dependencies**: stravalib (Strava API), PyArrow (Parquet), requests (FitTrackee API), DuckDB (queries)
-**Storage**: File-based, Hive-partitioned directory structure (`sub={username}/ses={datetime}/`) with JSON metadata, Parquet time-series, TSV summaries
+**Storage**: File-based, Hive-partitioned directory structure (`athl={username}/ses={datetime}/`) with JSON metadata, Parquet time-series, TSV summaries
 **Testing**: pytest with pytest-cov, pytest-docker for FitTrackee integration tests
 **Target Platform**: Linux/macOS/Windows CLI (Python 3.10+)
 **Project Type**: Single project (CLI tool with local web view for maps)
@@ -27,7 +27,7 @@ CLI tool to backup Strava activities (metadata, GPS tracks, photos, comments, ku
 
 ### Principle I: Simplicity First ✅
 - **Single responsibility**: Separate modules for backup, export, visualization
-- **Flat structure**: Hive partitioning is flat (`sub=X/ses=Y/`) not deeply nested
+- **Flat structure**: Hive partitioning is flat (`athl=X/ses=Y/`) not deeply nested
 - **Explicit behavior**: No magic - CLI commands with explicit flags
 - **Self-documenting**: Standard data formats (JSON, Parquet, TSV)
 
@@ -128,7 +128,7 @@ tests/
 
 ```text
 data/
-└── sub={username}/                    # Athlete partition
+└── athl={username}/                   # Athlete partition
     ├── sessions.tsv                   # Activity summary
     ├── gear.json                      # Equipment catalog
     ├── exports/

@@ -102,7 +102,7 @@ strava-backup browse
 
 ```
 data/
-└── sub=athlete123/
+└── athl=athlete123/
     ├── sessions.tsv              # Activity summary
     ├── gear.json                 # Your equipment
     └── ses=20251218T063000/      # Individual activity
@@ -122,7 +122,7 @@ duckdb
 # Query your activities
 .mode markdown
 SELECT sport, SUM(distance_m)/1000 as km, COUNT(*) as activities
-FROM read_csv_auto('data/sub=*/sessions.tsv')
+FROM read_csv_auto('data/athl=*/sessions.tsv')
 GROUP BY sport;
 
 # Query GPS tracks

@@ -707,6 +707,7 @@ def migrate(ctx: Context, dry_run: bool) -> None:
 
     Performs the following migrations:
     - Renames sub= directories to athl= prefix
+    - Updates Makefile and README.md to use athl= prefix
     - Generates top-level athletes.tsv
     - Adds center GPS coordinates to sessions.tsv files
     """
@@ -733,6 +734,13 @@ def migrate(ctx: Context, dry_run: bool) -> None:
                 ctx.log(f"  {action}: {old} -> {new}")
         else:
             ctx.log("No directory renames needed")
+
+        # Report dataset file updates
+        if results["dataset_files_updated"]:
+            ctx.log(f"Dataset files updated: {len(results['dataset_files_updated'])}")
+            for filepath in results["dataset_files_updated"]:
+                action = "Would update" if dry_run else "Updated"
+                ctx.log(f"  {action}: {filepath}")
 
         if not dry_run:
             # Report athletes.tsv
