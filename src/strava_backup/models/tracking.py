@@ -16,6 +16,7 @@ from strava_backup.lib.parquet import (
     get_tracking_metadata,
     read_tracking_columns,
     read_tracking_data,
+    safe_remove_for_overwrite,
     tracking_to_coordinates,
     write_tracking_data,
 )
@@ -129,8 +130,9 @@ def save_tracking_data(
     parquet_path = get_tracking_parquet_path(session_dir)
     manifest.row_count = write_tracking_data(parquet_path, tracking_data)
 
-    # Write manifest
+    # Write manifest (remove first to handle git-annex locked files)
     manifest_path = get_tracking_manifest_path(session_dir)
+    safe_remove_for_overwrite(manifest_path)
     with open(manifest_path, "w", encoding="utf-8") as f:
         json.dump(manifest.to_dict(), f, indent=2)
 
