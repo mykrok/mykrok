@@ -347,6 +347,17 @@ function getAvatarColor(username) {
 └──────────────────────────────────────┘
 ```
 
+**Data Streams** (from tracking.parquet):
+- Display available data streams when present (not all sessions have all streams):
+  - Heart rate (hr): Line chart or summary stats
+  - Cadence (cadence): Line chart or summary stats
+  - Power (watts): Line chart or summary stats (cycling)
+  - Temperature (temp): Line chart or summary stats
+  - Altitude (altitude): Elevation profile
+- Check which columns exist in the parquet file before rendering
+- Show summary stats: avg, max, min for numeric streams
+- Optional: Interactive chart with distance/time on x-axis
+
 **Cross-linking**:
 - Kudos/comment athlete names: If that athlete exists locally (in athletes.tsv), render as link to their sessions
 - "View on Map" button: Navigate to map view, zoom to this session

@@ -354,6 +354,76 @@ Add to `tests/unit/test_unified_frontend.py`:
 6. Test with no athletes (empty state)
 7. Test with single athlete (no "All Athletes" option)
 
+### E2E Tests with Sample Data
+
+#### Sample Data Generation
+Create `tests/e2e/fixtures/` with synthetic multi-athlete data:
+
+```
+tests/e2e/fixtures/
+├── athletes.tsv              # Two athletes: alice, bob
+├── athl=alice/
+│   ├── sessions.tsv          # 10 sample sessions
+│   └── ses=20241218T063000/
+│       ├── tracking.parquet  # With GPS, heart rate, cadence
+│       ├── info.json         # Photos, kudos from bob, comments
+│       └── photos/           # 2 sample photos
+├── athl=bob/
+│   ├── sessions.tsv          # 5 sample sessions
+│   └── ses=20241218T063000/  # Shared run with alice
+│       ├── tracking.parquet
+│       └── info.json
+└── generate_fixtures.py      # Script to regenerate fixtures
+```
+
+#### E2E Test Scenarios (pytest-playwright or similar)
+
+1. **App Launch**
+   - Verify favicon loads without 404
+   - Verify all three nav tabs are present
+   - Verify athlete selector shows "All Athletes (15 sessions, X km)"
+
+2. **Map View**
+   - Verify markers appear on map
+   - Click marker, verify popup shows session info
+   - Zoom in, verify tracks auto-load
+   - Switch athlete, verify markers filter
+
+3. **Sessions View**
+   - Verify table shows correct session count
+   - Test search filter
+   - Test type filter
+   - Test date range filter
+   - Test sorting by each column
+   - Click session, verify detail panel opens
+   - Verify detail shows: stats, map, photos, kudos, comments
+   - Click "View on Map", verify navigation works
+   - Switch athlete, verify filter applies
+
+4. **Stats View**
+   - Verify summary cards show totals
+   - Verify monthly chart renders
+   - Verify type chart renders
+   - Test year filter
+   - Test type filter
+   - Switch athlete, verify stats recalculate
+
+5. **Shared Run Detection**
+   - Verify alice's 20241218T063000 shows "Also: bob"
+   - Click cross-link, verify navigation to bob's sessions
+
+6. **Error States**
+   - Session without GPS: verify map section hidden (no error)
+   - Session without photos: verify photos section hidden
+   - Session without social: verify social section hidden
+
+#### Demo Mode
+Add CLI option to generate demo with fixtures:
+```bash
+strava-backup demo --output ./demo-data/
+# Generates sample data and opens browser to strava-backup.html
+```
+
 ---
 
 ## File Changes Summary
