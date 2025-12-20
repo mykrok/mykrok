@@ -1701,6 +1701,28 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             background: #e04400;
         }}
 
+        .detail-shared {{
+            margin-top: 16px;
+        }}
+
+        .shared-runs {{
+            background: #e3f2fd;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 13px;
+            color: #1565c0;
+        }}
+
+        .shared-athlete-link {{
+            color: #1565c0;
+            font-weight: 600;
+            text-decoration: none;
+        }}
+
+        .shared-athlete-link:hover {{
+            text-decoration: underline;
+        }}
+
         /* ===== Stats View ===== */
         .stats-container {{
             height: 100%;
@@ -1911,6 +1933,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     <div class="detail-streams" id="detail-streams"></div>
                     <div class="detail-photos" id="detail-photos"></div>
                     <div class="detail-social" id="detail-social"></div>
+                    <div class="detail-shared" id="detail-shared"></div>
                 </div>
             </div>
         </div>
@@ -2832,6 +2855,64 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
                 // Load data streams (heart rate, cadence, etc.)
                 this.loadDetailStreams(athlete, sessionId);
+
+                // Check for shared runs (same datetime, different athlete)
+                this.loadSharedRuns(athlete, sessionId);
+            }},
+
+            async loadSharedRuns(currentAthlete, sessionId) {{
+                const container = document.getElementById('detail-shared');
+                if (!container) return;
+                container.innerHTML = '';
+
+                // Find sessions from other athletes with the same datetime
+                const sharedWith = [];
+                for (const [athleteUsername, sessions] of Object.entries(MapView.sessionsByAthlete)) {{
+                    if (athleteUsername === currentAthlete) continue;
+
+                    const match = sessions.find(s => s.datetime === sessionId);
+                    if (match) {{
+                        sharedWith.push({{
+                            username: athleteUsername,
+                            session: match
+                        }});
+                    }}
+                }}
+
+                if (sharedWith.length === 0) return;
+
+                container.innerHTML = `
+                    <div class="shared-runs">
+                        <strong>Also with:</strong>
+                        ${{sharedWith.map(s => `
+                            <a href="#" class="shared-athlete-link" data-athlete="${{s.username}}" data-session="${{s.session.datetime}}">
+                                ${{s.username}}
+                            </a>
+                        `).join(', ')}}
+                    </div>
+                `;
+
+                // Add click handlers for cross-athlete navigation
+                container.querySelectorAll('.shared-athlete-link').forEach(link => {{
+                    link.addEventListener('click', (e) => {{
+                        e.preventDefault();
+                        const athlete = e.target.dataset.athlete;
+                        const sessionDt = e.target.dataset.session;
+
+                        // Switch athlete and show their version of the session
+                        const athleteSelect = document.getElementById('athlete-select');
+                        athleteSelect.value = athlete;
+                        athleteSelect.dispatchEvent(new Event('change'));
+
+                        // After a short delay to allow filter update, show the session
+                        setTimeout(() => {{
+                            const session = MapView.sessionsByAthlete[athlete]?.find(s => s.datetime === sessionDt);
+                            if (session) {{
+                                this.showDetail(session, athlete);
+                            }}
+                        }}, 200);
+                    }});
+                }});
             }},
 
             detailMapInstance: null,
@@ -3099,6 +3180,8 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             sessions: [],
             typeColors: {json.dumps(type_colors)},
             filters: {{ year: '', type: '' }},
+            monthlyBars: [],  // Store bar positions for click detection
+            typeBars: [],     // Store bar positions for click detection
 
             init() {{
                 document.getElementById('year-filter').addEventListener('change', (e) => {{
@@ -3115,6 +3198,65 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 document.getElementById('athlete-selector').addEventListener('change', () => {{
                     this.calculate();
                 }});
+
+                // Add chart click handlers
+                document.getElementById('monthly-chart').addEventListener('click', (e) => {{
+                    const rect = e.target.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    this.handleMonthlyChartClick(x, y);
+                }});
+
+                document.getElementById('type-chart').addEventListener('click', (e) => {{
+                    const rect = e.target.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    this.handleTypeChartClick(x, y);
+                }});
+
+                // Add cursor pointer on hover
+                const monthlyCanvas = document.getElementById('monthly-chart');
+                const typeCanvas = document.getElementById('type-chart');
+                monthlyCanvas.style.cursor = 'pointer';
+                typeCanvas.style.cursor = 'pointer';
+            }},
+
+            handleMonthlyChartClick(x, y) {{
+                for (const bar of this.monthlyBars) {{
+                    if (x >= bar.x && x <= bar.x + bar.width && y >= bar.y && y <= bar.y + bar.height) {{
+                        // Navigate to sessions view with month filter
+                        const [year, month] = [bar.month.substring(0, 4), bar.month.substring(4, 6)];
+                        // Set date filters and navigate
+                        const dateFrom = `${{year}}-${{month}}-01`;
+                        const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+                        const dateTo = `${{year}}-${{month}}-${{String(lastDay).padStart(2, '0')}}`;
+
+                        location.hash = `#/sessions`;
+                        setTimeout(() => {{
+                            document.getElementById('date-from').value = dateFrom;
+                            document.getElementById('date-to').value = dateTo;
+                            SessionsView.filters.dateFrom = dateFrom;
+                            SessionsView.filters.dateTo = dateTo;
+                            SessionsView.applyFilters();
+                        }}, 100);
+                        return;
+                    }}
+                }}
+            }},
+
+            handleTypeChartClick(x, y) {{
+                for (const bar of this.typeBars) {{
+                    if (x >= bar.x && x <= bar.x + bar.width && y >= bar.y && y <= bar.y + bar.height) {{
+                        // Navigate to sessions view with type filter
+                        location.hash = `#/sessions`;
+                        setTimeout(() => {{
+                            document.getElementById('type-filter').value = bar.type;
+                            SessionsView.filters.type = bar.type;
+                            SessionsView.applyFilters();
+                        }}, 100);
+                        return;
+                    }}
+                }}
             }},
 
             setSessions(sessions) {{
@@ -3234,6 +3376,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 const chartHeight = canvas.height - padding.top - padding.bottom;
                 const barWidth = Math.min(30, (chartWidth / months.length) - 4);
 
+                // Clear bar positions
+                this.monthlyBars = [];
+
                 // Draw axes
                 ctx.strokeStyle = '#ddd';
                 ctx.beginPath();
@@ -3248,6 +3393,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     const barHeight = (data.count / maxCount) * chartHeight;
                     const x = padding.left + (i * (chartWidth / months.length)) + ((chartWidth / months.length) - barWidth) / 2;
                     const y = canvas.height - padding.bottom - barHeight;
+
+                    // Store bar position for click detection
+                    this.monthlyBars.push({{ month, x, y, width: barWidth, height: barHeight }});
 
                     ctx.fillStyle = '#fc4c02';
                     ctx.fillRect(x, y, barWidth, barHeight);
@@ -3305,10 +3453,16 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 const chartHeight = canvas.height - padding.top - padding.bottom;
                 const barHeight = Math.min(25, (chartHeight / types.length) - 4);
 
+                // Clear bar positions
+                this.typeBars = [];
+
                 types.forEach((type, i) => {{
                     const data = byType[type];
                     const barWidth = (data.count / maxCount) * chartWidth;
                     const y = padding.top + (i * (chartHeight / types.length)) + ((chartHeight / types.length) - barHeight) / 2;
+
+                    // Store bar position for click detection
+                    this.typeBars.push({{ type, x: padding.left, y, width: barWidth, height: barHeight }});
 
                     // Bar
                     ctx.fillStyle = this.typeColors[type] || '#607D8B';
