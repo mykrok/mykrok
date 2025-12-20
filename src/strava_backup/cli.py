@@ -266,9 +266,10 @@ def auth(
 
 @main.command()
 @click.option(
-    "--full",
-    is_flag=True,
-    help="Force full sync (ignore last sync time)",
+    "--what",
+    type=click.Choice(["recent", "full", "social"], case_sensitive=False),
+    default="recent",
+    help="What to sync: recent (default, new since last sync), full (all activities), social (refresh kudos/comments only)",
 )
 @click.option(
     "--after",
@@ -301,11 +302,6 @@ def auth(
     help="Skip comments and kudos download",
 )
 @click.option(
-    "--refresh-social",
-    is_flag=True,
-    help="Only refresh comments and kudos for existing activities (no new activities, streams, or photos)",
-)
-@click.option(
     "--dry-run",
     is_flag=True,
     help="Show what would be synced without downloading",
@@ -317,14 +313,13 @@ def auth(
 @pass_context
 def sync(
     ctx: Context,
-    full: bool,
+    what: str,
     after: Any | None,
     before: Any | None,
     limit: int | None,
     no_photos: bool,
     no_streams: bool,
     no_comments: bool,
-    refresh_social: bool,
     dry_run: bool,
     activity_ids: str | None,
 ) -> None:
@@ -332,6 +327,12 @@ def sync(
 
     Downloads activity metadata, GPS tracks, photos, and social data
     to the local data directory.
+
+    \b
+    Sync modes (--what):
+      recent  Incremental sync of new activities since last sync (default)
+      full    Sync all activities from Strava (ignores last sync time)
+      social  Only refresh kudos/comments for existing local activities
     """
     from strava_backup.services.backup import BackupService
 
@@ -352,8 +353,8 @@ def sync(
     try:
         service = BackupService(config)
 
-        # Handle refresh-social mode (only update kudos/comments for existing activities)
-        if refresh_social:
+        # Handle social mode (only update kudos/comments for existing activities)
+        if what == "social":
             result = service.refresh_social(
                 after=after,
                 before=before,
@@ -374,9 +375,9 @@ def sync(
                     ctx.log(f"Errors: {len(result['errors'])}")
             return
 
-        # Normal sync
+        # Normal sync (recent or full mode)
         result = service.sync(
-            full=full,
+            full=(what == "full"),
             after=after,
             before=before,
             limit=limit,

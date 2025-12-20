@@ -59,23 +59,23 @@ Synchronize activities from Strava.
 strava-backup sync [OPTIONS]
 
 Options:
-  --full               Force full sync (ignore last sync time)
+  --what MODE          Sync mode: recent (default), full, or social
   --after DATE         Only sync activities after this date (ISO 8601)
   --before DATE        Only sync activities before this date (ISO 8601)
   --limit N            Maximum number of activities to sync
   --no-photos          Skip photo download
   --no-streams         Skip GPS/sensor stream download
   --no-comments        Skip comments and kudos download
-  --refresh-social     Only refresh comments and kudos for existing activities
-                       (does not fetch new activities, streams, or photos)
   --exclude PATTERN    Regex pattern to exclude athletes (can be repeated)
   --dry-run            Show what would be synced without downloading
 ```
 
-**Note on `--refresh-social`**: This option is useful for updating kudos and comments
-on already-backed-up activities without re-downloading GPS data or photos. This is
-efficient when you want to fix missing `athlete_id` values or update social metadata
-for activities that were synced before a bug fix.
+**Sync Modes (`--what`)**:
+- `recent` (default): Incremental sync of new activities since last sync
+- `full`: Sync all activities from Strava (ignores last sync time)
+- `social`: Only refresh kudos/comments for existing local activities without
+  re-downloading GPS data or photos. Useful for updating social metadata after
+  bug fixes or to capture new kudos/comments.
 
 **Exit Codes**:
 - 0: Success (activities synced)
