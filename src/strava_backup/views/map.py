@@ -1581,6 +1581,57 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
             opacity: 0.9;
         }}
 
+        .detail-streams {{
+            margin-top: 16px;
+        }}
+
+        .detail-streams h4 {{
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            color: #333;
+        }}
+
+        .streams-grid {{
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }}
+
+        .stream-card {{
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 10px;
+        }}
+
+        .stream-label {{
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-bottom: 4px;
+        }}
+
+        .stream-values {{
+            display: flex;
+            gap: 12px;
+            font-size: 13px;
+        }}
+
+        .stream-stat {{
+            display: flex;
+            flex-direction: column;
+        }}
+
+        .stream-stat-label {{
+            font-size: 10px;
+            color: #999;
+        }}
+
+        .stream-stat-value {{
+            font-weight: 600;
+            color: #333;
+        }}
+
         .detail-social {{
             margin-top: 16px;
         }}
@@ -1857,6 +1908,7 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
                     <div class="detail-meta" id="detail-meta"></div>
                     <div class="detail-stats" id="detail-stats"></div>
                     <div class="detail-map" id="detail-map"></div>
+                    <div class="detail-streams" id="detail-streams"></div>
                     <div class="detail-photos" id="detail-photos"></div>
                     <div class="detail-social" id="detail-social"></div>
                 </div>
@@ -2777,6 +2829,9 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
 
                 // Load social data (kudos, comments)
                 this.loadDetailSocial(athlete, sessionId);
+
+                // Load data streams (heart rate, cadence, etc.)
+                this.loadDetailStreams(athlete, sessionId);
             }},
 
             detailMapInstance: null,
@@ -2927,6 +2982,96 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
                     container.innerHTML = html;
                 }} catch (e) {{
                     console.warn('Failed to load social data:', e);
+                }}
+            }},
+
+            async loadDetailStreams(athlete, sessionId) {{
+                const container = document.getElementById('detail-streams');
+                container.innerHTML = '';
+
+                try {{
+                    const url = `athl=${{athlete}}/ses=${{sessionId}}/tracking.parquet`;
+                    const response = await fetch(url);
+                    if (!response.ok) return;
+
+                    const arrayBuffer = await response.arrayBuffer();
+                    const {{ parquetReadObjects }} = await import('./assets/hyparquet/index.js');
+
+                    // Try to get all available columns
+                    const rows = await parquetReadObjects({{ file: arrayBuffer }});
+                    if (!rows || rows.length === 0) return;
+
+                    // Detect available streams from first row
+                    const sampleRow = rows[0];
+                    const streamConfigs = [
+                        {{ key: 'hr', label: 'Heart Rate', unit: 'bpm' }},
+                        {{ key: 'heartrate', label: 'Heart Rate', unit: 'bpm' }},
+                        {{ key: 'cadence', label: 'Cadence', unit: 'rpm' }},
+                        {{ key: 'watts', label: 'Power', unit: 'W' }},
+                        {{ key: 'power', label: 'Power', unit: 'W' }},
+                        {{ key: 'temp', label: 'Temperature', unit: '°C' }},
+                        {{ key: 'temperature', label: 'Temperature', unit: '°C' }},
+                        {{ key: 'altitude', label: 'Elevation', unit: 'm' }},
+                        {{ key: 'ele', label: 'Elevation', unit: 'm' }}
+                    ];
+
+                    const availableStreams = [];
+                    for (const config of streamConfigs) {{
+                        if (sampleRow[config.key] !== undefined && sampleRow[config.key] !== null) {{
+                            // Check if we already have this type of stream
+                            const existingType = availableStreams.find(s => s.label === config.label);
+                            if (!existingType) {{
+                                availableStreams.push(config);
+                            }}
+                        }}
+                    }}
+
+                    if (availableStreams.length === 0) return;
+
+                    // Calculate stats for each stream
+                    const streamStats = [];
+                    for (const config of availableStreams) {{
+                        const values = rows.map(r => parseFloat(r[config.key])).filter(v => !isNaN(v) && v > 0);
+                        if (values.length === 0) continue;
+
+                        const avg = values.reduce((a, b) => a + b, 0) / values.length;
+                        const max = Math.max(...values);
+                        const min = Math.min(...values);
+
+                        streamStats.push({{
+                            label: config.label,
+                            unit: config.unit,
+                            avg: avg.toFixed(config.key === 'altitude' || config.key === 'ele' ? 0 : 0),
+                            max: max.toFixed(0),
+                            min: min.toFixed(0)
+                        }});
+                    }}
+
+                    if (streamStats.length === 0) return;
+
+                    // Render streams
+                    let html = '<h4>Data Streams</h4><div class="streams-grid">';
+                    for (const stream of streamStats) {{
+                        html += `
+                            <div class="stream-card">
+                                <div class="stream-label">${{stream.label}}</div>
+                                <div class="stream-values">
+                                    <div class="stream-stat">
+                                        <span class="stream-stat-label">Avg</span>
+                                        <span class="stream-stat-value">${{stream.avg}} ${{stream.unit}}</span>
+                                    </div>
+                                    <div class="stream-stat">
+                                        <span class="stream-stat-label">Max</span>
+                                        <span class="stream-stat-value">${{stream.max}} ${{stream.unit}}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }}
+                    html += '</div>';
+                    container.innerHTML = html;
+                }} catch (e) {{
+                    console.warn('Failed to load data streams:', e);
                 }}
             }},
 
