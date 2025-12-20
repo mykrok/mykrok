@@ -561,7 +561,7 @@ def stats(
     "--output",
     "-o",
     type=click.Path(path_type=Path),
-    help="Output HTML file (default: stdout or ./map.html)",
+    help="Output HTML file (default: stdout or ./strava-backup.html)",
 )
 @click.option(
     "--after",
@@ -644,7 +644,7 @@ def map_cmd(
             html = generate_lightweight_map(config.data.directory)
 
             # Always output to data directory for lightweight mode
-            output_path = config.data.directory / "map.html"
+            output_path = config.data.directory / "strava-backup.html"
             output_path.write_text(html, encoding="utf-8")
 
             # Copy JS/CSS assets
@@ -672,9 +672,9 @@ def map_cmd(
             if serve:
                 # When serving with photos, save HTML in data directory for local photo paths
                 if photos and not output:
-                    output_path = config.data.directory / "map.html"
+                    output_path = config.data.directory / "strava-backup.html"
                 else:
-                    output_path = output or Path("./map.html")
+                    output_path = output or Path("./strava-backup.html")
                 output_path.write_text(html, encoding="utf-8")
                 ctx.log(f"Map saved to {output_path}")
                 ctx.log(f"Starting server at http://127.0.0.1:{port}")
@@ -838,7 +838,7 @@ def rebuild_sessions(ctx: Context, add_center_coords: bool, force_coords: bool) 
         ctx.log(f"Found {len(athletes)} athlete(s)")
 
         total_sessions = 0
-        for username, athlete_dir in athletes:
+        for username, _athlete_dir in athletes:
             sessions_path = update_sessions_tsv(data_dir, username)
             # Count sessions in the file
             with open(sessions_path, encoding="utf-8") as f:

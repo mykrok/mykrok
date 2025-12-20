@@ -1101,6 +1101,7 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Strava Backup</title>
+    <link rel="icon" type="image/svg+xml" href="assets/strava-backup-icon.svg">
     <link rel="stylesheet" href="assets/leaflet/leaflet.css">
     <style>
         /* ===== CSS Reset & Base ===== */
@@ -1580,6 +1581,57 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
             opacity: 0.9;
         }}
 
+        .detail-social {{
+            margin-top: 16px;
+        }}
+
+        .detail-social h4 {{
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            color: #333;
+        }}
+
+        .kudos-list {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 12px;
+        }}
+
+        .kudos-item {{
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            background: #fff3e0;
+            border-radius: 12px;
+            font-size: 12px;
+            color: #e65100;
+        }}
+
+        .comments-list {{
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }}
+
+        .comment-item {{
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 13px;
+        }}
+
+        .comment-author {{
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }}
+
+        .comment-text {{
+            color: #555;
+            line-height: 1.4;
+        }}
+
         .view-on-map-btn {{
             display: block;
             width: 100%;
@@ -1806,6 +1858,7 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
                     <div class="detail-stats" id="detail-stats"></div>
                     <div class="detail-map" id="detail-map"></div>
                     <div class="detail-photos" id="detail-photos"></div>
+                    <div class="detail-social" id="detail-social"></div>
                 </div>
             </div>
         </div>
@@ -2721,17 +2774,33 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
                 }} else {{
                     document.getElementById('detail-photos').innerHTML = '';
                 }}
+
+                // Load social data (kudos, comments)
+                this.loadDetailSocial(athlete, sessionId);
             }},
+
+            detailMapInstance: null,
 
             async loadDetailMap(athlete, sessionId) {{
                 const mapContainer = document.getElementById('detail-map');
+
+                // Destroy previous map instance if exists
+                if (this.detailMapInstance) {{
+                    this.detailMapInstance.remove();
+                    this.detailMapInstance = null;
+                }}
+
+                // Remove any existing "View on Map" button
+                document.querySelectorAll('.view-on-map-btn').forEach(btn => btn.remove());
+
                 mapContainer.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#666;">Loading track...</div>';
 
                 try {{
                     const url = `athl=${{athlete}}/ses=${{sessionId}}/tracking.parquet`;
                     const response = await fetch(url);
                     if (!response.ok) {{
-                        mapContainer.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#999;">No track data</div>';
+                        // Hide container if no track data
+                        mapContainer.style.display = 'none';
                         return;
                     }}
 
@@ -2739,28 +2808,41 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
                     const {{ parquetReadObjects }} = await import('./assets/hyparquet/index.js');
                     const rows = await parquetReadObjects({{ file: arrayBuffer, columns: ['lat', 'lng'] }});
 
-                    if (rows && rows.length > 0) {{
+                    const coords = rows ? rows.filter(r => r.lat && r.lng).map(r => [r.lat, r.lng]) : [];
+
+                    if (coords.length > 0) {{
+                        mapContainer.style.display = 'block';
                         mapContainer.innerHTML = '';
-                        const detailMap = L.map(mapContainer, {{ zoomControl: false, attributionControl: false }});
-                        L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png').addTo(detailMap);
+                        this.detailMapInstance = L.map(mapContainer, {{ zoomControl: false, attributionControl: false }});
+                        L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png').addTo(this.detailMapInstance);
 
-                        const coords = rows.filter(r => r.lat && r.lng).map(r => [r.lat, r.lng]);
-                        if (coords.length > 0) {{
-                            const session = this.selectedSession;
-                            const color = this.typeColors[session?.type] || '#fc4c02';
-                            const polyline = L.polyline(coords, {{ color, weight: 3 }}).addTo(detailMap);
-                            detailMap.fitBounds(polyline.getBounds(), {{ padding: [10, 10] }});
+                        const session = this.selectedSession;
+                        const color = this.typeColors[session?.type] || '#fc4c02';
+                        const polyline = L.polyline(coords, {{ color, weight: 3 }}).addTo(this.detailMapInstance);
+                        this.detailMapInstance.fitBounds(polyline.getBounds(), {{ padding: [10, 10] }});
 
-                            // Add "View on Map" button
-                            const btnHtml = `<button class="view-on-map-btn" onclick="Router.navigate('map'); setTimeout(() => {{ window.mapInstance.setView([${{coords[0][0]}}, ${{coords[0][1]}}], 14); }}, 200);">View on Map</button>`;
-                            mapContainer.insertAdjacentHTML('afterend', btnHtml);
-                        }}
+                        // Add "View on Map" button with proper navigation
+                        const lat = coords[0][0];
+                        const lng = coords[0][1];
+                        const btn = document.createElement('button');
+                        btn.className = 'view-on-map-btn';
+                        btn.textContent = 'View on Map';
+                        btn.onclick = () => {{
+                            location.hash = '#/map';
+                            setTimeout(() => {{
+                                if (window.mapInstance) {{
+                                    window.mapInstance.setView([lat, lng], 14);
+                                }}
+                            }}, 200);
+                        }};
+                        mapContainer.insertAdjacentElement('afterend', btn);
                     }} else {{
-                        mapContainer.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#999;">No GPS data</div>';
+                        // Hide container if no GPS coords
+                        mapContainer.style.display = 'none';
                     }}
                 }} catch (e) {{
                     console.warn('Failed to load detail map:', e);
-                    mapContainer.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#999;">Error loading track</div>';
+                    mapContainer.style.display = 'none';
                 }}
             }},
 
@@ -2807,13 +2889,63 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
                 }}
             }},
 
+            async loadDetailSocial(athlete, sessionId) {{
+                const container = document.getElementById('detail-social');
+                container.innerHTML = '';
+
+                try {{
+                    const response = await fetch(`athl=${{athlete}}/ses=${{sessionId}}/info.json`);
+                    if (!response.ok) return;
+
+                    const info = await response.json();
+                    const kudos = info.kudos || [];
+                    const comments = info.comments || [];
+
+                    if (kudos.length === 0 && comments.length === 0) return;
+
+                    let html = '';
+
+                    if (kudos.length > 0) {{
+                        html += '<h4>Kudos (' + kudos.length + ')</h4>';
+                        html += '<div class="kudos-list">';
+                        html += kudos.map(k => `<span class="kudos-item">${{k.firstname || ''}} ${{k.lastname || ''}}</span>`).join('');
+                        html += '</div>';
+                    }}
+
+                    if (comments.length > 0) {{
+                        html += '<h4>Comments (' + comments.length + ')</h4>';
+                        html += '<div class="comments-list">';
+                        html += comments.map(c => `
+                            <div class="comment-item">
+                                <div class="comment-author">${{c.firstname || ''}} ${{c.lastname || ''}}</div>
+                                <div class="comment-text">${{c.text || ''}}</div>
+                            </div>
+                        `).join('');
+                        html += '</div>';
+                    }}
+
+                    container.innerHTML = html;
+                }} catch (e) {{
+                    console.warn('Failed to load social data:', e);
+                }}
+            }},
+
             closeDetail() {{
                 document.getElementById('session-detail').classList.add('hidden');
                 document.querySelectorAll('#sessions-tbody tr').forEach(r => r.classList.remove('selected'));
                 this.selectedSession = null;
 
+                // Clean up detail map instance
+                if (this.detailMapInstance) {{
+                    this.detailMapInstance.remove();
+                    this.detailMapInstance = null;
+                }}
+
                 // Remove any "View on Map" button that was added
                 document.querySelectorAll('.view-on-map-btn').forEach(btn => btn.remove());
+
+                // Reset map container visibility for next session
+                document.getElementById('detail-map').style.display = 'block';
             }}
         }};
 
