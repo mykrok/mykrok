@@ -242,17 +242,35 @@ class StravaClient:
         """
         try:
             comments = self.client.get_activity_comments(activity_id)
-            return [
-                {
-                    "id": c.id,
-                    "text": c.text,
-                    "created_at": c.created_at.isoformat() if c.created_at else None,
-                    "athlete_id": c.athlete.id if c.athlete else None,
-                    "athlete_firstname": c.athlete.firstname if c.athlete else None,
-                    "athlete_lastname": c.athlete.lastname if c.athlete else None,
-                }
-                for c in comments
-            ]
+            result = []
+            for c in comments:
+                athlete = getattr(c, "athlete", None)
+                athlete_id = None
+                athlete_firstname = None
+                athlete_lastname = None
+
+                if athlete is not None:
+                    # Try direct attribute access first
+                    athlete_id = getattr(athlete, "id", None)
+
+                    # If id is None, try pydantic v2 model_dump()
+                    if athlete_id is None and hasattr(athlete, "model_dump"):
+                        data = athlete.model_dump()
+                        athlete_id = data.get("id")
+
+                    athlete_firstname = getattr(athlete, "firstname", None)
+                    athlete_lastname = getattr(athlete, "lastname", None)
+
+                created_at = getattr(c, "created_at", None)
+                result.append({
+                    "id": getattr(c, "id", None),
+                    "text": getattr(c, "text", None),
+                    "created_at": created_at.isoformat() if created_at else None,
+                    "athlete_id": athlete_id,
+                    "athlete_firstname": athlete_firstname,
+                    "athlete_lastname": athlete_lastname,
+                })
+            return result
         except Exception:
             return []
 
@@ -267,15 +285,29 @@ class StravaClient:
         """
         try:
             kudos = self.client.get_activity_kudos(activity_id)
-            return [
-                {
-                    # Explicitly handle None/missing athlete_id for private/deleted users
-                    "athlete_id": getattr(k, "id", None),
+            result = []
+            for k in kudos:
+                # In stravalib v2, kudos returns SummaryAthlete objects
+                # The id attribute should be directly accessible
+                athlete_id = getattr(k, "id", None)
+
+                # If id is None, try alternative access patterns for pydantic v2
+                if athlete_id is None:
+                    # Try model_dump() for pydantic v2 models
+                    if hasattr(k, "model_dump"):
+                        data = k.model_dump()
+                        athlete_id = data.get("id")
+                    # Fallback: try dict() for older pydantic
+                    elif hasattr(k, "dict"):
+                        data = k.dict()
+                        athlete_id = data.get("id")
+
+                result.append({
+                    "athlete_id": athlete_id,
                     "firstname": getattr(k, "firstname", None),
                     "lastname": getattr(k, "lastname", None),
-                }
-                for k in kudos
-            ]
+                })
+            return result
         except Exception:
             return []
 

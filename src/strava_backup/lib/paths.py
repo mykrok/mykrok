@@ -60,6 +60,31 @@ def get_athletes_tsv_path(data_dir: Path) -> Path:
     return data_dir / "athletes.tsv"
 
 
+def get_athlete_json_path(athlete_dir: Path) -> Path:
+    """Get path to athlete.json profile file.
+
+    Args:
+        athlete_dir: Athlete partition directory.
+
+    Returns:
+        Path to athlete.json.
+    """
+    return athlete_dir / "athlete.json"
+
+
+def get_avatar_path(athlete_dir: Path, ext: str = "jpg") -> Path:
+    """Get path to athlete avatar image.
+
+    Args:
+        athlete_dir: Athlete partition directory.
+        ext: Image file extension (default: jpg).
+
+    Returns:
+        Path to avatar image.
+    """
+    return athlete_dir / f"avatar.{ext}"
+
+
 def get_session_dir(data_dir: Path, username: str, start_date: datetime) -> Path:
     """Get the session directory for an activity.
 

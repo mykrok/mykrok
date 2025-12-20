@@ -16,6 +16,20 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 
+def safe_remove_for_overwrite(path: Path) -> None:
+    """Remove a file before overwriting to handle git-annex locked files.
+
+    Git-annex locked files are symlinks to read-only objects in .git/annex/objects/.
+    Attempting to write to them directly fails. Removing the symlink first and
+    then writing a new file avoids this issue without needing to unlock.
+
+    Args:
+        path: File path to remove if it exists.
+    """
+    if path.exists() or path.is_symlink():
+        path.unlink()
+
+
 # Schema for tracking data (GPS and sensors)
 TRACKING_SCHEMA = pa.schema([
     ("time", pa.float64()),           # Seconds from activity start
@@ -88,6 +102,9 @@ def write_tracking_data(
         schema=TRACKING_SCHEMA,
     )
 
+    # Remove existing file first to handle git-annex locked symlinks
+    safe_remove_for_overwrite(path)
+
     # Write to Parquet
     pq.write_table(
         table,
@@ -105,7 +122,7 @@ def write_tracking_data_streaming(
     path: Path,
     data_iterator: Iterator[dict[str, list[Any]]],
     compression: str = "snappy",
-    batch_size: int = 10000,
+    _batch_size: int = 10000,
 ) -> int:
     """Write tracking data to Parquet using streaming writes.
 
@@ -121,6 +138,10 @@ def write_tracking_data_streaming(
         Total number of rows written.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Remove existing file first to handle git-annex locked symlinks
+    safe_remove_for_overwrite(path)
+
     total_rows = 0
 
     writer: pq.ParquetWriter | None = None

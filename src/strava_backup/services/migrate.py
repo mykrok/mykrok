@@ -5,8 +5,8 @@ Handles data format migrations between versions.
 
 from __future__ import annotations
 
+import contextlib
 import csv
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -16,10 +16,8 @@ from strava_backup.lib.paths import (
     get_athletes_tsv_path,
     get_sessions_tsv_path,
     iter_athlete_dirs,
-    iter_session_dirs,
     needs_migration,
 )
-from strava_backup.models.activity import load_activity
 from strava_backup.models.tracking import get_coordinates, load_tracking_manifest
 
 
@@ -60,8 +58,8 @@ def generate_athletes_tsv(data_dir: Path) -> Path:
     """Generate top-level athletes.tsv file.
 
     Columns:
-        username, session_count, first_activity, last_activity, total_distance_km,
-        total_moving_time_h, activity_types
+        username, firstname, lastname, city, country, session_count, first_activity,
+        last_activity, total_distance_km, total_moving_time_h, activity_types
 
     Args:
         data_dir: Base data directory.
@@ -69,12 +67,17 @@ def generate_athletes_tsv(data_dir: Path) -> Path:
     Returns:
         Path to generated athletes.tsv.
     """
+    from strava_backup.models.athlete import load_athlete_profile
+
     athletes_path = get_athletes_tsv_path(data_dir)
 
     rows: list[dict[str, Any]] = []
 
     for username, athlete_dir in iter_athlete_dirs(data_dir):
         sessions_path = get_sessions_tsv_path(athlete_dir)
+
+        # Load athlete profile if available
+        athlete = load_athlete_profile(athlete_dir)
 
         session_count = 0
         first_activity = None
@@ -98,15 +101,11 @@ def generate_athletes_tsv(data_dir: Path) -> Path:
                             last_activity = dt
 
                     # Accumulate totals
-                    try:
+                    with contextlib.suppress(ValueError):
                         total_distance_m += float(row.get("distance_m", 0) or 0)
-                    except ValueError:
-                        pass
 
-                    try:
+                    with contextlib.suppress(ValueError):
                         total_moving_time_s += int(row.get("moving_time_s", 0) or 0)
-                    except ValueError:
-                        pass
 
                     # Collect activity types
                     sport = row.get("sport", "")
@@ -115,6 +114,10 @@ def generate_athletes_tsv(data_dir: Path) -> Path:
 
         rows.append({
             "username": username,
+            "firstname": athlete.firstname if athlete else "",
+            "lastname": athlete.lastname if athlete else "",
+            "city": athlete.city if athlete else "",
+            "country": athlete.country if athlete else "",
             "session_count": session_count,
             "first_activity": first_activity or "",
             "last_activity": last_activity or "",
@@ -126,6 +129,10 @@ def generate_athletes_tsv(data_dir: Path) -> Path:
     # Write TSV
     fieldnames = [
         "username",
+        "firstname",
+        "lastname",
+        "city",
+        "country",
         "session_count",
         "first_activity",
         "last_activity",
@@ -157,7 +164,7 @@ def add_center_coords_to_sessions(data_dir: Path, force: bool = False) -> int:
     """
     updated_count = 0
 
-    for username, athlete_dir in iter_athlete_dirs(data_dir):
+    for _username, athlete_dir in iter_athlete_dirs(data_dir):
         sessions_path = get_sessions_tsv_path(athlete_dir)
         if not sessions_path.exists():
             continue
@@ -284,10 +291,9 @@ def run_full_migration(
     # The dataset root is typically the parent of the data directory,
     # or the data directory itself if it's the dataset root
     dataset_dir = data_dir.parent if (data_dir.parent / ".datalad").exists() else data_dir
-    if not (dataset_dir / ".datalad").exists():
-        # Also check if data_dir itself is the dataset root
-        if (data_dir / ".datalad").exists():
-            dataset_dir = data_dir
+    # Also check if data_dir itself is the dataset root
+    if not (dataset_dir / ".datalad").exists() and (data_dir / ".datalad").exists():
+        dataset_dir = data_dir
     results["dataset_files_updated"] = update_dataset_files(dataset_dir, dry_run=dry_run)
 
     if not dry_run:

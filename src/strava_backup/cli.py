@@ -266,9 +266,10 @@ def auth(
 
 @main.command()
 @click.option(
-    "--full",
-    is_flag=True,
-    help="Force full sync (ignore last sync time)",
+    "--what",
+    type=click.Choice(["recent", "full", "social", "athlete-profiles"], case_sensitive=False),
+    default="recent",
+    help="What to sync: recent (default), full, social (kudos/comments), athlete-profiles (profile info & avatar)",
 )
 @click.option(
     "--after",
@@ -312,7 +313,7 @@ def auth(
 @pass_context
 def sync(
     ctx: Context,
-    full: bool,
+    what: str,
     after: Any | None,
     before: Any | None,
     limit: int | None,
@@ -326,6 +327,13 @@ def sync(
 
     Downloads activity metadata, GPS tracks, photos, and social data
     to the local data directory.
+
+    \b
+    Sync modes (--what):
+      recent           Incremental sync of new activities since last sync (default)
+      full             Sync all activities from Strava (ignores last sync time)
+      social           Only refresh kudos/comments for existing local activities
+      athlete-profiles Refresh athlete profile info (name, location) and avatar photos
     """
     from strava_backup.services.backup import BackupService
 
@@ -345,8 +353,52 @@ def sync(
 
     try:
         service = BackupService(config)
+
+        # Handle athlete-profiles mode
+        if what == "athlete-profiles":
+            result = service.refresh_athlete_profiles(
+                dry_run=dry_run,
+                log_callback=ctx.log if not ctx.json_output else None,
+            )
+
+            if ctx.json_output:
+                ctx.output.update({
+                    "status": "success",
+                    **result,
+                })
+                ctx.output.output()
+            else:
+                ctx.log(f"\nUpdated {result['profiles_updated']} profile(s), "
+                       f"downloaded {result['avatars_downloaded']} avatar(s)")
+                if result.get("errors"):
+                    ctx.log(f"Errors: {len(result['errors'])}")
+            return
+
+        # Handle social mode (only update kudos/comments for existing activities)
+        if what == "social":
+            result = service.refresh_social(
+                after=after,
+                before=before,
+                limit=limit,
+                dry_run=dry_run,
+                log_callback=ctx.log if not ctx.json_output else None,
+            )
+
+            if ctx.json_output:
+                ctx.output.update({
+                    "status": "success",
+                    **result,
+                })
+                ctx.output.output()
+            else:
+                ctx.log(f"\nRefreshed social data for {result['activities_updated']} activities")
+                if result.get("errors"):
+                    ctx.log(f"Errors: {len(result['errors'])}")
+            return
+
+        # Normal sync (recent or full mode)
         result = service.sync(
-            full=full,
+            full=(what == "full"),
             after=after,
             before=before,
             limit=limit,
@@ -1036,6 +1088,223 @@ def create_datalad_dataset_cmd(ctx: Context, path: Path, force: bool) -> None:
         if ctx.json_output:
             ctx.output.output()
         sys.exit(1)
+
+
+@main.group()
+def retry() -> None:
+    """Manage the retry queue for failed activity syncs."""
+    pass
+
+
+@retry.command(name="list")
+@click.option(
+    "--all",
+    "show_all",
+    is_flag=True,
+    help="Show all entries including permanently failed",
+)
+@pass_context
+def retry_list(ctx: Context, show_all: bool) -> None:
+    """List activities in the retry queue.
+
+    Shows activities that failed to sync and are scheduled for retry.
+    """
+    from strava_backup.config import ensure_data_dir
+    from strava_backup.lib.paths import iter_athlete_dirs
+    from strava_backup.models.state import load_retry_queue
+
+    config = ctx.config
+    if config is None:
+        ctx.error("Configuration not loaded")
+        sys.exit(1)
+
+    data_dir = ensure_data_dir(config)
+
+    total_pending = 0
+    total_permanent = 0
+
+    for username, _athlete_dir in iter_athlete_dirs(data_dir):
+        queue = load_retry_queue(data_dir, username)
+
+        if queue.get_pending_count() == 0:
+            continue
+
+        ctx.log(f"\nAthlete: {username}")
+        ctx.log("-" * 40)
+
+        for entry in queue.failed_activities:
+            if entry.is_permanently_failed():
+                total_permanent += 1
+                if show_all:
+                    ctx.log(f"  [PERMANENT] Activity {entry.activity_id}")
+                    ctx.log(f"    Error: {entry.error_message[:80]}...")
+                    ctx.log(f"    Retries: {entry.retry_count}")
+            else:
+                total_pending += 1
+                status = "DUE" if entry.is_due_for_retry() else "WAITING"
+                next_retry = entry.next_retry_after.strftime("%Y-%m-%d %H:%M:%S") if entry.next_retry_after else "N/A"
+                ctx.log(f"  [{status}] Activity {entry.activity_id}")
+                ctx.log(f"    Type: {entry.failure_type.value}")
+                ctx.log(f"    Error: {entry.error_message[:80]}...")
+                ctx.log(f"    Retries: {entry.retry_count}, Next: {next_retry}")
+
+    if total_pending == 0 and total_permanent == 0:
+        ctx.log("No activities in retry queue.")
+    else:
+        ctx.log(f"\nTotal: {total_pending} pending, {total_permanent} permanently failed")
+
+    if ctx.json_output:
+        ctx.output.update({
+            "status": "success",
+            "pending_count": total_pending,
+            "permanent_count": total_permanent,
+        })
+        ctx.output.output()
+
+
+@retry.command(name="clear")
+@click.option(
+    "--permanent-only",
+    is_flag=True,
+    help="Only clear permanently failed entries",
+)
+@click.option(
+    "--activity-id",
+    type=int,
+    help="Clear specific activity by ID",
+)
+@click.option(
+    "--yes",
+    "-y",
+    is_flag=True,
+    help="Skip confirmation prompt",
+)
+@pass_context
+def retry_clear(
+    ctx: Context,
+    permanent_only: bool,
+    activity_id: int | None,
+    yes: bool,
+) -> None:
+    """Clear entries from the retry queue.
+
+    Without options, clears all entries. Use --permanent-only to only
+    remove entries that have exhausted all retries.
+    """
+    from strava_backup.config import ensure_data_dir
+    from strava_backup.lib.paths import iter_athlete_dirs
+    from strava_backup.models.state import load_retry_queue, save_retry_queue
+
+    config = ctx.config
+    if config is None:
+        ctx.error("Configuration not loaded")
+        sys.exit(1)
+
+    data_dir = ensure_data_dir(config)
+    cleared_total = 0
+
+    for username, _athlete_dir in iter_athlete_dirs(data_dir):
+        queue = load_retry_queue(data_dir, username)
+
+        if queue.get_pending_count() == 0:
+            continue
+
+        cleared = 0
+        if activity_id is not None:
+            if queue.remove(activity_id):
+                cleared = 1
+        elif permanent_only:
+            cleared = queue.cleanup_permanent_failures()
+        else:
+            if not yes:
+                count = queue.get_pending_count()
+                if not click.confirm(f"Clear all {count} entries for {username}?"):
+                    continue
+            cleared = queue.get_pending_count()
+            queue.failed_activities = []
+
+        if cleared > 0:
+            save_retry_queue(data_dir, username, queue)
+            ctx.log(f"Cleared {cleared} entries for {username}")
+            cleared_total += cleared
+
+    if cleared_total == 0:
+        ctx.log("No entries cleared.")
+    else:
+        ctx.log(f"Total cleared: {cleared_total}")
+
+    if ctx.json_output:
+        ctx.output.update({
+            "status": "success",
+            "cleared_count": cleared_total,
+        })
+        ctx.output.output()
+
+
+@retry.command(name="now")
+@click.option(
+    "--activity-id",
+    type=int,
+    help="Force retry of specific activity ID",
+)
+@pass_context
+def retry_now(ctx: Context, activity_id: int | None) -> None:
+    """Force immediate retry of pending activities.
+
+    Resets the next_retry_after time to now, so activities will be
+    retried on the next sync.
+    """
+    from datetime import datetime
+
+    from strava_backup.config import ensure_data_dir
+    from strava_backup.lib.paths import iter_athlete_dirs
+    from strava_backup.models.state import load_retry_queue, save_retry_queue
+
+    config = ctx.config
+    if config is None:
+        ctx.error("Configuration not loaded")
+        sys.exit(1)
+
+    data_dir = ensure_data_dir(config)
+    reset_total = 0
+    now = datetime.now()
+
+    for username, _athlete_dir in iter_athlete_dirs(data_dir):
+        queue = load_retry_queue(data_dir, username)
+
+        if queue.get_pending_count() == 0:
+            continue
+
+        reset = 0
+        for entry in queue.failed_activities:
+            if entry.is_permanently_failed():
+                continue
+
+            if activity_id is not None:
+                if entry.activity_id == activity_id:
+                    entry.next_retry_after = now
+                    reset = 1
+                    break
+            else:
+                entry.next_retry_after = now
+                reset += 1
+
+        if reset > 0:
+            save_retry_queue(data_dir, username, queue)
+            ctx.log(f"Reset {reset} entries for {username} - will retry on next sync")
+            reset_total += reset
+
+    if reset_total == 0:
+        ctx.log("No entries to reset.")
+    else:
+        ctx.log(f"Total reset: {reset_total} - run 'strava-backup sync' to retry")
+
+    if ctx.json_output:
+        ctx.output.update({
+            "status": "success",
+            "reset_count": reset_total,
+        })
+        ctx.output.output()
 
 
 if __name__ == "__main__":

@@ -6,6 +6,8 @@ __pycache__/
 *$py.class
 *.so
 .Python
+# Generated version file (from hatch-vcs)
+src/strava_backup/_version.py
 build/
 develop-eggs/
 dist/

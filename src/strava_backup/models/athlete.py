@@ -10,7 +10,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from strava_backup.lib.paths import get_athlete_dir, get_gear_json_path
+from strava_backup.lib.paths import (
+    get_athlete_dir,
+    get_athlete_json_path,
+    get_avatar_path,
+    get_gear_json_path,
+)
 
 
 @dataclass
@@ -80,6 +85,62 @@ class Athlete:
             city=data.get("city"),
             country=data.get("country"),
         )
+
+
+def save_athlete_profile(data_dir: Path, athlete: Athlete) -> Path:
+    """Save athlete profile to athlete.json.
+
+    Args:
+        data_dir: Base data directory.
+        athlete: Athlete instance to save.
+
+    Returns:
+        Path to athlete.json file.
+    """
+    athlete_dir = get_athlete_dir(data_dir, athlete.username)
+    athlete_dir.mkdir(parents=True, exist_ok=True)
+
+    profile_path = get_athlete_json_path(athlete_dir)
+    with open(profile_path, "w", encoding="utf-8") as f:
+        json.dump(athlete.to_dict(), f, indent=2)
+
+    return profile_path
+
+
+def load_athlete_profile(athlete_dir: Path) -> Athlete | None:
+    """Load athlete profile from athlete.json.
+
+    Args:
+        athlete_dir: Athlete partition directory.
+
+    Returns:
+        Athlete instance or None if file doesn't exist.
+    """
+    profile_path = get_athlete_json_path(athlete_dir)
+
+    if not profile_path.exists():
+        return None
+
+    with open(profile_path, encoding="utf-8") as f:
+        data = json.load(f)
+
+    return Athlete.from_dict(data)
+
+
+def get_existing_avatar_path(athlete_dir: Path) -> Path | None:
+    """Find existing avatar file with any extension.
+
+    Args:
+        athlete_dir: Athlete partition directory.
+
+    Returns:
+        Path to existing avatar or None.
+    """
+    for ext in ("jpg", "jpeg", "png", "gif", "webp"):
+        avatar = get_avatar_path(athlete_dir, ext)
+        if avatar.exists():
+            return avatar
+    return None
 
 
 @dataclass

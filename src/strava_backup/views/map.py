@@ -1063,7 +1063,7 @@ def _generate_heatmap_html(
 </html>"""
 
 
-def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
+def generate_lightweight_map(_data_dir: Path) -> str:
     """Generate lightweight HTML SPA that loads data on demand.
 
     This version creates a full single-page application with:

@@ -1495,7 +1495,6 @@ wheels = [
 
 [[package]]
 name = "strava-backup"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
@@ -1547,26 +1546,39 @@ requires-dist = [
     { name = "click", specifier = ">=8.0" },
     { name = "datalad", specifier = ">=1.0" },
     { name = "duckdb", specifier = ">=0.9" },
+    { name = "mypy", marker = "extra == 'ci'", specifier = ">=1.0" },
     { name = "mypy", marker = "extra == 'devel'", specifier = ">=1.0" },
     { name = "pyarrow", specifier = ">=14.0" },
+    { name = "pytest", marker = "extra == 'ci'", specifier = ">=7.0" },
+    { name = "pytest", marker = "extra == 'devel'", specifier = ">=7.0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0" },
+    { name = "pytest-cov", marker = "extra == 'ci'", specifier = ">=4.0" },
+    { name = "pytest-cov", marker = "extra == 'devel'", specifier = ">=4.0" },
     { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=4.0" },
+    { name = "pytest-docker", marker = "extra == 'ci'", specifier = ">=2.0" },
+    { name = "pytest-docker", marker = "extra == 'devel'", specifier = ">=2.0" },
     { name = "pytest-docker", marker = "extra == 'test'", specifier = ">=2.0" },
+    { name = "pytest-timeout", marker = "extra == 'ci'", specifier = ">=2.0" },
+    { name = "pytest-timeout", marker = "extra == 'devel'", specifier = ">=2.0" },
     { name = "pytest-timeout", marker = "extra == 'test'", specifier = ">=2.0" },
     { name = "requests", specifier = ">=2.28" },
+    { name = "responses", marker = "extra == 'ci'", specifier = ">=0.23" },
+    { name = "responses", marker = "extra == 'devel'", specifier = ">=0.23" },
     { name = "responses", marker = "extra == 'test'", specifier = ">=0.23" },
+    { name = "ruff", marker = "extra == 'ci'", specifier = ">=0.1.0" },
     { name = "ruff", marker = "extra == 'devel'", specifier = ">=0.1.0" },
-    { name = "strava-backup", extras = ["devel"], marker = "extra == 'ci'" },
-    { name = "strava-backup", extras = ["test"], marker = "extra == 'devel'" },
     { name = "stravalib", specifier = ">=2.0" },
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0" },
     { name = "tomlkit", specifier = ">=0.12" },
+    { name = "tox", marker = "extra == 'ci'", specifier = ">=4.0" },
     { name = "tox", marker = "extra == 'devel'", specifier = ">=4.0" },
     { name = "tox-gh-actions", marker = "extra == 'ci'", specifier = ">=3.0" },
+    { name = "tox-uv", marker = "extra == 'ci'", specifier = ">=1.0" },
     { name = "tox-uv", marker = "extra == 'devel'", specifier = ">=1.0" },
+    { name = "types-requests", marker = "extra == 'ci'" },
     { name = "types-requests", marker = "extra == 'devel'" },
 ]
-provides-extras = ["test", "devel", "ci"]
+provides-extras = ["ci", "devel", "test"]
 
 [[package]]
 name = "stravalib"

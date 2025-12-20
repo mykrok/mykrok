@@ -12,8 +12,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from strava_backup.lib.paths import (
-    format_session_datetime,
-    get_session_dir,
     iter_athlete_dirs,
     iter_session_dirs,
     parse_session_datetime,
@@ -193,7 +191,7 @@ def export_activities_to_gpx(
     include_hr: bool = True,
     include_cadence: bool = True,
     include_power: bool = True,
-    log_callback: "Callable[[str, int], None] | None" = None,
+    log_callback: Callable[[str, int], None] | None = None,
 ) -> dict[str, Any]:
     """Export multiple activities to GPX files.
 
@@ -225,7 +223,7 @@ def export_activities_to_gpx(
     # Convert sessions list to set for quick lookup
     session_set = set(sessions) if sessions else None
 
-    for username, athlete_dir in iter_athlete_dirs(data_dir):
+    for _username, athlete_dir in iter_athlete_dirs(data_dir):
         for session_key, session_dir in iter_session_dirs(athlete_dir):
             # Filter by session list
             if session_set is not None and session_key not in session_set:
