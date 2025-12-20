@@ -3053,12 +3053,7 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
         }};
 
         // ===== Initialize App =====
-        Router.init();
-        MapView.init();
-        SessionsView.init();
-        StatsView.init();
-
-        // Pass sessions data to SessionsView and StatsView when MapView finishes loading
+        // Set up wrapper BEFORE MapView.init() since init() calls loadSessions()
         const originalLoadSessions = MapView.loadSessions.bind(MapView);
         MapView.loadSessions = async function() {{
             await originalLoadSessions();
@@ -3066,6 +3061,11 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
             SessionsView.setSessions(this.allSessions);
             StatsView.setSessions(this.allSessions);
         }};
+
+        Router.init();
+        MapView.init();
+        SessionsView.init();
+        StatsView.init();
     </script>
 </body>
 </html>'''
