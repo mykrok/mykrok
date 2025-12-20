@@ -66,6 +66,11 @@ def copy_assets_to_output(output_dir: Path) -> Path:
             shutil.rmtree(hyparquet_dst)
         shutil.copytree(hyparquet_src, hyparquet_dst)
 
+    # Copy logo
+    logo_src = assets_src / "strava-backup-icon.svg"
+    if logo_src.exists():
+        shutil.copy2(logo_src, assets_dst / "strava-backup-icon.svg")
+
     return assets_dst
 
 
@@ -1058,7 +1063,7 @@ def _generate_heatmap_html(
 </html>"""
 
 
-def generate_lightweight_map(data_dir: Path) -> str:
+def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
     """Generate lightweight HTML SPA that loads data on demand.
 
     This version creates a full single-page application with:
@@ -1130,6 +1135,14 @@ def generate_lightweight_map(data_dir: Path) -> str:
             color: #fc4c02;
             margin-right: 32px;
             white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }}
+
+        .app-logo img {{
+            height: 32px;
+            width: auto;
         }}
 
         .app-nav {{
@@ -1351,7 +1364,10 @@ def generate_lightweight_map(data_dir: Path) -> str:
 <body>
     <!-- App Header -->
     <header class="app-header">
-        <div class="app-logo">Strava Backup</div>
+        <div class="app-logo">
+            <img src="assets/strava-backup-icon.svg" alt="Logo">
+            Strava Backup
+        </div>
         <nav class="app-nav">
             <button class="nav-tab active" data-view="map">Map</button>
             <button class="nav-tab" data-view="sessions">Sessions</button>
