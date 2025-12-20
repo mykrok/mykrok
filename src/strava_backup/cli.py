@@ -869,7 +869,7 @@ def rebuild_sessions(ctx: Context, add_center_coords: bool, force_coords: bool) 
         ctx.log(f"Found {len(athletes)} athlete(s)")
 
         total_sessions = 0
-        for username, athlete_dir in athletes:
+        for username, _athlete_dir in athletes:
             sessions_path = update_sessions_tsv(data_dir, username)
             # Count sessions in the file
             with open(sessions_path, encoding="utf-8") as f:

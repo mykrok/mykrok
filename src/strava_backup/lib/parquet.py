@@ -122,7 +122,7 @@ def write_tracking_data_streaming(
     path: Path,
     data_iterator: Iterator[dict[str, list[Any]]],
     compression: str = "snappy",
-    batch_size: int = 10000,
+    _batch_size: int = 10000,
 ) -> int:
     """Write tracking data to Parquet using streaming writes.
 

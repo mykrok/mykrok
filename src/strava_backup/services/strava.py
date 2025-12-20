@@ -261,10 +261,11 @@ class StravaClient:
                     athlete_firstname = getattr(athlete, "firstname", None)
                     athlete_lastname = getattr(athlete, "lastname", None)
 
+                created_at = getattr(c, "created_at", None)
                 result.append({
                     "id": getattr(c, "id", None),
                     "text": getattr(c, "text", None),
-                    "created_at": c.created_at.isoformat() if getattr(c, "created_at", None) else None,
+                    "created_at": created_at.isoformat() if created_at else None,
                     "athlete_id": athlete_id,
                     "athlete_firstname": athlete_firstname,
                     "athlete_lastname": athlete_lastname,

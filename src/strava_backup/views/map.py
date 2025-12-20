@@ -1058,7 +1058,7 @@ def _generate_heatmap_html(
 </html>"""
 
 
-def generate_lightweight_map(data_dir: Path) -> str:
+def generate_lightweight_map(_data_dir: Path) -> str:
     """Generate lightweight HTML that loads data on demand.
 
     This version creates a small HTML file that fetches data from:

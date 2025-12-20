@@ -5,8 +5,8 @@ Handles data format migrations between versions.
 
 from __future__ import annotations
 
+import contextlib
 import csv
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -16,10 +16,8 @@ from strava_backup.lib.paths import (
     get_athletes_tsv_path,
     get_sessions_tsv_path,
     iter_athlete_dirs,
-    iter_session_dirs,
     needs_migration,
 )
-from strava_backup.models.activity import load_activity
 from strava_backup.models.tracking import get_coordinates, load_tracking_manifest
 
 
@@ -98,15 +96,11 @@ def generate_athletes_tsv(data_dir: Path) -> Path:
                             last_activity = dt
 
                     # Accumulate totals
-                    try:
+                    with contextlib.suppress(ValueError):
                         total_distance_m += float(row.get("distance_m", 0) or 0)
-                    except ValueError:
-                        pass
 
-                    try:
+                    with contextlib.suppress(ValueError):
                         total_moving_time_s += int(row.get("moving_time_s", 0) or 0)
-                    except ValueError:
-                        pass
 
                     # Collect activity types
                     sport = row.get("sport", "")
@@ -157,7 +151,7 @@ def add_center_coords_to_sessions(data_dir: Path, force: bool = False) -> int:
     """
     updated_count = 0
 
-    for username, athlete_dir in iter_athlete_dirs(data_dir):
+    for _username, athlete_dir in iter_athlete_dirs(data_dir):
         sessions_path = get_sessions_tsv_path(athlete_dir)
         if not sessions_path.exists():
             continue
@@ -284,10 +278,9 @@ def run_full_migration(
     # The dataset root is typically the parent of the data directory,
     # or the data directory itself if it's the dataset root
     dataset_dir = data_dir.parent if (data_dir.parent / ".datalad").exists() else data_dir
-    if not (dataset_dir / ".datalad").exists():
-        # Also check if data_dir itself is the dataset root
-        if (data_dir / ".datalad").exists():
-            dataset_dir = data_dir
+    # Also check if data_dir itself is the dataset root
+    if not (dataset_dir / ".datalad").exists() and (data_dir / ".datalad").exists():
+        dataset_dir = data_dir
     results["dataset_files_updated"] = update_dataset_files(dataset_dir, dry_run=dry_run)
 
     if not dry_run:

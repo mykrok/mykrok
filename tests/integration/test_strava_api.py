@@ -478,7 +478,7 @@ class TestBackupServiceMocked:
         self,
         mock_config: Config,
         sample_strava_activity: dict,
-        sample_strava_streams: dict,
+        sample_strava_streams: dict,  # noqa: ARG002
     ) -> None:
         """Test that refresh_social respects limit parameter."""
         from strava_backup.services.backup import BackupService

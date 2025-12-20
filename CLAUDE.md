@@ -27,4 +27,15 @@ Python 3.10+ (type hints required per constitution): Follow standard conventions
 - 001-strava-backup: Added Python 3.10+ (type hints required per constitution) + stravalib (Strava API), PyArrow (Parquet), requests (FitTrackee API), DuckDB (queries)
 
 <!-- MANUAL ADDITIONS START -->
+
+## Pre-commit Checks
+
+**IMPORTANT**: Before every commit, run lint and type checks:
+
+```bash
+uv run tox -e lint,type
+```
+
+Both must pass before committing. Fix any issues before proceeding.
+
 <!-- MANUAL ADDITIONS END -->

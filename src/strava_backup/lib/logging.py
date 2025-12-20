@@ -25,7 +25,7 @@ _cleanup_registered: bool = False
 
 
 def setup_logging(
-    config: "Config | None" = None,
+    config: Config | None = None,
     log_dir: Path | None = None,
     console_level: int = logging.INFO,
     file_level: int = logging.DEBUG,
@@ -60,10 +60,7 @@ def setup_logging(
 
     # Determine log directory
     if log_dir is None:
-        if config is not None:
-            log_dir = config.data.directory / "logs"
-        else:
-            log_dir = Path("logs")
+        log_dir = config.data.directory / "logs" if config is not None else Path("logs")
 
     # Create log directory if it doesn't exist
     log_dir.mkdir(parents=True, exist_ok=True)
