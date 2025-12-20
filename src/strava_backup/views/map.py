@@ -7,7 +7,9 @@ and photo overlay support.
 from __future__ import annotations
 
 import http.server
+import importlib.resources
 import json
+import shutil
 import socketserver
 from datetime import datetime
 from pathlib import Path
@@ -22,6 +24,49 @@ from strava_backup.lib.paths import (
 )
 from strava_backup.models.activity import load_activity
 from strava_backup.models.tracking import get_coordinates, load_tracking_manifest
+
+
+def _get_assets_dir() -> Path:
+    """Get path to bundled assets directory."""
+    # Use importlib.resources for Python 3.9+
+    try:
+        files = importlib.resources.files("strava_backup")
+        return Path(str(files / "assets"))
+    except (AttributeError, TypeError):
+        # Fallback for older Python or editable installs
+        return Path(__file__).parent.parent / "assets"
+
+
+def copy_assets_to_output(output_dir: Path) -> Path:
+    """Copy bundled JS/CSS assets to output directory.
+
+    Args:
+        output_dir: Directory to copy assets to.
+
+    Returns:
+        Path to the assets subdirectory.
+    """
+    assets_src = _get_assets_dir()
+    assets_dst = output_dir / "assets"
+    assets_dst.mkdir(parents=True, exist_ok=True)
+
+    # Copy Leaflet
+    leaflet_src = assets_src / "leaflet"
+    leaflet_dst = assets_dst / "leaflet"
+    if leaflet_src.exists():
+        if leaflet_dst.exists():
+            shutil.rmtree(leaflet_dst)
+        shutil.copytree(leaflet_src, leaflet_dst)
+
+    # Copy hyparquet
+    hyparquet_src = assets_src / "hyparquet"
+    hyparquet_dst = assets_dst / "hyparquet"
+    if hyparquet_src.exists():
+        if hyparquet_dst.exists():
+            shutil.rmtree(hyparquet_dst)
+        shutil.copytree(hyparquet_src, hyparquet_dst)
+
+    return assets_dst
 
 
 def _collect_geotagged_photos(
@@ -1011,6 +1056,339 @@ def _generate_heatmap_html(
     </script>
 </body>
 </html>"""
+
+
+def generate_lightweight_map(data_dir: Path) -> str:
+    """Generate lightweight HTML that loads data on demand.
+
+    This version creates a small HTML file that fetches data from:
+    - athletes.tsv for athlete list
+    - athl={username}/sessions.tsv for session metadata
+    - athl={username}/ses={datetime}/tracking.parquet for track coordinates
+
+    Track coordinates are loaded on-demand when clicking on a session marker.
+
+    Args:
+        data_dir: Base data directory.
+
+    Returns:
+        HTML content as string.
+    """
+    # Color palette for activity types
+    type_colors = {
+        "Run": "#FF5722",
+        "Ride": "#2196F3",
+        "Hike": "#4CAF50",
+        "Walk": "#9C27B0",
+        "Swim": "#00BCD4",
+        "Other": "#607D8B",
+    }
+
+    return f'''<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strava Activities Map</title>
+    <link rel="stylesheet" href="assets/leaflet/leaflet.css">
+    <style>
+        body {{ margin: 0; padding: 0; }}
+        #map {{ position: absolute; top: 0; bottom: 0; width: 100%; }}
+        .info {{
+            padding: 6px 8px;
+            font: 14px/16px Arial, Helvetica, sans-serif;
+            background: white;
+            background: rgba(255,255,255,0.9);
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            border-radius: 5px;
+        }}
+        .legend {{
+            line-height: 18px;
+            color: #555;
+        }}
+        .legend i {{
+            width: 18px;
+            height: 18px;
+            float: left;
+            margin-right: 8px;
+            opacity: 0.7;
+        }}
+        .session-marker {{
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            cursor: pointer;
+        }}
+        .loading {{
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }}
+        .loading.hidden {{ display: none; }}
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="loading" class="loading">Loading sessions...</div>
+    <script src="assets/leaflet/leaflet.js"></script>
+    <script type="module">
+        import {{ parquetReadObjects }} from './assets/hyparquet/index.js';
+
+        const typeColors = {json.dumps(type_colors)};
+
+        // Parse TSV text to array of objects
+        function parseTSV(text) {{
+            // Normalize line endings (handle both CRLF and LF)
+            const lines = text.trim().replace(/\\r/g, '').split('\\n');
+            if (lines.length < 2) return [];
+            const headers = lines[0].split('\\t');
+            return lines.slice(1).map(line => {{
+                const values = line.split('\\t');
+                return Object.fromEntries(headers.map((h, i) => [h, values[i] || '']));
+            }});
+        }}
+
+        // Initialize map
+        const map = L.map('map', {{ preferCanvas: true }}).setView([40, -100], 4);
+
+        L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }}).addTo(map);
+
+        const bounds = L.latLngBounds();
+        const sessionsLayer = L.layerGroup().addTo(map);
+        const tracksLayer = L.layerGroup().addTo(map);
+        const loadedTracks = new Set();
+        const loadingTracks = new Set();
+        const allMarkers = [];  // Store all markers with their session data
+        let totalSessions = 0;
+        let loadedTrackCount = 0;
+
+        // Load a single track from parquet
+        async function loadTrack(athlete, session, color) {{
+            const trackKey = `${{athlete}}/${{session}}`;
+            if (loadedTracks.has(trackKey) || loadingTracks.has(trackKey)) return;
+            loadingTracks.add(trackKey);
+
+            try {{
+                const url = `athl=${{athlete}}/ses=${{session}}/tracking.parquet`;
+                const response = await fetch(url);
+                if (!response.ok) {{
+                    loadingTracks.delete(trackKey);
+                    return;
+                }}
+
+                const arrayBuffer = await response.arrayBuffer();
+
+                // Read lat/lng columns from parquet (returns array of row objects)
+                const rows = await parquetReadObjects({{
+                    file: arrayBuffer,
+                    columns: ['lat', 'lng']
+                }});
+
+                if (rows && rows.length > 0) {{
+                    const coords = [];
+                    for (const row of rows) {{
+                        if (row.lat != null && row.lng != null) {{
+                            coords.push([row.lat, row.lng]);
+                        }}
+                    }}
+                    if (coords.length > 0) {{
+                        L.polyline(coords, {{
+                            color: color,
+                            weight: 3,
+                            opacity: 0.7
+                        }}).addTo(tracksLayer);
+                        loadedTracks.add(trackKey);
+                        loadedTrackCount++;
+                        updateInfo();
+                    }}
+                }}
+            }} catch (e) {{
+                console.warn(`Failed to load track ${{trackKey}}:`, e);
+            }} finally {{
+                loadingTracks.delete(trackKey);
+            }}
+        }}
+
+        // Auto-load tracks for visible markers when zoomed in
+        const AUTO_LOAD_ZOOM = 11;  // Zoom level at which to auto-load tracks
+
+        function loadVisibleTracks() {{
+            if (map.getZoom() < AUTO_LOAD_ZOOM) return;
+
+            const mapBounds = map.getBounds();
+            for (const {{marker, athlete, session, color}} of allMarkers) {{
+                if (mapBounds.contains(marker.getLatLng())) {{
+                    loadTrack(athlete, session, color);
+                }}
+            }}
+        }}
+
+        // Load sessions from TSV files
+        async function loadSessions() {{
+            const loading = document.getElementById('loading');
+
+            try {{
+                // Try to load athletes.tsv
+                let athletes = [];
+                try {{
+                    const athletesResp = await fetch('athletes.tsv');
+                    if (athletesResp.ok) {{
+                        const athletesText = await athletesResp.text();
+                        athletes = parseTSV(athletesText);
+                    }}
+                }} catch (e) {{
+                    console.warn('Could not load athletes.tsv, scanning directories...');
+                }}
+
+                // If no athletes.tsv, try to detect athlete directories
+                if (athletes.length === 0) {{
+                    // Fallback: look for known athlete directories
+                    // This won't work without server-side directory listing
+                    // So we'll just check for a single athlete
+                    loading.textContent = 'Looking for sessions...';
+                }}
+
+                // For each athlete, load their sessions
+                for (const athlete of athletes) {{
+                    const username = athlete.username;
+                    if (!username) continue;
+
+                    try {{
+                        const sessionsResp = await fetch(`athl=${{username}}/sessions.tsv`);
+                        if (!sessionsResp.ok) continue;
+
+                        const sessionsText = await sessionsResp.text();
+                        const sessions = parseTSV(sessionsText);
+
+                        for (const session of sessions) {{
+                            const lat = parseFloat(session.center_lat);
+                            const lng = parseFloat(session.center_lng);
+
+                            if (isNaN(lat) || isNaN(lng)) continue;
+
+                            const type = session.sport || session.type || 'Other';
+                            const color = typeColors[type] || typeColors.Other;
+
+                            const marker = L.circleMarker([lat, lng], {{
+                                radius: 6,
+                                fillColor: color,
+                                color: 'white',
+                                weight: 2,
+                                opacity: 1,
+                                fillOpacity: 0.8,
+                                className: 'session-marker'
+                            }});
+
+                            marker.bindPopup(`
+                                <b>${{session.name || 'Activity'}}</b><br>
+                                Type: ${{type}}<br>
+                                Date: ${{session.datetime?.substring(0, 8) || ''}}<br>
+                                Distance: ${{(parseFloat(session.distance_m || 0) / 1000).toFixed(2)}} km
+                            `);
+
+                            // Store marker data for auto-loading
+                            allMarkers.push({{
+                                marker: marker,
+                                athlete: username,
+                                session: session.datetime,
+                                color: color,
+                                hasGps: session.has_gps === 'true'
+                            }});
+
+                            // Load track on click
+                            marker.on('click', () => {{
+                                loadTrack(username, session.datetime, color);
+                            }});
+
+                            marker.addTo(sessionsLayer);
+                            bounds.extend([lat, lng]);
+                            totalSessions++;
+                        }}
+                    }} catch (e) {{
+                        console.warn(`Failed to load sessions for ${{username}}:`, e);
+                    }}
+                }}
+
+                // Fit map to bounds
+                if (bounds.isValid()) {{
+                    map.fitBounds(bounds, {{ padding: [20, 20] }});
+                }}
+
+                loading.classList.add('hidden');
+
+                // Update info control
+                updateInfo();
+
+                // Set up auto-loading on zoom/pan
+                map.on('moveend', loadVisibleTracks);
+                map.on('zoomend', loadVisibleTracks);
+
+            }} catch (e) {{
+                loading.textContent = 'Error loading data: ' + e.message;
+                console.error('Error loading sessions:', e);
+            }}
+        }}
+
+        // Info control
+        function updateInfo() {{
+            if (infoControl) {{
+                infoControl.remove();
+            }}
+            infoControl = L.control({{ position: 'topright' }});
+            infoControl.onAdd = function() {{
+                const div = L.DomUtil.create('div', 'info');
+                let html = `<b>Activities</b><br>${{totalSessions}} sessions`;
+                if (loadedTrackCount > 0) {{
+                    html += `<br>${{loadedTrackCount}} tracks loaded`;
+                }}
+                const zoom = map.getZoom();
+                if (zoom < AUTO_LOAD_ZOOM) {{
+                    html += `<br><small>Zoom in to auto-load tracks<br>(current: ${{zoom}}, need: ${{AUTO_LOAD_ZOOM}})</small>`;
+                }} else {{
+                    html += `<br><small>Click marker or pan to load</small>`;
+                }}
+                div.innerHTML = html;
+                return div;
+            }};
+            infoControl.addTo(map);
+        }}
+        let infoControl = null;
+
+        // Update info when zoom changes
+        map.on('zoomend', updateInfo);
+
+        // Legend
+        const legend = L.control({{ position: 'bottomright' }});
+        legend.onAdd = function() {{
+            const div = L.DomUtil.create('div', 'info legend');
+            div.innerHTML = '<b>Activity Types</b><br>';
+            for (const [type, color] of Object.entries(typeColors)) {{
+                div.innerHTML += `<i style="background:${{color}}"></i> ${{type}}<br>`;
+            }}
+            return div;
+        }};
+        legend.addTo(map);
+
+        // Layer control
+        L.control.layers(null, {{
+            'Sessions': sessionsLayer,
+            'Tracks': tracksLayer
+        }}, {{ position: 'topleft' }}).addTo(map);
+
+        // Start loading
+        loadSessions();
+    </script>
+</body>
+</html>'''
 
 
 def serve_map(

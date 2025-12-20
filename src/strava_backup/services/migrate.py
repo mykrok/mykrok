@@ -142,13 +142,15 @@ def generate_athletes_tsv(data_dir: Path) -> Path:
     return athletes_path
 
 
-def add_center_coords_to_sessions(data_dir: Path) -> int:
-    """Add center GPS coordinates to sessions.tsv files.
+def add_center_coords_to_sessions(data_dir: Path, force: bool = False) -> int:
+    """Add start point GPS coordinates to sessions.tsv files.
 
-    Adds center_lat and center_lng columns if not present.
+    Adds center_lat and center_lng columns using the track's starting point.
+    Column names kept as center_* for backward compatibility.
 
     Args:
         data_dir: Base data directory.
+        force: If True, recalculate even if columns already exist.
 
     Returns:
         Number of sessions updated.
@@ -167,16 +169,17 @@ def add_center_coords_to_sessions(data_dir: Path) -> int:
             rows = list(reader)
 
         # Check if center coords already exist
-        if "center_lat" in fieldnames and "center_lng" in fieldnames:
+        has_columns = "center_lat" in fieldnames and "center_lng" in fieldnames
+        if has_columns and not force:
             continue
 
-        # Add new columns
+        # Add new columns if not present
         if "center_lat" not in fieldnames:
             fieldnames.append("center_lat")
         if "center_lng" not in fieldnames:
             fieldnames.append("center_lng")
 
-        # Calculate center coords for each session
+        # Get starting point coords for each session
         for row in rows:
             session_key = row.get("datetime", "")
             if not session_key:
@@ -197,13 +200,12 @@ def add_center_coords_to_sessions(data_dir: Path) -> int:
                 row["center_lng"] = ""
                 continue
 
-            # Get coordinates and calculate center
+            # Get coordinates and use starting point (first coordinate)
             coords = get_coordinates(session_dir)
             if coords:
-                lats = [c[0] for c in coords]
-                lngs = [c[1] for c in coords]
-                row["center_lat"] = str(round((min(lats) + max(lats)) / 2, 6))
-                row["center_lng"] = str(round((min(lngs) + max(lngs)) / 2, 6))
+                start_lat, start_lng = coords[0]
+                row["center_lat"] = str(round(start_lat, 6))
+                row["center_lng"] = str(round(start_lng, 6))
                 updated_count += 1
             else:
                 row["center_lat"] = ""
