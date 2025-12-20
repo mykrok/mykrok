@@ -1119,6 +1119,26 @@ def generate_lightweight_map(data_dir: Path) -> str:
             box-shadow: 0 2px 5px rgba(0,0,0,0.3);
             cursor: pointer;
         }}
+        .photo-icon {{
+            background: #E91E63;
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }}
+        .photo-popup {{
+            max-width: 350px;
+        }}
+        .photo-popup img {{
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            cursor: pointer;
+        }}
+        .photo-popup .photo-meta {{
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+        }}
         .loading {{
             position: fixed;
             top: 50%;
@@ -1165,11 +1185,14 @@ def generate_lightweight_map(data_dir: Path) -> str:
         const bounds = L.latLngBounds();
         const sessionsLayer = L.layerGroup().addTo(map);
         const tracksLayer = L.layerGroup().addTo(map);
+        const photosLayer = L.layerGroup().addTo(map);
         const loadedTracks = new Set();
         const loadingTracks = new Set();
+        const loadedPhotos = new Set();
         const allMarkers = [];  // Store all markers with their session data
         let totalSessions = 0;
         let loadedTrackCount = 0;
+        let totalPhotos = 0;
 
         // Load a single track from parquet
         async function loadTrack(athlete, session, color) {{
@@ -1218,6 +1241,78 @@ def generate_lightweight_map(data_dir: Path) -> str:
             }}
         }}
 
+        // Load photos for a session from info.json
+        async function loadPhotos(athlete, session, sessionName) {{
+            const photoKey = `${{athlete}}/${{session}}`;
+            if (loadedPhotos.has(photoKey)) return;
+            loadedPhotos.add(photoKey);
+
+            try {{
+                const url = `athl=${{athlete}}/ses=${{session}}/info.json`;
+                const response = await fetch(url);
+                if (!response.ok) return;
+
+                const info = await response.json();
+                const photos = info.photos || [];
+
+                for (const photo of photos) {{
+                    // Parse location from nested structure: [["root", [lat, lng]]]
+                    const locationRaw = photo.location;
+                    if (!locationRaw || !locationRaw[0] || !locationRaw[0][1]) continue;
+
+                    const [lat, lng] = locationRaw[0][1];
+                    if (lat == null || lng == null) continue;
+
+                    // Get photo URLs
+                    const urls = photo.urls || {{}};
+                    const previewUrl = urls['600'] || urls['256'] || urls['1024'] || urls['2048'] || Object.values(urls)[0] || '';
+                    const fullUrl = urls['2048'] || urls['1024'] || urls['600'] || Object.values(urls)[0] || '';
+
+                    // Check for local photo file
+                    const createdAt = photo.created_at || '';
+                    let localPath = '';
+                    if (createdAt) {{
+                        // Parse created_at to match local filename format (YYYYMMDDTHHMMSS.jpg)
+                        const dt = createdAt.replace(/[-:]/g, '').replace(/\\+.*$/, '').substring(0, 15);
+                        localPath = `athl=${{athlete}}/ses=${{session}}/photos/${{dt}}.jpg`;
+                    }}
+
+                    // Create photo marker
+                    const photoIcon = L.divIcon({{
+                        html: '<div class="photo-icon" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;">' +
+                              '<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>' +
+                              '</div>',
+                        className: '',
+                        iconSize: [28, 28],
+                        iconAnchor: [14, 14]
+                    }});
+
+                    const marker = L.marker([lat, lng], {{ icon: photoIcon }});
+
+                    // Use local path if available, otherwise remote URL
+                    const imgSrc = localPath || previewUrl;
+                    const linkHref = localPath || fullUrl;
+
+                    marker.bindPopup(`
+                        <div class="photo-popup">
+                            ${{imgSrc ? `<a href="${{linkHref}}" target="_blank"><img src="${{imgSrc}}" alt="Photo"></a>` : '<p>No image available</p>'}}
+                            <div class="photo-meta">
+                                <strong>${{sessionName}}</strong><br>
+                                ${{session.substring(0, 8)}}
+                            </div>
+                        </div>
+                    `, {{ maxWidth: 350 }});
+
+                    marker.addTo(photosLayer);
+                    totalPhotos++;
+                }}
+
+                updateInfo();
+            }} catch (e) {{
+                console.warn(`Failed to load photos for ${{photoKey}}:`, e);
+            }}
+        }}
+
         // Auto-load tracks for visible markers when zoomed in
         const AUTO_LOAD_ZOOM = 11;  // Zoom level at which to auto-load tracks
 
@@ -1225,9 +1320,12 @@ def generate_lightweight_map(data_dir: Path) -> str:
             if (map.getZoom() < AUTO_LOAD_ZOOM) return;
 
             const mapBounds = map.getBounds();
-            for (const {{marker, athlete, session, color}} of allMarkers) {{
+            for (const {{marker, athlete, session, color, hasPhotos, sessionName}} of allMarkers) {{
                 if (mapBounds.contains(marker.getLatLng())) {{
                     loadTrack(athlete, session, color);
+                    if (hasPhotos) {{
+                        loadPhotos(athlete, session, sessionName);
+                    }}
                 }}
             }}
         }}
@@ -1296,17 +1394,23 @@ def generate_lightweight_map(data_dir: Path) -> str:
                             `);
 
                             // Store marker data for auto-loading
+                            const hasPhotos = parseInt(session.photo_count || '0') > 0;
                             allMarkers.push({{
                                 marker: marker,
                                 athlete: username,
                                 session: session.datetime,
                                 color: color,
-                                hasGps: session.has_gps === 'true'
+                                hasGps: session.has_gps === 'true',
+                                hasPhotos: hasPhotos,
+                                sessionName: session.name || 'Activity'
                             }});
 
-                            // Load track on click
+                            // Load track and photos on click
                             marker.on('click', () => {{
                                 loadTrack(username, session.datetime, color);
+                                if (hasPhotos) {{
+                                    loadPhotos(username, session.datetime, session.name || 'Activity');
+                                }}
                             }});
 
                             marker.addTo(sessionsLayer);
@@ -1350,9 +1454,12 @@ def generate_lightweight_map(data_dir: Path) -> str:
                 if (loadedTrackCount > 0) {{
                     html += `<br>${{loadedTrackCount}} tracks loaded`;
                 }}
+                if (totalPhotos > 0) {{
+                    html += `<br>${{totalPhotos}} photos`;
+                }}
                 const zoom = map.getZoom();
                 if (zoom < AUTO_LOAD_ZOOM) {{
-                    html += `<br><small>Zoom in to auto-load tracks<br>(current: ${{zoom}}, need: ${{AUTO_LOAD_ZOOM}})</small>`;
+                    html += `<br><small>Zoom in to auto-load<br>(current: ${{zoom}}, need: ${{AUTO_LOAD_ZOOM}})</small>`;
                 }} else {{
                     html += `<br><small>Click marker or pan to load</small>`;
                 }}
@@ -1374,6 +1481,7 @@ def generate_lightweight_map(data_dir: Path) -> str:
             for (const [type, color] of Object.entries(typeColors)) {{
                 div.innerHTML += `<i style="background:${{color}}"></i> ${{type}}<br>`;
             }}
+            div.innerHTML += '<br><i style="background:#E91E63;border-radius:50%;"></i> Photos';
             return div;
         }};
         legend.addTo(map);
@@ -1381,7 +1489,8 @@ def generate_lightweight_map(data_dir: Path) -> str:
         // Layer control
         L.control.layers(null, {{
             'Sessions': sessionsLayer,
-            'Tracks': tracksLayer
+            'Tracks': tracksLayer,
+            'Photos': photosLayer
         }}, {{ position: 'topleft' }}).addTo(map);
 
         // Start loading
