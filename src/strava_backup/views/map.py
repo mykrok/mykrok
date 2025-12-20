@@ -1138,6 +1138,11 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
             display: flex;
             align-items: center;
             gap: 8px;
+            text-decoration: none;
+        }}
+
+        .app-logo:hover {{
+            opacity: 0.8;
         }}
 
         .app-logo img {{
@@ -1364,10 +1369,10 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
 <body>
     <!-- App Header -->
     <header class="app-header">
-        <div class="app-logo">
+        <a href="https://github.com/yarikoptic/strava-backup" class="app-logo" target="_blank">
             <img src="assets/strava-backup-icon.svg" alt="Logo">
             Strava Backup
-        </div>
+        </a>
         <nav class="app-nav">
             <button class="nav-tab active" data-view="map">Map</button>
             <button class="nav-tab" data-view="sessions">Sessions</button>
