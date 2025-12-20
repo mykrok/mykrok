@@ -542,3 +542,110 @@ const URLState = {
 
 ### Priority: Low (Phase 7+)
 This enhancement can be implemented after core features are complete.
+
+---
+
+## Future Enhancement: Full-Screen Session View
+
+**Goal**: Allow viewing session details in full-screen mode with permalinks for sharing.
+
+### Current Behavior
+- Session details appear in a 400px side panel
+- Clicking a session in sessions list opens the panel
+- Clicking a map marker shows a popup, then can open panel
+
+### Proposed Enhancement
+
+#### New Route: `#/session/{athlete}/{datetime}`
+Add a dedicated full-page session view accessible via:
+- `#/session/alice/20241218T063000` - Direct permalink
+- Click "Expand" button in side panel
+- Click "View Details" in map popup (optional)
+
+#### Full-Screen Layout
+```html
+<div id="view-session" class="view">
+  <header class="session-header">
+    <button class="back-btn" onclick="history.back()">← Back</button>
+    <h1 class="session-title">{activity name}</h1>
+    <div class="session-meta">{date} • {type} • {athlete}</div>
+  </header>
+
+  <div class="session-content">
+    <!-- Stats cards - larger, more prominent -->
+    <section class="session-stats">
+      <div class="stat-card large">...</div>
+    </section>
+
+    <!-- Full-width map with track -->
+    <section class="session-map-full">
+      <div id="session-map" style="height: 400px;"></div>
+    </section>
+
+    <!-- Data streams charts (if available) -->
+    <section class="session-charts">
+      <canvas id="hr-chart"></canvas>
+      <canvas id="elevation-chart"></canvas>
+    </section>
+
+    <!-- Photo gallery - grid layout -->
+    <section class="session-photos">
+      <div class="photo-grid">...</div>
+    </section>
+
+    <!-- Social section -->
+    <section class="session-social">
+      <div class="kudos-list">...</div>
+      <div class="comments-list">...</div>
+    </section>
+
+    <!-- Cross-athlete links -->
+    <section class="session-shared" id="shared-athletes">
+      Also ran with: <a href="#/session/bob/20241218T063000">Bob</a>
+    </section>
+  </div>
+</div>
+```
+
+#### Fragment IDs for Deep Linking
+Support scrolling to specific sections:
+- `#/session/alice/20241218T063000#map` - Scroll to map
+- `#/session/alice/20241218T063000#photos` - Scroll to photos
+- `#/session/alice/20241218T063000#social` - Scroll to kudos/comments
+
+#### Router Updates
+```javascript
+const Router = {
+  routes: {
+    map: showMapView,
+    sessions: showSessionsView,
+    stats: showStatsView,
+    session: showFullSessionView  // New route
+  },
+
+  navigate() {
+    const hash = location.hash.slice(2) || 'map';
+    const [view, ...params] = hash.split('/');
+    const fragment = params[params.length - 1]?.split('#')[1];
+
+    if (view === 'session' && params.length >= 2) {
+      const [athlete, datetime] = params;
+      this.routes.session(athlete, datetime.split('#')[0], fragment);
+    } else {
+      this.routes[view]?.(params);
+    }
+  }
+};
+```
+
+#### UI Integration
+- Add "Expand" icon button to side panel header
+- Side panel close button navigates back (not just hides)
+- Sessions list row click: opens side panel
+- Sessions list row double-click: opens full view
+- Mobile: always use full view (no side panel)
+
+### Estimated LOC: ~400 (JS) + ~200 (CSS)
+
+### Priority: Medium (Phase 7)
+Should be implemented after permalinks/deep linking (shares URL infrastructure).
