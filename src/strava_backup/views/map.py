@@ -1375,26 +1375,47 @@ def generate_lightweight_map(data_dir: Path) -> str:
 
                             const type = session.sport || session.type || 'Other';
                             const color = typeColors[type] || typeColors.Other;
+                            const hasPhotos = parseInt(session.photo_count || '0') > 0;
+                            const photoCount = parseInt(session.photo_count || '0');
 
-                            const marker = L.circleMarker([lat, lng], {{
-                                radius: 6,
-                                fillColor: color,
-                                color: 'white',
-                                weight: 2,
-                                opacity: 1,
-                                fillOpacity: 0.8,
-                                className: 'session-marker'
-                            }});
+                            // Use different marker style for sessions with photos
+                            let marker;
+                            if (hasPhotos) {{
+                                // Session with photos: show activity color circle with camera badge
+                                const icon = L.divIcon({{
+                                    html: `<div style="position:relative;">
+                                        <div style="width:12px;height:12px;background:${{color}};border:2px solid white;border-radius:50%;box-shadow:0 2px 5px rgba(0,0,0,0.3);"></div>
+                                        <div style="position:absolute;top:-6px;right:-8px;width:14px;height:14px;background:#E91E63;border:1.5px solid white;border-radius:50%;display:flex;align-items:center;justify-content:center;">
+                                            <svg width="8" height="8" viewBox="0 0 24 24" fill="white"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                                        </div>
+                                    </div>`,
+                                    className: '',
+                                    iconSize: [20, 20],
+                                    iconAnchor: [8, 8]
+                                }});
+                                marker = L.marker([lat, lng], {{ icon: icon }});
+                            }} else {{
+                                // Regular session: simple circle marker
+                                marker = L.circleMarker([lat, lng], {{
+                                    radius: 6,
+                                    fillColor: color,
+                                    color: 'white',
+                                    weight: 2,
+                                    opacity: 1,
+                                    fillOpacity: 0.8,
+                                    className: 'session-marker'
+                                }});
+                            }}
 
+                            const photoInfo = hasPhotos ? `<br>Photos: ${{photoCount}}` : '';
                             marker.bindPopup(`
                                 <b>${{session.name || 'Activity'}}</b><br>
                                 Type: ${{type}}<br>
-                                Date: ${{session.datetime?.substring(0, 8) || ''}}<br>
+                                Date: ${{session.datetime?.substring(0, 8) || ''}}${{photoInfo}}<br>
                                 Distance: ${{(parseFloat(session.distance_m || 0) / 1000).toFixed(2)}} km
                             `);
 
                             // Store marker data for auto-loading
-                            const hasPhotos = parseInt(session.photo_count || '0') > 0;
                             allMarkers.push({{
                                 marker: marker,
                                 athlete: username,
