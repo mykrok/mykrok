@@ -35,17 +35,21 @@
 
 **Storage**: Directory partition `athl={username}/`
 
-**Fields**:
+**Fields** (stored in `athlete.json`):
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| id | integer | Yes | Strava athlete ID |
 | username | string | Yes | Strava username (URL-safe) |
-| athlete_id | integer | Yes | Strava athlete ID |
 | firstname | string | No | Athlete first name |
 | lastname | string | No | Athlete last name |
+| city | string | No | City from profile |
+| country | string | No | Country from profile |
 | profile_url | string | No | Profile image URL |
 
 **Files**:
+- `athlete.json`: Athlete profile data
+- `avatar.{jpg|png}`: Profile photo (downloaded from profile_url)
 - `sessions.tsv`: Summary of all activities for this athlete
 - `gear.json`: Equipment catalog
 
@@ -297,6 +301,30 @@
 | has_gps | boolean | Has GPS data |
 | has_photos | boolean | Has photos |
 | photo_count | integer | Photo count |
+
+---
+
+### Athletes Summary (TSV)
+
+**Description**: Top-level summary of all athletes in the backup.
+
+**Storage**: `athletes.tsv` at data directory root
+
+**Columns**:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| username | string | Athlete username |
+| firstname | string | First name (from profile) |
+| lastname | string | Last name (from profile) |
+| city | string | City (from profile) |
+| country | string | Country (from profile) |
+| session_count | integer | Number of activities |
+| first_activity | string | Earliest activity datetime |
+| last_activity | string | Latest activity datetime |
+| total_distance_km | float | Total distance in km |
+| total_moving_time_h | float | Total moving time in hours |
+| activity_types | string | Comma-separated list of activity types |
 
 ---
 

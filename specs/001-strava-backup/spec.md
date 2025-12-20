@@ -170,6 +170,7 @@ As an athlete, I want to export my backed-up activities to a self-hosted FitTrac
 - **FR-021**: System MUST generate GPX files with extended data (heart rate, cadence, power) when available in tracking data for FitTrackee upload.
 - **FR-022**: System MUST respect FitTrackee API rate limits (default 300 requests per 5 minutes) with automatic pause and resume.
 - **FR-023**: System MUST provide integration tests for FitTrackee export using a Docker-based FitTrackee instance.
+- **FR-024**: *(Planned)* Map view SHOULD support URL permalinks that encode view state including: map center coordinates, zoom level, selected session/popup, visible layers, and active filters. This enables bookmarking specific views and preserving state across page reloads.
 
 ### Key Entities
 

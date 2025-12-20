@@ -183,6 +183,38 @@ datalad get data/  # Download all data files
 
 **Important**: Consider keeping this dataset private if it contains your
 actual Strava data, as it may include personal location information.
+
+## Publishing to a Web Server
+
+You can publish the dataset to a remote HTTP server via SSH for viewing in a browser.
+
+### Setup a Publishing Remote
+
+```bash
+# Create a sibling that excludes sensitive files
+datalad create-sibling -s public-website \\
+    --annex-wanted "not metadata=distribution-restrictions=*" \\
+    SSH_URL
+
+# Example: datalad create-sibling -s public-website \\
+#     --annex-wanted "not metadata=distribution-restrictions=*" \\
+#     user@server.example.com:/var/www/strava-backup
+```
+
+### Publish Updates
+
+```bash
+datalad push --to=public-website
+```
+
+This publishes the dataset while automatically excluding files marked as sensitive
+(like `.strava-backup/config.toml`).
+
+### Access Control
+
+**Note**: Access restrictions and user management are outside the scope of this
+project. Implement access control using your web server's authentication
+mechanisms (e.g., HTTP Basic Auth, OAuth proxy, IP allowlisting, etc.).
 """
 
 # Template for Makefile
