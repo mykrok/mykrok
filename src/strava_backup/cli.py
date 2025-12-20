@@ -613,7 +613,7 @@ def stats(
     "--output",
     "-o",
     type=click.Path(path_type=Path),
-    help="Output HTML file (default: stdout or ./map.html)",
+    help="Output HTML file (default: stdout or ./strava-backup.html)",
 )
 @click.option(
     "--after",
@@ -696,7 +696,7 @@ def map_cmd(
             html = generate_lightweight_map(config.data.directory)
 
             # Always output to data directory for lightweight mode
-            output_path = config.data.directory / "map.html"
+            output_path = config.data.directory / "strava-backup.html"
             output_path.write_text(html, encoding="utf-8")
 
             # Copy JS/CSS assets
@@ -724,9 +724,9 @@ def map_cmd(
             if serve:
                 # When serving with photos, save HTML in data directory for local photo paths
                 if photos and not output:
-                    output_path = config.data.directory / "map.html"
+                    output_path = config.data.directory / "strava-backup.html"
                 else:
-                    output_path = output or Path("./map.html")
+                    output_path = output or Path("./strava-backup.html")
                 output_path.write_text(html, encoding="utf-8")
                 ctx.log(f"Map saved to {output_path}")
                 ctx.log(f"Starting server at http://127.0.0.1:{port}")

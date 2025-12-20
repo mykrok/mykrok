@@ -66,6 +66,11 @@ def copy_assets_to_output(output_dir: Path) -> Path:
             shutil.rmtree(hyparquet_dst)
         shutil.copytree(hyparquet_src, hyparquet_dst)
 
+    # Copy logo
+    logo_src = assets_src / "strava-backup-icon.svg"
+    if logo_src.exists():
+        shutil.copy2(logo_src, assets_dst / "strava-backup-icon.svg")
+
     return assets_dst
 
 
@@ -1059,9 +1064,15 @@ def _generate_heatmap_html(
 
 
 def generate_lightweight_map(_data_dir: Path) -> str:
-    """Generate lightweight HTML that loads data on demand.
+    """Generate lightweight HTML SPA that loads data on demand.
 
-    This version creates a small HTML file that fetches data from:
+    This version creates a full single-page application with:
+    - App shell with header and tab navigation
+    - Map view: fetches data from TSV/Parquet files
+    - Sessions view: placeholder for session list
+    - Stats view: placeholder for statistics
+
+    Data sources:
     - athletes.tsv for athlete list
     - athl={username}/sessions.tsv for session metadata
     - athl={username}/ses={datetime}/tracking.parquet for track coordinates
@@ -1089,11 +1100,120 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Strava Activities Map</title>
+    <title>Strava Backup</title>
+    <link rel="icon" type="image/svg+xml" href="assets/strava-backup-icon.svg">
     <link rel="stylesheet" href="assets/leaflet/leaflet.css">
     <style>
-        body {{ margin: 0; padding: 0; }}
-        #map {{ position: absolute; top: 0; bottom: 0; width: 100%; }}
+        /* ===== CSS Reset & Base ===== */
+        * {{
+            box-sizing: border-box;
+        }}
+        body {{
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f5;
+        }}
+
+        /* ===== App Shell ===== */
+        .app-header {{
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+        }}
+
+        .app-logo {{
+            font-size: 20px;
+            font-weight: 600;
+            color: #fc4c02;
+            margin-right: 32px;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }}
+
+        .app-logo:hover {{
+            opacity: 0.8;
+        }}
+
+        .app-logo img {{
+            height: 32px;
+            width: auto;
+        }}
+
+        .app-nav {{
+            display: flex;
+            gap: 4px;
+            flex: 1;
+        }}
+
+        .nav-tab {{
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.2s, color 0.2s;
+        }}
+
+        .nav-tab:hover {{
+            background: #f0f0f0;
+        }}
+
+        .nav-tab.active {{
+            color: #fc4c02;
+            background: rgba(252, 76, 2, 0.1);
+        }}
+
+        .athlete-selector {{
+            margin-left: auto;
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: #fff;
+            color: #333;
+        }}
+
+        /* ===== Main Content ===== */
+        .app-main {{
+            margin-top: 56px;
+            height: calc(100vh - 56px);
+            position: relative;
+        }}
+
+        .view {{
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }}
+
+        .view.active {{
+            display: block;
+        }}
+
+        /* ===== Map View ===== */
+        #map {{
+            width: 100%;
+            height: 100%;
+        }}
+
         .info {{
             padding: 6px 8px;
             font: 14px/16px Arial, Helvetica, sans-serif;
@@ -1102,10 +1222,12 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             box-shadow: 0 0 15px rgba(0,0,0,0.2);
             border-radius: 5px;
         }}
+
         .legend {{
             line-height: 18px;
             color: #555;
         }}
+
         .legend i {{
             width: 18px;
             height: 18px;
@@ -1113,34 +1235,40 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             margin-right: 8px;
             opacity: 0.7;
         }}
+
         .session-marker {{
             border: 2px solid white;
             border-radius: 50%;
             box-shadow: 0 2px 5px rgba(0,0,0,0.3);
             cursor: pointer;
         }}
+
         .photo-icon {{
             background: #E91E63;
             border: 2px solid white;
             border-radius: 50%;
             box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }}
+
         .photo-popup {{
             max-width: 350px;
         }}
+
         .photo-popup img {{
             max-width: 100%;
             height: auto;
             border-radius: 4px;
             cursor: pointer;
         }}
+
         .photo-popup .photo-meta {{
             font-size: 12px;
             color: #666;
             margin-top: 8px;
         }}
+
         .loading {{
-            position: fixed;
+            position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
@@ -1150,398 +1278,2071 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             z-index: 1000;
         }}
-        .loading.hidden {{ display: none; }}
+
+        .loading.hidden {{
+            display: none;
+        }}
+
+        /* ===== Sessions View ===== */
+        .view-placeholder {{
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #666;
+            text-align: center;
+            padding: 20px;
+        }}
+
+        .view-placeholder h2 {{
+            margin: 0 0 8px 0;
+            color: #333;
+        }}
+
+        .view-placeholder p {{
+            margin: 0;
+            font-size: 14px;
+        }}
+
+        .sessions-container {{
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+        }}
+
+        .filter-bar {{
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px;
+            background: #f5f5f5;
+            border-bottom: 1px solid #ddd;
+            flex-wrap: wrap;
+        }}
+
+        .filter-input, .filter-select {{
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: #fff;
+        }}
+
+        .filter-input:focus, .filter-select:focus {{
+            outline: none;
+            border-color: #fc4c02;
+        }}
+
+        #session-search {{
+            flex: 1;
+            min-width: 150px;
+        }}
+
+        .filter-date {{
+            width: 130px;
+        }}
+
+        .filter-btn {{
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+            cursor: pointer;
+            font-size: 14px;
+        }}
+
+        .filter-btn:hover {{
+            background: #f0f0f0;
+        }}
+
+        .sessions-table-container {{
+            flex: 1;
+            overflow: auto;
+        }}
+
+        #sessions-table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }}
+
+        #sessions-table th {{
+            position: sticky;
+            top: 0;
+            background: #f5f5f5;
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #ddd;
+            white-space: nowrap;
+        }}
+
+        #sessions-table th.sortable {{
+            cursor: pointer;
+            user-select: none;
+        }}
+
+        #sessions-table th.sortable:hover {{
+            background: #eee;
+        }}
+
+        #sessions-table th.sortable::after {{
+            content: '';
+            display: inline-block;
+            width: 0;
+            height: 0;
+            margin-left: 6px;
+            vertical-align: middle;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+        }}
+
+        #sessions-table th.sorted-asc::after {{
+            border-bottom: 6px solid #666;
+        }}
+
+        #sessions-table th.sorted-desc::after {{
+            border-top: 6px solid #666;
+        }}
+
+        #sessions-table td {{
+            padding: 12px 16px;
+            border-bottom: 1px solid #eee;
+        }}
+
+        #sessions-table tbody tr {{
+            cursor: pointer;
+            transition: background 0.15s;
+        }}
+
+        #sessions-table tbody tr:hover {{
+            background: #f9f9f9;
+        }}
+
+        #sessions-table tbody tr.selected {{
+            background: rgba(252, 76, 2, 0.1);
+        }}
+
+        .session-type {{
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }}
+
+        .pagination {{
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            background: #f5f5f5;
+            border-top: 1px solid #ddd;
+        }}
+
+        .pagination button {{
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+            cursor: pointer;
+        }}
+
+        .pagination button:hover:not(:disabled) {{
+            background: #f0f0f0;
+        }}
+
+        .pagination button:disabled {{
+            opacity: 0.5;
+            cursor: not-allowed;
+        }}
+
+        .pagination .page-info {{
+            font-size: 14px;
+            color: #666;
+        }}
+
+        /* Session Detail Panel */
+        .session-detail {{
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 400px;
+            height: 100%;
+            background: #fff;
+            box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+        }}
+
+        .session-detail.hidden {{
+            transform: translateX(100%);
+        }}
+
+        .detail-header {{
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 1px solid #eee;
+            gap: 12px;
+        }}
+
+        .close-btn {{
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: #f0f0f0;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }}
+
+        .close-btn:hover {{
+            background: #ddd;
+        }}
+
+        .detail-header h2 {{
+            margin: 0;
+            font-size: 18px;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }}
+
+        .detail-content {{
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }}
+
+        .detail-meta {{
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 16px;
+        }}
+
+        .detail-stats {{
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }}
+
+        .stat-card {{
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }}
+
+        .stat-value {{
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+        }}
+
+        .stat-label {{
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }}
+
+        .detail-map {{
+            height: 200px;
+            background: #eee;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }}
+
+        .detail-photos {{
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }}
+
+        .detail-photos img {{
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+            border-radius: 4px;
+            cursor: pointer;
+        }}
+
+        .detail-photos img:hover {{
+            opacity: 0.9;
+        }}
+
+        .detail-streams {{
+            margin-top: 16px;
+        }}
+
+        .detail-streams h4 {{
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            color: #333;
+        }}
+
+        .streams-grid {{
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }}
+
+        .stream-card {{
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 10px;
+        }}
+
+        .stream-label {{
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-bottom: 4px;
+        }}
+
+        .stream-values {{
+            display: flex;
+            gap: 12px;
+            font-size: 13px;
+        }}
+
+        .stream-stat {{
+            display: flex;
+            flex-direction: column;
+        }}
+
+        .stream-stat-label {{
+            font-size: 10px;
+            color: #999;
+        }}
+
+        .stream-stat-value {{
+            font-weight: 600;
+            color: #333;
+        }}
+
+        .detail-social {{
+            margin-top: 16px;
+        }}
+
+        .detail-social h4 {{
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            color: #333;
+        }}
+
+        .kudos-list {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 12px;
+        }}
+
+        .kudos-item {{
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            background: #fff3e0;
+            border-radius: 12px;
+            font-size: 12px;
+            color: #e65100;
+        }}
+
+        .comments-list {{
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }}
+
+        .comment-item {{
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 13px;
+        }}
+
+        .comment-author {{
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }}
+
+        .comment-text {{
+            color: #555;
+            line-height: 1.4;
+        }}
+
+        .view-on-map-btn {{
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin-top: 16px;
+            background: #fc4c02;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+        }}
+
+        .view-on-map-btn:hover {{
+            background: #e04400;
+        }}
+
+        /* ===== Stats View ===== */
+        .stats-container {{
+            height: 100%;
+            overflow-y: auto;
+            padding: 16px;
+            background: #f5f5f5;
+        }}
+
+        .stats-filters {{
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }}
+
+        .summary-cards {{
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }}
+
+        .summary-card {{
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }}
+
+        .summary-value {{
+            font-size: 28px;
+            font-weight: 700;
+            color: #fc4c02;
+            margin-bottom: 4px;
+        }}
+
+        .summary-label {{
+            font-size: 13px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }}
+
+        .charts-grid {{
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }}
+
+        .chart-container {{
+            background: #fff;
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }}
+
+        .chart-container h3 {{
+            margin: 0 0 16px 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }}
+
+        .chart-container canvas {{
+            width: 100% !important;
+            height: 250px !important;
+        }}
+
+        @media (max-width: 900px) {{
+            .summary-cards {{
+                grid-template-columns: repeat(2, 1fr);
+            }}
+            .charts-grid {{
+                grid-template-columns: 1fr;
+            }}
+        }}
+
+        @media (max-width: 500px) {{
+            .summary-cards {{
+                grid-template-columns: 1fr;
+            }}
+        }}
+
+        /* ===== Mobile Bottom Navigation ===== */
+        .mobile-nav {{
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: #fff;
+            box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }}
+
+        .mobile-nav-inner {{
+            display: flex;
+            height: 100%;
+        }}
+
+        .mobile-nav-tab {{
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            background: transparent;
+            color: #666;
+            font-size: 12px;
+            cursor: pointer;
+            gap: 4px;
+        }}
+
+        .mobile-nav-tab svg {{
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }}
+
+        .mobile-nav-tab.active {{
+            color: #fc4c02;
+        }}
+
+        /* ===== Responsive ===== */
+        @media (max-width: 767px) {{
+            .app-nav {{
+                display: none;
+            }}
+
+            .mobile-nav {{
+                display: block;
+            }}
+
+            .app-main {{
+                height: calc(100vh - 56px - 56px);
+            }}
+
+            .app-logo {{
+                margin-right: 0;
+            }}
+        }}
     </style>
 </head>
 <body>
-    <div id="map"></div>
-    <div id="loading" class="loading">Loading sessions...</div>
+    <!-- App Header -->
+    <header class="app-header">
+        <a href="https://github.com/yarikoptic/strava-backup" class="app-logo" target="_blank">
+            <img src="assets/strava-backup-icon.svg" alt="Logo">
+            Strava Backup
+        </a>
+        <nav class="app-nav">
+            <button class="nav-tab active" data-view="map">Map</button>
+            <button class="nav-tab" data-view="sessions">Sessions</button>
+            <button class="nav-tab" data-view="stats">Stats</button>
+        </nav>
+        <select class="athlete-selector" id="athlete-selector">
+            <option value="">All Athletes</option>
+        </select>
+    </header>
+
+    <!-- Main Content -->
+    <main class="app-main">
+        <!-- Map View -->
+        <div id="view-map" class="view active">
+            <div id="map"></div>
+            <div id="loading" class="loading">Loading sessions...</div>
+        </div>
+
+        <!-- Sessions View -->
+        <div id="view-sessions" class="view">
+            <div class="sessions-container">
+                <div class="filter-bar">
+                    <input type="search" id="session-search" placeholder="Search activities..." class="filter-input">
+                    <select id="type-filter" class="filter-select">
+                        <option value="">All Types</option>
+                    </select>
+                    <input type="date" id="date-from" class="filter-input filter-date" title="From date">
+                    <input type="date" id="date-to" class="filter-input filter-date" title="To date">
+                    <button id="clear-filters" class="filter-btn">Clear</button>
+                </div>
+                <div class="sessions-table-container">
+                    <table id="sessions-table">
+                        <thead>
+                            <tr>
+                                <th data-sort="datetime" class="sortable sorted-desc">Date</th>
+                                <th data-sort="name" class="sortable">Name</th>
+                                <th data-sort="type" class="sortable">Type</th>
+                                <th data-sort="distance" class="sortable">Distance</th>
+                                <th data-sort="duration" class="sortable">Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sessions-tbody"></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="pagination"></div>
+            </div>
+            <div id="session-detail" class="session-detail hidden">
+                <div class="detail-header">
+                    <button id="close-detail" class="close-btn">&times;</button>
+                    <h2 id="detail-name">Activity Name</h2>
+                </div>
+                <div class="detail-content">
+                    <div class="detail-meta" id="detail-meta"></div>
+                    <div class="detail-stats" id="detail-stats"></div>
+                    <div class="detail-map" id="detail-map"></div>
+                    <div class="detail-streams" id="detail-streams"></div>
+                    <div class="detail-photos" id="detail-photos"></div>
+                    <div class="detail-social" id="detail-social"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats View -->
+        <div id="view-stats" class="view">
+            <div class="stats-container">
+                <div class="stats-filters">
+                    <select id="year-filter" class="filter-select">
+                        <option value="">All Years</option>
+                    </select>
+                    <select id="stats-type-filter" class="filter-select">
+                        <option value="">All Types</option>
+                    </select>
+                </div>
+                <div class="summary-cards" id="summary-cards">
+                    <div class="summary-card">
+                        <div class="summary-value" id="total-sessions">-</div>
+                        <div class="summary-label">Sessions</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-value" id="total-distance">-</div>
+                        <div class="summary-label">Total Distance</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-value" id="total-time">-</div>
+                        <div class="summary-label">Total Time</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-value" id="total-elevation">-</div>
+                        <div class="summary-label">Elevation Gain</div>
+                    </div>
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <h3>Monthly Activity</h3>
+                        <canvas id="monthly-chart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>By Activity Type</h3>
+                        <canvas id="type-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="mobile-nav">
+        <div class="mobile-nav-inner">
+            <button class="mobile-nav-tab active" data-view="map">
+                <svg viewBox="0 0 24 24"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+                Map
+            </button>
+            <button class="mobile-nav-tab" data-view="sessions">
+                <svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+                Sessions
+            </button>
+            <button class="mobile-nav-tab" data-view="stats">
+                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                Stats
+            </button>
+        </div>
+    </nav>
+
     <script src="assets/leaflet/leaflet.js"></script>
     <script type="module">
         import {{ parquetReadObjects }} from './assets/hyparquet/index.js';
 
-        const typeColors = {json.dumps(type_colors)};
+        // ===== Router =====
+        const Router = {{
+            views: ['map', 'sessions', 'stats'],
+            currentView: 'map',
 
-        // Parse TSV text to array of objects
-        function parseTSV(text) {{
-            // Normalize line endings (handle both CRLF and LF)
-            const lines = text.trim().replace(/\\r/g, '').split('\\n');
-            if (lines.length < 2) return [];
-            const headers = lines[0].split('\\t');
-            return lines.slice(1).map(line => {{
-                const values = line.split('\\t');
-                return Object.fromEntries(headers.map((h, i) => [h, values[i] || '']));
-            }});
-        }}
+            init() {{
+                // Handle hash changes
+                window.addEventListener('hashchange', () => this.handleRoute());
 
-        // Initialize map
-        const map = L.map('map', {{ preferCanvas: true }}).setView([40, -100], 4);
+                // Handle initial route
+                this.handleRoute();
 
-        L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
-            maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }}).addTo(map);
+                // Set up tab click handlers
+                document.querySelectorAll('[data-view]').forEach(tab => {{
+                    tab.addEventListener('click', (e) => {{
+                        const view = e.currentTarget.dataset.view;
+                        this.navigate(view);
+                    }});
+                }});
+            }},
 
-        const bounds = L.latLngBounds();
-        const sessionsLayer = L.layerGroup().addTo(map);
-        const tracksLayer = L.layerGroup().addTo(map);
-        const photosLayer = L.layerGroup().addTo(map);
-        const loadedTracks = new Set();
-        const loadingTracks = new Set();
-        const loadedPhotos = new Set();
-        const allMarkers = [];  // Store all markers with their session data
-        let totalSessions = 0;
-        let loadedTrackCount = 0;
-        let totalPhotos = 0;
+            handleRoute() {{
+                const hash = window.location.hash.slice(1) || '/map';
+                const view = hash.replace('/', '') || 'map';
 
-        // Load a single track from parquet
-        async function loadTrack(athlete, session, color) {{
-            const trackKey = `${{athlete}}/${{session}}`;
-            if (loadedTracks.has(trackKey) || loadingTracks.has(trackKey)) return;
-            loadingTracks.add(trackKey);
+                if (this.views.includes(view)) {{
+                    this.showView(view);
+                }} else {{
+                    this.navigate('map');
+                }}
+            }},
 
-            try {{
-                const url = `athl=${{athlete}}/ses=${{session}}/tracking.parquet`;
-                const response = await fetch(url);
-                if (!response.ok) {{
-                    loadingTracks.delete(trackKey);
+            navigate(view) {{
+                window.location.hash = '/' + view;
+            }},
+
+            showView(view) {{
+                this.currentView = view;
+
+                // Update view visibility
+                document.querySelectorAll('.view').forEach(v => {{
+                    v.classList.remove('active');
+                }});
+                const viewEl = document.getElementById('view-' + view);
+                if (viewEl) {{
+                    viewEl.classList.add('active');
+                }}
+
+                // Update desktop nav tabs
+                document.querySelectorAll('.nav-tab').forEach(tab => {{
+                    tab.classList.toggle('active', tab.dataset.view === view);
+                }});
+
+                // Update mobile nav tabs
+                document.querySelectorAll('.mobile-nav-tab').forEach(tab => {{
+                    tab.classList.toggle('active', tab.dataset.view === view);
+                }});
+
+                // Trigger resize for map when switching to map view
+                if (view === 'map' && window.mapInstance) {{
+                    setTimeout(() => window.mapInstance.invalidateSize(), 100);
+                }}
+            }}
+        }};
+
+        // ===== Map Module =====
+        const MapView = {{
+            map: null,
+            typeColors: {json.dumps(type_colors)},
+            athleteColors: {{}},
+            bounds: null,
+            sessionsLayer: null,
+            tracksLayer: null,
+            photosLayer: null,
+            loadedTracks: new Set(),
+            loadingTracks: new Set(),
+            loadedPhotos: new Set(),
+            allMarkers: [],
+            allSessions: [],
+            athleteStats: {{}},
+            currentAthlete: '',
+            totalSessions: 0,
+            loadedTrackCount: 0,
+            totalPhotos: 0,
+            infoControl: null,
+            AUTO_LOAD_ZOOM: 11,
+
+            // Color palette for athletes
+            ATHLETE_PALETTE: ['#2196F3', '#4CAF50', '#9C27B0', '#FF9800', '#00BCD4', '#E91E63', '#795548', '#607D8B'],
+
+            getAthleteColor(username) {{
+                if (!this.athleteColors[username]) {{
+                    const idx = Object.keys(this.athleteColors).length % this.ATHLETE_PALETTE.length;
+                    this.athleteColors[username] = this.ATHLETE_PALETTE[idx];
+                }}
+                return this.athleteColors[username];
+            }},
+
+            init() {{
+                // Initialize map
+                this.map = L.map('map', {{ preferCanvas: true }}).setView([40, -100], 4);
+                window.mapInstance = this.map;
+
+                L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+                    maxZoom: 19,
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }}).addTo(this.map);
+
+                this.bounds = L.latLngBounds();
+                this.sessionsLayer = L.layerGroup().addTo(this.map);
+                this.tracksLayer = L.layerGroup().addTo(this.map);
+                this.photosLayer = L.layerGroup().addTo(this.map);
+
+                // Set up legend
+                this.setupLegend();
+
+                // Set up layer control
+                L.control.layers(null, {{
+                    'Sessions': this.sessionsLayer,
+                    'Tracks': this.tracksLayer,
+                    'Photos': this.photosLayer
+                }}, {{ position: 'topleft' }}).addTo(this.map);
+
+                // Set up auto-loading on zoom/pan
+                this.map.on('moveend', () => this.loadVisibleTracks());
+                this.map.on('zoomend', () => {{
+                    this.loadVisibleTracks();
+                    this.updateInfo();
+                }});
+
+                // Set up athlete selector
+                document.getElementById('athlete-selector').addEventListener('change', (e) => {{
+                    this.filterByAthlete(e.target.value);
+                }});
+
+                // Start loading sessions
+                this.loadSessions();
+            }},
+
+            parseTSV(text) {{
+                const lines = text.trim().replace(/\\r/g, '').split('\\n');
+                if (lines.length < 2) return [];
+                const headers = lines[0].split('\\t');
+                return lines.slice(1).map(line => {{
+                    const values = line.split('\\t');
+                    return Object.fromEntries(headers.map((h, i) => [h, values[i] || '']));
+                }});
+            }},
+
+            filterByAthlete(username) {{
+                this.currentAthlete = username;
+
+                // Update marker visibility
+                for (const data of this.allMarkers) {{
+                    const visible = !username || data.athlete === username;
+                    if (visible) {{
+                        if (!this.sessionsLayer.hasLayer(data.marker)) {{
+                            data.marker.addTo(this.sessionsLayer);
+                        }}
+                    }} else {{
+                        this.sessionsLayer.removeLayer(data.marker);
+                    }}
+                }}
+
+                // Recalculate bounds for visible markers
+                this.bounds = L.latLngBounds();
+                for (const data of this.allMarkers) {{
+                    if (!username || data.athlete === username) {{
+                        this.bounds.extend(data.marker.getLatLng());
+                    }}
+                }}
+
+                // Fit to new bounds if valid
+                if (this.bounds.isValid()) {{
+                    this.map.fitBounds(this.bounds, {{ padding: [20, 20] }});
+                }}
+
+                this.updateInfo();
+            }},
+
+            populateAthleteSelector() {{
+                const selector = document.getElementById('athlete-selector');
+                // Clear existing options except "All Athletes"
+                while (selector.options.length > 1) {{
+                    selector.remove(1);
+                }}
+
+                // Add options with stats
+                const athletes = Object.keys(this.athleteStats).sort();
+                for (const username of athletes) {{
+                    const stats = this.athleteStats[username];
+                    const distanceKm = (stats.distance / 1000).toFixed(0);
+                    const option = document.createElement('option');
+                    option.value = username;
+                    option.textContent = `${{username}} (${{stats.sessions}} sessions, ${{distanceKm}} km)`;
+                    option.style.color = this.athleteColors[username] || '#333';
+                    selector.appendChild(option);
+                }}
+
+                // Update "All Athletes" option with total
+                const totalSessions = Object.values(this.athleteStats).reduce((sum, s) => sum + s.sessions, 0);
+                const totalDistance = Object.values(this.athleteStats).reduce((sum, s) => sum + s.distance, 0);
+                selector.options[0].textContent = `All Athletes (${{totalSessions}} sessions, ${{(totalDistance / 1000).toFixed(0)}} km)`;
+            }},
+
+            async loadTrack(athlete, session, color) {{
+                const trackKey = `${{athlete}}/${{session}}`;
+                if (this.loadedTracks.has(trackKey) || this.loadingTracks.has(trackKey)) return;
+                this.loadingTracks.add(trackKey);
+
+                try {{
+                    const url = `athl=${{athlete}}/ses=${{session}}/tracking.parquet`;
+                    const response = await fetch(url);
+                    if (!response.ok) {{
+                        this.loadingTracks.delete(trackKey);
+                        return;
+                    }}
+
+                    const arrayBuffer = await response.arrayBuffer();
+                    const rows = await parquetReadObjects({{
+                        file: arrayBuffer,
+                        columns: ['lat', 'lng']
+                    }});
+
+                    if (rows && rows.length > 0) {{
+                        const coords = [];
+                        for (const row of rows) {{
+                            if (row.lat != null && row.lng != null) {{
+                                coords.push([row.lat, row.lng]);
+                            }}
+                        }}
+                        if (coords.length > 0) {{
+                            L.polyline(coords, {{
+                                color: color,
+                                weight: 3,
+                                opacity: 0.7
+                            }}).addTo(this.tracksLayer);
+                            this.loadedTracks.add(trackKey);
+                            this.loadedTrackCount++;
+                            this.updateInfo();
+                        }}
+                    }}
+                }} catch (e) {{
+                    console.warn(`Failed to load track ${{trackKey}}:`, e);
+                }} finally {{
+                    this.loadingTracks.delete(trackKey);
+                }}
+            }},
+
+            async loadPhotos(athlete, session, sessionName) {{
+                const photoKey = `${{athlete}}/${{session}}`;
+                if (this.loadedPhotos.has(photoKey)) return;
+                this.loadedPhotos.add(photoKey);
+
+                // Find and update the session marker to remove photo badge
+                const markerData = this.allMarkers.find(m => m.athlete === athlete && m.session === session);
+                if (markerData && markerData.hasPhotos) {{
+                    const newMarker = L.circleMarker(markerData.marker.getLatLng(), {{
+                        radius: 6,
+                        fillColor: markerData.color,
+                        color: 'white',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.8,
+                        className: 'session-marker'
+                    }});
+                    newMarker.bindPopup(markerData.marker.getPopup());
+                    newMarker.on('click', () => {{
+                        this.loadTrack(athlete, session, markerData.color);
+                        this.loadPhotos(athlete, session, sessionName);
+                    }});
+                    this.sessionsLayer.removeLayer(markerData.marker);
+                    newMarker.addTo(this.sessionsLayer);
+                    markerData.marker = newMarker;
+                }}
+
+                try {{
+                    const url = `athl=${{athlete}}/ses=${{session}}/info.json`;
+                    const response = await fetch(url);
+                    if (!response.ok) return;
+
+                    const info = await response.json();
+                    const photos = info.photos || [];
+
+                    for (const photo of photos) {{
+                        const locationRaw = photo.location;
+                        if (!locationRaw || !locationRaw[0] || !locationRaw[0][1]) continue;
+
+                        const [lat, lng] = locationRaw[0][1];
+                        if (lat == null || lng == null) continue;
+
+                        const urls = photo.urls || {{}};
+                        const previewUrl = urls['600'] || urls['256'] || urls['1024'] || urls['2048'] || Object.values(urls)[0] || '';
+                        const fullUrl = urls['2048'] || urls['1024'] || urls['600'] || Object.values(urls)[0] || '';
+
+                        const createdAt = photo.created_at || '';
+                        let localPath = '';
+                        if (createdAt) {{
+                            const dt = createdAt.replace(/[-:]/g, '').replace(/\\+.*$/, '').substring(0, 15);
+                            localPath = `athl=${{athlete}}/ses=${{session}}/photos/${{dt}}.jpg`;
+                        }}
+
+                        const photoIcon = L.divIcon({{
+                            html: '<div class="photo-icon" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;">' +
+                                  '<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>' +
+                                  '</div>',
+                            className: '',
+                            iconSize: [28, 28],
+                            iconAnchor: [14, 14]
+                        }});
+
+                        const marker = L.marker([lat, lng], {{ icon: photoIcon }});
+                        const imgSrc = localPath || previewUrl;
+                        const linkHref = localPath || fullUrl;
+
+                        marker.bindPopup(`
+                            <div class="photo-popup">
+                                ${{imgSrc ? `<a href="${{linkHref}}" target="_blank"><img src="${{imgSrc}}" alt="Photo"></a>` : '<p>No image available</p>'}}
+                                <div class="photo-meta">
+                                    <strong>${{sessionName}}</strong><br>
+                                    ${{session.substring(0, 8)}}
+                                </div>
+                            </div>
+                        `, {{ maxWidth: 350 }});
+
+                        marker.addTo(this.photosLayer);
+                        this.totalPhotos++;
+                    }}
+
+                    this.updateInfo();
+                }} catch (e) {{
+                    console.warn(`Failed to load photos for ${{photoKey}}:`, e);
+                }}
+            }},
+
+            loadVisibleTracks() {{
+                if (this.map.getZoom() < this.AUTO_LOAD_ZOOM) return;
+
+                const mapBounds = this.map.getBounds();
+                for (const {{marker, athlete, session, color, hasPhotos, sessionName}} of this.allMarkers) {{
+                    if (mapBounds.contains(marker.getLatLng())) {{
+                        this.loadTrack(athlete, session, color);
+                        if (hasPhotos) {{
+                            this.loadPhotos(athlete, session, sessionName);
+                        }}
+                    }}
+                }}
+            }},
+
+            async loadSessions() {{
+                const loading = document.getElementById('loading');
+
+                try {{
+                    let athletes = [];
+                    try {{
+                        const athletesResp = await fetch('athletes.tsv');
+                        if (athletesResp.ok) {{
+                            const athletesText = await athletesResp.text();
+                            athletes = this.parseTSV(athletesText);
+                        }}
+                    }} catch (e) {{
+                        console.warn('Could not load athletes.tsv, scanning directories...');
+                    }}
+
+                    if (athletes.length === 0) {{
+                        loading.textContent = 'Looking for sessions...';
+                    }}
+
+                    // Initialize athlete stats
+                    for (const athlete of athletes) {{
+                        const username = athlete.username;
+                        if (username) {{
+                            this.athleteStats[username] = {{ sessions: 0, distance: 0 }};
+                            // Assign color for each athlete
+                            this.getAthleteColor(username);
+                        }}
+                    }}
+
+                    for (const athlete of athletes) {{
+                        const username = athlete.username;
+                        if (!username) continue;
+
+                        try {{
+                            const sessionsResp = await fetch(`athl=${{username}}/sessions.tsv`);
+                            if (!sessionsResp.ok) continue;
+
+                            const sessionsText = await sessionsResp.text();
+                            const sessions = this.parseTSV(sessionsText);
+
+                            for (const session of sessions) {{
+                                const lat = parseFloat(session.center_lat);
+                                const lng = parseFloat(session.center_lng);
+                                const distance = parseFloat(session.distance_m || 0);
+
+                                // Track athlete stats
+                                this.athleteStats[username].sessions++;
+                                this.athleteStats[username].distance += distance;
+
+                                // Store full session data for SessionsView
+                                const type = session.sport || session.type || 'Other';
+                                this.allSessions.push({{
+                                    athlete: username,
+                                    datetime: session.datetime,
+                                    name: session.name || 'Activity',
+                                    type: type,
+                                    distance_m: session.distance_m || '0',
+                                    moving_time_s: session.moving_time_s || '0',
+                                    elevation_gain_m: session.elevation_gain_m || '0',
+                                    photo_count: session.photo_count || '0',
+                                    has_gps: session.has_gps,
+                                    center_lat: session.center_lat,
+                                    center_lng: session.center_lng
+                                }});
+
+                                if (isNaN(lat) || isNaN(lng)) continue;
+
+                                const color = this.typeColors[type] || this.typeColors.Other;
+                                const hasPhotos = parseInt(session.photo_count || '0') > 0;
+                                const photoCount = parseInt(session.photo_count || '0');
+
+                                let marker;
+                                if (hasPhotos) {{
+                                    const icon = L.divIcon({{
+                                        html: `<div style="position:relative;">
+                                            <div style="width:12px;height:12px;background:${{color}};border:2px solid white;border-radius:50%;box-shadow:0 2px 5px rgba(0,0,0,0.3);"></div>
+                                            <div style="position:absolute;top:-6px;right:-8px;width:14px;height:14px;background:#E91E63;border:1.5px solid white;border-radius:50%;display:flex;align-items:center;justify-content:center;">
+                                                <svg width="8" height="8" viewBox="0 0 24 24" fill="white"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                                            </div>
+                                        </div>`,
+                                        className: '',
+                                        iconSize: [20, 20],
+                                        iconAnchor: [8, 8]
+                                    }});
+                                    marker = L.marker([lat, lng], {{ icon: icon }});
+                                }} else {{
+                                    marker = L.circleMarker([lat, lng], {{
+                                        radius: 6,
+                                        fillColor: color,
+                                        color: 'white',
+                                        weight: 2,
+                                        opacity: 1,
+                                        fillOpacity: 0.8,
+                                        className: 'session-marker'
+                                    }});
+                                }}
+
+                                const photoInfo = hasPhotos ? `<br>Photos: ${{photoCount}}` : '';
+                                marker.bindPopup(`
+                                    <b>${{session.name || 'Activity'}}</b><br>
+                                    Type: ${{type}}<br>
+                                    Date: ${{session.datetime?.substring(0, 8) || ''}}${{photoInfo}}<br>
+                                    Distance: ${{(parseFloat(session.distance_m || 0) / 1000).toFixed(2)}} km
+                                `);
+
+                                this.allMarkers.push({{
+                                    marker: marker,
+                                    athlete: username,
+                                    session: session.datetime,
+                                    color: color,
+                                    hasGps: session.has_gps === 'true',
+                                    hasPhotos: hasPhotos,
+                                    sessionName: session.name || 'Activity'
+                                }});
+
+                                marker.on('click', () => {{
+                                    this.loadTrack(username, session.datetime, color);
+                                    if (hasPhotos) {{
+                                        this.loadPhotos(username, session.datetime, session.name || 'Activity');
+                                    }}
+                                }});
+
+                                marker.addTo(this.sessionsLayer);
+                                this.bounds.extend([lat, lng]);
+                                this.totalSessions++;
+                            }}
+                        }} catch (e) {{
+                            console.warn(`Failed to load sessions for ${{username}}:`, e);
+                        }}
+                    }}
+
+                    if (this.bounds.isValid()) {{
+                        this.map.fitBounds(this.bounds, {{ padding: [20, 20] }});
+                    }}
+
+                    // Populate athlete selector with stats
+                    this.populateAthleteSelector();
+
+                    loading.classList.add('hidden');
+                    this.updateInfo();
+
+                }} catch (e) {{
+                    loading.textContent = 'Error loading data: ' + e.message;
+                    console.error('Error loading sessions:', e);
+                }}
+            }},
+
+            updateInfo() {{
+                if (this.infoControl) {{
+                    this.infoControl.remove();
+                }}
+                this.infoControl = L.control({{ position: 'topright' }});
+                const self = this;
+                this.infoControl.onAdd = function() {{
+                    const div = L.DomUtil.create('div', 'info');
+
+                    // Calculate visible stats
+                    let visibleSessions = 0;
+                    for (const data of self.allMarkers) {{
+                        if (!self.currentAthlete || data.athlete === self.currentAthlete) {{
+                            visibleSessions++;
+                        }}
+                    }}
+
+                    let html = '<b>Activities</b>';
+                    if (self.currentAthlete) {{
+                        const color = self.athleteColors[self.currentAthlete] || '#333';
+                        html += `<br><span style="color:${{color}}">${{self.currentAthlete}}</span>`;
+                    }}
+                    html += `<br>${{visibleSessions}} sessions`;
+                    if (self.loadedTrackCount > 0) {{
+                        html += `<br>${{self.loadedTrackCount}} tracks loaded`;
+                    }}
+                    if (self.totalPhotos > 0) {{
+                        html += `<br>${{self.totalPhotos}} photos`;
+                    }}
+                    const zoom = self.map.getZoom();
+                    if (zoom < self.AUTO_LOAD_ZOOM) {{
+                        html += `<br><small>Zoom in to auto-load<br>(current: ${{zoom}}, need: ${{self.AUTO_LOAD_ZOOM}})</small>`;
+                    }} else {{
+                        html += `<br><small>Click marker or pan to load</small>`;
+                    }}
+                    div.innerHTML = html;
+                    return div;
+                }};
+                this.infoControl.addTo(this.map);
+            }},
+
+            setupLegend() {{
+                const legend = L.control({{ position: 'bottomright' }});
+                const self = this;
+                legend.onAdd = function() {{
+                    const div = L.DomUtil.create('div', 'info legend');
+                    div.innerHTML = '<b>Activity Types</b><br>';
+                    for (const [type, color] of Object.entries(self.typeColors)) {{
+                        div.innerHTML += `<i style="background:${{color}}"></i> ${{type}}<br>`;
+                    }}
+                    div.innerHTML += '<br><i style="background:#E91E63;border-radius:50%;"></i> Photos';
+                    return div;
+                }};
+                legend.addTo(this.map);
+            }}
+        }};
+
+        // ===== Sessions View Module =====
+        const SessionsView = {{
+            sessions: [],
+            filtered: [],
+            sortBy: 'datetime',
+            sortDir: 'desc',
+            filters: {{ search: '', type: '', dateFrom: '', dateTo: '' }},
+            page: 1,
+            perPage: 50,
+            typeColors: {json.dumps(type_colors)},
+            selectedSession: null,
+
+            init() {{
+                // Set up filter event listeners
+                document.getElementById('session-search').addEventListener('input', (e) => {{
+                    this.filters.search = e.target.value.toLowerCase();
+                    this.page = 1;
+                    this.applyFiltersAndRender();
+                }});
+
+                document.getElementById('type-filter').addEventListener('change', (e) => {{
+                    this.filters.type = e.target.value;
+                    this.page = 1;
+                    this.applyFiltersAndRender();
+                }});
+
+                document.getElementById('date-from').addEventListener('change', (e) => {{
+                    this.filters.dateFrom = e.target.value;
+                    this.page = 1;
+                    this.applyFiltersAndRender();
+                }});
+
+                document.getElementById('date-to').addEventListener('change', (e) => {{
+                    this.filters.dateTo = e.target.value;
+                    this.page = 1;
+                    this.applyFiltersAndRender();
+                }});
+
+                document.getElementById('clear-filters').addEventListener('click', () => {{
+                    this.clearFilters();
+                }});
+
+                // Set up sortable headers
+                document.querySelectorAll('#sessions-table th.sortable').forEach(th => {{
+                    th.addEventListener('click', () => this.handleSort(th.dataset.sort));
+                }});
+
+                // Set up detail panel close
+                document.getElementById('close-detail').addEventListener('click', () => {{
+                    this.closeDetail();
+                }});
+
+                // Listen for athlete changes
+                document.getElementById('athlete-selector').addEventListener('change', () => {{
+                    this.page = 1;
+                    this.applyFiltersAndRender();
+                }});
+            }},
+
+            setSessions(sessions) {{
+                this.sessions = sessions;
+                this.populateTypeFilter();
+                this.applyFiltersAndRender();
+            }},
+
+            populateTypeFilter() {{
+                const types = new Set();
+                for (const s of this.sessions) {{
+                    if (s.type) types.add(s.type);
+                }}
+                const select = document.getElementById('type-filter');
+                for (const type of [...types].sort()) {{
+                    const option = document.createElement('option');
+                    option.value = type;
+                    option.textContent = type;
+                    select.appendChild(option);
+                }}
+            }},
+
+            clearFilters() {{
+                this.filters = {{ search: '', type: '', dateFrom: '', dateTo: '' }};
+                document.getElementById('session-search').value = '';
+                document.getElementById('type-filter').value = '';
+                document.getElementById('date-from').value = '';
+                document.getElementById('date-to').value = '';
+                this.page = 1;
+                this.applyFiltersAndRender();
+            }},
+
+            applyFiltersAndRender() {{
+                const currentAthlete = document.getElementById('athlete-selector').value;
+
+                this.filtered = this.sessions.filter(s => {{
+                    // Athlete filter
+                    if (currentAthlete && s.athlete !== currentAthlete) return false;
+                    // Search filter
+                    if (this.filters.search && !s.name.toLowerCase().includes(this.filters.search)) return false;
+                    // Type filter
+                    if (this.filters.type && s.type !== this.filters.type) return false;
+                    // Date filters
+                    if (this.filters.dateFrom && s.datetime < this.filters.dateFrom.replace(/-/g, '')) return false;
+                    if (this.filters.dateTo && s.datetime.substring(0, 8) > this.filters.dateTo.replace(/-/g, '')) return false;
+                    return true;
+                }});
+
+                this.sort();
+                this.render();
+            }},
+
+            handleSort(field) {{
+                if (this.sortBy === field) {{
+                    this.sortDir = this.sortDir === 'desc' ? 'asc' : 'desc';
+                }} else {{
+                    this.sortBy = field;
+                    this.sortDir = 'desc';
+                }}
+
+                // Update header styles
+                document.querySelectorAll('#sessions-table th.sortable').forEach(th => {{
+                    th.classList.remove('sorted-asc', 'sorted-desc');
+                    if (th.dataset.sort === field) {{
+                        th.classList.add(this.sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+                    }}
+                }});
+
+                this.sort();
+                this.render();
+            }},
+
+            sort() {{
+                this.filtered.sort((a, b) => {{
+                    let valA, valB;
+                    switch (this.sortBy) {{
+                        case 'datetime':
+                            valA = a.datetime || '';
+                            valB = b.datetime || '';
+                            break;
+                        case 'name':
+                            valA = (a.name || '').toLowerCase();
+                            valB = (b.name || '').toLowerCase();
+                            break;
+                        case 'type':
+                            valA = a.type || '';
+                            valB = b.type || '';
+                            break;
+                        case 'distance':
+                            valA = parseFloat(a.distance_m) || 0;
+                            valB = parseFloat(b.distance_m) || 0;
+                            break;
+                        case 'duration':
+                            valA = parseInt(a.moving_time_s) || 0;
+                            valB = parseInt(b.moving_time_s) || 0;
+                            break;
+                        default:
+                            valA = a[this.sortBy] || '';
+                            valB = b[this.sortBy] || '';
+                    }}
+                    const cmp = valA > valB ? 1 : valA < valB ? -1 : 0;
+                    return this.sortDir === 'desc' ? -cmp : cmp;
+                }});
+            }},
+
+            formatDuration(seconds) {{
+                if (!seconds) return '-';
+                const h = Math.floor(seconds / 3600);
+                const m = Math.floor((seconds % 3600) / 60);
+                if (h > 0) return `${{h}}h ${{m}}m`;
+                return `${{m}}m`;
+            }},
+
+            formatDate(datetime) {{
+                if (!datetime || datetime.length < 8) return '-';
+                const y = datetime.substring(0, 4);
+                const m = datetime.substring(4, 6);
+                const d = datetime.substring(6, 8);
+                return `${{y}}-${{m}}-${{d}}`;
+            }},
+
+            render() {{
+                const tbody = document.getElementById('sessions-tbody');
+                const start = (this.page - 1) * this.perPage;
+                const end = start + this.perPage;
+                const pageData = this.filtered.slice(start, end);
+
+                if (pageData.length === 0) {{
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:#666;">No sessions found</td></tr>';
+                }} else {{
+                    tbody.innerHTML = pageData.map(s => {{
+                        const color = this.typeColors[s.type] || this.typeColors.Other || '#607D8B';
+                        const distance = parseFloat(s.distance_m) || 0;
+                        const duration = parseInt(s.moving_time_s) || 0;
+                        return `
+                            <tr data-athlete="${{s.athlete}}" data-session="${{s.datetime}}">
+                                <td>${{this.formatDate(s.datetime)}}</td>
+                                <td>${{s.name || 'Activity'}}</td>
+                                <td><span class="session-type" style="background:${{color}}20;color:${{color}}">${{s.type || 'Other'}}</span></td>
+                                <td>${{(distance / 1000).toFixed(2)}} km</td>
+                                <td>${{this.formatDuration(duration)}}</td>
+                            </tr>
+                        `;
+                    }}).join('');
+
+                    // Add click handlers
+                    tbody.querySelectorAll('tr').forEach(tr => {{
+                        tr.addEventListener('click', () => {{
+                            const athlete = tr.dataset.athlete;
+                            const session = tr.dataset.session;
+                            this.showDetail(athlete, session);
+
+                            // Update selection style
+                            tbody.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
+                            tr.classList.add('selected');
+                        }});
+                    }});
+                }}
+
+                this.renderPagination();
+            }},
+
+            renderPagination() {{
+                const totalPages = Math.ceil(this.filtered.length / this.perPage);
+                const pagination = document.getElementById('pagination');
+
+                if (totalPages <= 1) {{
+                    pagination.innerHTML = `<span class="page-info">${{this.filtered.length}} sessions</span>`;
                     return;
                 }}
 
-                const arrayBuffer = await response.arrayBuffer();
+                pagination.innerHTML = `
+                    <button ${{this.page <= 1 ? 'disabled' : ''}} id="prev-page">Previous</button>
+                    <span class="page-info">Page ${{this.page}} of ${{totalPages}} (${{this.filtered.length}} sessions)</span>
+                    <button ${{this.page >= totalPages ? 'disabled' : ''}} id="next-page">Next</button>
+                `;
 
-                // Read lat/lng columns from parquet (returns array of row objects)
-                const rows = await parquetReadObjects({{
-                    file: arrayBuffer,
-                    columns: ['lat', 'lng']
+                document.getElementById('prev-page')?.addEventListener('click', () => {{
+                    if (this.page > 1) {{
+                        this.page--;
+                        this.render();
+                    }}
                 }});
 
-                if (rows && rows.length > 0) {{
-                    const coords = [];
-                    for (const row of rows) {{
-                        if (row.lat != null && row.lng != null) {{
-                            coords.push([row.lat, row.lng]);
-                        }}
+                document.getElementById('next-page')?.addEventListener('click', () => {{
+                    if (this.page < totalPages) {{
+                        this.page++;
+                        this.render();
                     }}
-                    if (coords.length > 0) {{
-                        L.polyline(coords, {{
-                            color: color,
-                            weight: 3,
-                            opacity: 0.7
-                        }}).addTo(tracksLayer);
-                        loadedTracks.add(trackKey);
-                        loadedTrackCount++;
-                        updateInfo();
-                    }}
-                }}
-            }} catch (e) {{
-                console.warn(`Failed to load track ${{trackKey}}:`, e);
-            }} finally {{
-                loadingTracks.delete(trackKey);
-            }}
-        }}
-
-        // Load photos for a session from info.json
-        async function loadPhotos(athlete, session, sessionName) {{
-            const photoKey = `${{athlete}}/${{session}}`;
-            if (loadedPhotos.has(photoKey)) return;
-            loadedPhotos.add(photoKey);
-
-            // Find and update the session marker to remove photo badge
-            const markerData = allMarkers.find(m => m.athlete === athlete && m.session === session);
-            if (markerData && markerData.hasPhotos) {{
-                // Replace with simple circle marker (no photo badge)
-                const newMarker = L.circleMarker(markerData.marker.getLatLng(), {{
-                    radius: 6,
-                    fillColor: markerData.color,
-                    color: 'white',
-                    weight: 2,
-                    opacity: 1,
-                    fillOpacity: 0.8,
-                    className: 'session-marker'
                 }});
-                // Copy popup
-                newMarker.bindPopup(markerData.marker.getPopup());
-                // Copy click handler
-                newMarker.on('click', () => {{
-                    loadTrack(athlete, session, markerData.color);
-                    loadPhotos(athlete, session, sessionName);
-                }});
-                // Replace in layer
-                sessionsLayer.removeLayer(markerData.marker);
-                newMarker.addTo(sessionsLayer);
-                markerData.marker = newMarker;
-            }}
+            }},
 
-            try {{
-                const url = `athl=${{athlete}}/ses=${{session}}/info.json`;
-                const response = await fetch(url);
-                if (!response.ok) return;
+            showDetail(athlete, sessionId) {{
+                const session = this.sessions.find(s => s.athlete === athlete && s.datetime === sessionId);
+                if (!session) return;
 
-                const info = await response.json();
-                const photos = info.photos || [];
+                this.selectedSession = session;
+                const panel = document.getElementById('session-detail');
+                panel.classList.remove('hidden');
 
-                for (const photo of photos) {{
-                    // Parse location from nested structure: [["root", [lat, lng]]]
-                    const locationRaw = photo.location;
-                    if (!locationRaw || !locationRaw[0] || !locationRaw[0][1]) continue;
+                document.getElementById('detail-name').textContent = session.name || 'Activity';
 
-                    const [lat, lng] = locationRaw[0][1];
-                    if (lat == null || lng == null) continue;
+                const distance = parseFloat(session.distance_m) || 0;
+                const duration = parseInt(session.moving_time_s) || 0;
+                const elevation = parseFloat(session.elevation_gain_m) || 0;
 
-                    // Get photo URLs
-                    const urls = photo.urls || {{}};
-                    const previewUrl = urls['600'] || urls['256'] || urls['1024'] || urls['2048'] || Object.values(urls)[0] || '';
-                    const fullUrl = urls['2048'] || urls['1024'] || urls['600'] || Object.values(urls)[0] || '';
+                document.getElementById('detail-meta').innerHTML = `
+                    <div>${{session.type || 'Activity'}} · ${{this.formatDate(session.datetime)}}</div>
+                    <div style="font-size:12px;color:#999;margin-top:4px;">Athlete: ${{athlete}}</div>
+                `;
 
-                    // Check for local photo file
-                    const createdAt = photo.created_at || '';
-                    let localPath = '';
-                    if (createdAt) {{
-                        // Parse created_at to match local filename format (YYYYMMDDTHHMMSS.jpg)
-                        const dt = createdAt.replace(/[-:]/g, '').replace(/\\+.*$/, '').substring(0, 15);
-                        localPath = `athl=${{athlete}}/ses=${{session}}/photos/${{dt}}.jpg`;
-                    }}
+                document.getElementById('detail-stats').innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-value">${{(distance / 1000).toFixed(2)}}</div>
+                        <div class="stat-label">km</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${{this.formatDuration(duration)}}</div>
+                        <div class="stat-label">Duration</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${{elevation.toFixed(0)}}</div>
+                        <div class="stat-label">m elevation</div>
+                    </div>
+                `;
 
-                    // Create photo marker
-                    const photoIcon = L.divIcon({{
-                        html: '<div class="photo-icon" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;">' +
-                              '<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>' +
-                              '</div>',
-                        className: '',
-                        iconSize: [28, 28],
-                        iconAnchor: [14, 14]
-                    }});
+                // Load track for mini-map
+                this.loadDetailMap(athlete, sessionId);
 
-                    const marker = L.marker([lat, lng], {{ icon: photoIcon }});
-
-                    // Use local path if available, otherwise remote URL
-                    const imgSrc = localPath || previewUrl;
-                    const linkHref = localPath || fullUrl;
-
-                    marker.bindPopup(`
-                        <div class="photo-popup">
-                            ${{imgSrc ? `<a href="${{linkHref}}" target="_blank"><img src="${{imgSrc}}" alt="Photo"></a>` : '<p>No image available</p>'}}
-                            <div class="photo-meta">
-                                <strong>${{sessionName}}</strong><br>
-                                ${{session.substring(0, 8)}}
-                            </div>
-                        </div>
-                    `, {{ maxWidth: 350 }});
-
-                    marker.addTo(photosLayer);
-                    totalPhotos++;
+                // Load photos if available
+                const photoCount = parseInt(session.photo_count) || 0;
+                if (photoCount > 0) {{
+                    this.loadDetailPhotos(athlete, sessionId);
+                }} else {{
+                    document.getElementById('detail-photos').innerHTML = '';
                 }}
 
-                updateInfo();
-            }} catch (e) {{
-                console.warn(`Failed to load photos for ${{photoKey}}:`, e);
-            }}
-        }}
+                // Load social data (kudos, comments)
+                this.loadDetailSocial(athlete, sessionId);
 
-        // Auto-load tracks for visible markers when zoomed in
-        const AUTO_LOAD_ZOOM = 11;  // Zoom level at which to auto-load tracks
+                // Load data streams (heart rate, cadence, etc.)
+                this.loadDetailStreams(athlete, sessionId);
+            }},
 
-        function loadVisibleTracks() {{
-            if (map.getZoom() < AUTO_LOAD_ZOOM) return;
+            detailMapInstance: null,
 
-            const mapBounds = map.getBounds();
-            for (const {{marker, athlete, session, color, hasPhotos, sessionName}} of allMarkers) {{
-                if (mapBounds.contains(marker.getLatLng())) {{
-                    loadTrack(athlete, session, color);
-                    if (hasPhotos) {{
-                        loadPhotos(athlete, session, sessionName);
-                    }}
+            async loadDetailMap(athlete, sessionId) {{
+                const mapContainer = document.getElementById('detail-map');
+
+                // Destroy previous map instance if exists
+                if (this.detailMapInstance) {{
+                    this.detailMapInstance.remove();
+                    this.detailMapInstance = null;
                 }}
-            }}
-        }}
 
-        // Load sessions from TSV files
-        async function loadSessions() {{
-            const loading = document.getElementById('loading');
+                // Remove any existing "View on Map" button
+                document.querySelectorAll('.view-on-map-btn').forEach(btn => btn.remove());
 
-            try {{
-                // Try to load athletes.tsv
-                let athletes = [];
+                mapContainer.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#666;">Loading track...</div>';
+
                 try {{
-                    const athletesResp = await fetch('athletes.tsv');
-                    if (athletesResp.ok) {{
-                        const athletesText = await athletesResp.text();
-                        athletes = parseTSV(athletesText);
+                    const url = `athl=${{athlete}}/ses=${{sessionId}}/tracking.parquet`;
+                    const response = await fetch(url);
+                    if (!response.ok) {{
+                        // Hide container if no track data
+                        mapContainer.style.display = 'none';
+                        return;
+                    }}
+
+                    const arrayBuffer = await response.arrayBuffer();
+                    const {{ parquetReadObjects }} = await import('./assets/hyparquet/index.js');
+                    const rows = await parquetReadObjects({{ file: arrayBuffer, columns: ['lat', 'lng'] }});
+
+                    const coords = rows ? rows.filter(r => r.lat && r.lng).map(r => [r.lat, r.lng]) : [];
+
+                    if (coords.length > 0) {{
+                        mapContainer.style.display = 'block';
+                        mapContainer.innerHTML = '';
+                        this.detailMapInstance = L.map(mapContainer, {{ zoomControl: false, attributionControl: false }});
+                        L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png').addTo(this.detailMapInstance);
+
+                        const session = this.selectedSession;
+                        const color = this.typeColors[session?.type] || '#fc4c02';
+                        const polyline = L.polyline(coords, {{ color, weight: 3 }}).addTo(this.detailMapInstance);
+                        this.detailMapInstance.fitBounds(polyline.getBounds(), {{ padding: [10, 10] }});
+
+                        // Add "View on Map" button with proper navigation
+                        const lat = coords[0][0];
+                        const lng = coords[0][1];
+                        const btn = document.createElement('button');
+                        btn.className = 'view-on-map-btn';
+                        btn.textContent = 'View on Map';
+                        btn.onclick = () => {{
+                            location.hash = '#/map';
+                            setTimeout(() => {{
+                                if (window.mapInstance) {{
+                                    window.mapInstance.setView([lat, lng], 14);
+                                }}
+                            }}, 200);
+                        }};
+                        mapContainer.insertAdjacentElement('afterend', btn);
+                    }} else {{
+                        // Hide container if no GPS coords
+                        mapContainer.style.display = 'none';
                     }}
                 }} catch (e) {{
-                    console.warn('Could not load athletes.tsv, scanning directories...');
+                    console.warn('Failed to load detail map:', e);
+                    mapContainer.style.display = 'none';
                 }}
+            }},
 
-                // If no athletes.tsv, try to detect athlete directories
-                if (athletes.length === 0) {{
-                    // Fallback: look for known athlete directories
-                    // This won't work without server-side directory listing
-                    // So we'll just check for a single athlete
-                    loading.textContent = 'Looking for sessions...';
-                }}
+            async loadDetailPhotos(athlete, sessionId) {{
+                const container = document.getElementById('detail-photos');
+                container.innerHTML = '<div style="color:#666;">Loading photos...</div>';
 
-                // For each athlete, load their sessions
-                for (const athlete of athletes) {{
-                    const username = athlete.username;
-                    if (!username) continue;
-
-                    try {{
-                        const sessionsResp = await fetch(`athl=${{username}}/sessions.tsv`);
-                        if (!sessionsResp.ok) continue;
-
-                        const sessionsText = await sessionsResp.text();
-                        const sessions = parseTSV(sessionsText);
-
-                        for (const session of sessions) {{
-                            const lat = parseFloat(session.center_lat);
-                            const lng = parseFloat(session.center_lng);
-
-                            if (isNaN(lat) || isNaN(lng)) continue;
-
-                            const type = session.sport || session.type || 'Other';
-                            const color = typeColors[type] || typeColors.Other;
-                            const hasPhotos = parseInt(session.photo_count || '0') > 0;
-                            const photoCount = parseInt(session.photo_count || '0');
-
-                            // Use different marker style for sessions with photos
-                            let marker;
-                            if (hasPhotos) {{
-                                // Session with photos: show activity color circle with camera badge
-                                const icon = L.divIcon({{
-                                    html: `<div style="position:relative;">
-                                        <div style="width:12px;height:12px;background:${{color}};border:2px solid white;border-radius:50%;box-shadow:0 2px 5px rgba(0,0,0,0.3);"></div>
-                                        <div style="position:absolute;top:-6px;right:-8px;width:14px;height:14px;background:#E91E63;border:1.5px solid white;border-radius:50%;display:flex;align-items:center;justify-content:center;">
-                                            <svg width="8" height="8" viewBox="0 0 24 24" fill="white"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
-                                        </div>
-                                    </div>`,
-                                    className: '',
-                                    iconSize: [20, 20],
-                                    iconAnchor: [8, 8]
-                                }});
-                                marker = L.marker([lat, lng], {{ icon: icon }});
-                            }} else {{
-                                // Regular session: simple circle marker
-                                marker = L.circleMarker([lat, lng], {{
-                                    radius: 6,
-                                    fillColor: color,
-                                    color: 'white',
-                                    weight: 2,
-                                    opacity: 1,
-                                    fillOpacity: 0.8,
-                                    className: 'session-marker'
-                                }});
-                            }}
-
-                            const photoInfo = hasPhotos ? `<br>Photos: ${{photoCount}}` : '';
-                            marker.bindPopup(`
-                                <b>${{session.name || 'Activity'}}</b><br>
-                                Type: ${{type}}<br>
-                                Date: ${{session.datetime?.substring(0, 8) || ''}}${{photoInfo}}<br>
-                                Distance: ${{(parseFloat(session.distance_m || 0) / 1000).toFixed(2)}} km
-                            `);
-
-                            // Store marker data for auto-loading
-                            allMarkers.push({{
-                                marker: marker,
-                                athlete: username,
-                                session: session.datetime,
-                                color: color,
-                                hasGps: session.has_gps === 'true',
-                                hasPhotos: hasPhotos,
-                                sessionName: session.name || 'Activity'
-                            }});
-
-                            // Load track and photos on click
-                            marker.on('click', () => {{
-                                loadTrack(username, session.datetime, color);
-                                if (hasPhotos) {{
-                                    loadPhotos(username, session.datetime, session.name || 'Activity');
-                                }}
-                            }});
-
-                            marker.addTo(sessionsLayer);
-                            bounds.extend([lat, lng]);
-                            totalSessions++;
-                        }}
-                    }} catch (e) {{
-                        console.warn(`Failed to load sessions for ${{username}}:`, e);
+                try {{
+                    const response = await fetch(`athl=${{athlete}}/ses=${{sessionId}}/info.json`);
+                    if (!response.ok) {{
+                        container.innerHTML = '';
+                        return;
                     }}
+
+                    const info = await response.json();
+                    const photos = info.photos || [];
+
+                    if (photos.length === 0) {{
+                        container.innerHTML = '';
+                        return;
+                    }}
+
+                    container.innerHTML = photos.map(photo => {{
+                        const urls = photo.urls || {{}};
+                        const thumbUrl = urls['256'] || urls['600'] || Object.values(urls)[0] || '';
+                        const fullUrl = urls['2048'] || urls['1024'] || urls['600'] || thumbUrl;
+
+                        // Try local path
+                        const createdAt = photo.created_at || '';
+                        let localPath = '';
+                        if (createdAt) {{
+                            const dt = createdAt.replace(/[-:]/g, '').replace(/\\+.*$/, '').substring(0, 15);
+                            localPath = `athl=${{athlete}}/ses=${{sessionId}}/photos/${{dt}}.jpg`;
+                        }}
+
+                        const src = localPath || thumbUrl;
+                        const href = localPath || fullUrl;
+
+                        return src ? `<a href="${{href}}" target="_blank"><img src="${{src}}" alt="Photo"></a>` : '';
+                    }}).join('');
+                }} catch (e) {{
+                    console.warn('Failed to load detail photos:', e);
+                    container.innerHTML = '';
+                }}
+            }},
+
+            async loadDetailSocial(athlete, sessionId) {{
+                const container = document.getElementById('detail-social');
+                container.innerHTML = '';
+
+                try {{
+                    const response = await fetch(`athl=${{athlete}}/ses=${{sessionId}}/info.json`);
+                    if (!response.ok) return;
+
+                    const info = await response.json();
+                    const kudos = info.kudos || [];
+                    const comments = info.comments || [];
+
+                    if (kudos.length === 0 && comments.length === 0) return;
+
+                    let html = '';
+
+                    if (kudos.length > 0) {{
+                        html += '<h4>Kudos (' + kudos.length + ')</h4>';
+                        html += '<div class="kudos-list">';
+                        html += kudos.map(k => `<span class="kudos-item">${{k.firstname || ''}} ${{k.lastname || ''}}</span>`).join('');
+                        html += '</div>';
+                    }}
+
+                    if (comments.length > 0) {{
+                        html += '<h4>Comments (' + comments.length + ')</h4>';
+                        html += '<div class="comments-list">';
+                        html += comments.map(c => `
+                            <div class="comment-item">
+                                <div class="comment-author">${{c.firstname || ''}} ${{c.lastname || ''}}</div>
+                                <div class="comment-text">${{c.text || ''}}</div>
+                            </div>
+                        `).join('');
+                        html += '</div>';
+                    }}
+
+                    container.innerHTML = html;
+                }} catch (e) {{
+                    console.warn('Failed to load social data:', e);
+                }}
+            }},
+
+            async loadDetailStreams(athlete, sessionId) {{
+                const container = document.getElementById('detail-streams');
+                container.innerHTML = '';
+
+                try {{
+                    const url = `athl=${{athlete}}/ses=${{sessionId}}/tracking.parquet`;
+                    const response = await fetch(url);
+                    if (!response.ok) return;
+
+                    const arrayBuffer = await response.arrayBuffer();
+                    const {{ parquetReadObjects }} = await import('./assets/hyparquet/index.js');
+
+                    // Try to get all available columns
+                    const rows = await parquetReadObjects({{ file: arrayBuffer }});
+                    if (!rows || rows.length === 0) return;
+
+                    // Detect available streams from first row
+                    const sampleRow = rows[0];
+                    const streamConfigs = [
+                        {{ key: 'hr', label: 'Heart Rate', unit: 'bpm' }},
+                        {{ key: 'heartrate', label: 'Heart Rate', unit: 'bpm' }},
+                        {{ key: 'cadence', label: 'Cadence', unit: 'rpm' }},
+                        {{ key: 'watts', label: 'Power', unit: 'W' }},
+                        {{ key: 'power', label: 'Power', unit: 'W' }},
+                        {{ key: 'temp', label: 'Temperature', unit: '°C' }},
+                        {{ key: 'temperature', label: 'Temperature', unit: '°C' }},
+                        {{ key: 'altitude', label: 'Elevation', unit: 'm' }},
+                        {{ key: 'ele', label: 'Elevation', unit: 'm' }}
+                    ];
+
+                    const availableStreams = [];
+                    for (const config of streamConfigs) {{
+                        if (sampleRow[config.key] !== undefined && sampleRow[config.key] !== null) {{
+                            // Check if we already have this type of stream
+                            const existingType = availableStreams.find(s => s.label === config.label);
+                            if (!existingType) {{
+                                availableStreams.push(config);
+                            }}
+                        }}
+                    }}
+
+                    if (availableStreams.length === 0) return;
+
+                    // Calculate stats for each stream
+                    const streamStats = [];
+                    for (const config of availableStreams) {{
+                        const values = rows.map(r => parseFloat(r[config.key])).filter(v => !isNaN(v) && v > 0);
+                        if (values.length === 0) continue;
+
+                        const avg = values.reduce((a, b) => a + b, 0) / values.length;
+                        const max = Math.max(...values);
+                        const min = Math.min(...values);
+
+                        streamStats.push({{
+                            label: config.label,
+                            unit: config.unit,
+                            avg: avg.toFixed(config.key === 'altitude' || config.key === 'ele' ? 0 : 0),
+                            max: max.toFixed(0),
+                            min: min.toFixed(0)
+                        }});
+                    }}
+
+                    if (streamStats.length === 0) return;
+
+                    // Render streams
+                    let html = '<h4>Data Streams</h4><div class="streams-grid">';
+                    for (const stream of streamStats) {{
+                        html += `
+                            <div class="stream-card">
+                                <div class="stream-label">${{stream.label}}</div>
+                                <div class="stream-values">
+                                    <div class="stream-stat">
+                                        <span class="stream-stat-label">Avg</span>
+                                        <span class="stream-stat-value">${{stream.avg}} ${{stream.unit}}</span>
+                                    </div>
+                                    <div class="stream-stat">
+                                        <span class="stream-stat-label">Max</span>
+                                        <span class="stream-stat-value">${{stream.max}} ${{stream.unit}}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }}
+                    html += '</div>';
+                    container.innerHTML = html;
+                }} catch (e) {{
+                    console.warn('Failed to load data streams:', e);
+                }}
+            }},
+
+            closeDetail() {{
+                document.getElementById('session-detail').classList.add('hidden');
+                document.querySelectorAll('#sessions-tbody tr').forEach(r => r.classList.remove('selected'));
+                this.selectedSession = null;
+
+                // Clean up detail map instance
+                if (this.detailMapInstance) {{
+                    this.detailMapInstance.remove();
+                    this.detailMapInstance = null;
                 }}
 
-                // Fit map to bounds
-                if (bounds.isValid()) {{
-                    map.fitBounds(bounds, {{ padding: [20, 20] }});
-                }}
+                // Remove any "View on Map" button that was added
+                document.querySelectorAll('.view-on-map-btn').forEach(btn => btn.remove());
 
-                loading.classList.add('hidden');
-
-                // Update info control
-                updateInfo();
-
-                // Set up auto-loading on zoom/pan
-                map.on('moveend', loadVisibleTracks);
-                map.on('zoomend', loadVisibleTracks);
-
-            }} catch (e) {{
-                loading.textContent = 'Error loading data: ' + e.message;
-                console.error('Error loading sessions:', e);
+                // Reset map container visibility for next session
+                document.getElementById('detail-map').style.display = 'block';
             }}
-        }}
-
-        // Info control
-        function updateInfo() {{
-            if (infoControl) {{
-                infoControl.remove();
-            }}
-            infoControl = L.control({{ position: 'topright' }});
-            infoControl.onAdd = function() {{
-                const div = L.DomUtil.create('div', 'info');
-                let html = `<b>Activities</b><br>${{totalSessions}} sessions`;
-                if (loadedTrackCount > 0) {{
-                    html += `<br>${{loadedTrackCount}} tracks loaded`;
-                }}
-                if (totalPhotos > 0) {{
-                    html += `<br>${{totalPhotos}} photos`;
-                }}
-                const zoom = map.getZoom();
-                if (zoom < AUTO_LOAD_ZOOM) {{
-                    html += `<br><small>Zoom in to auto-load<br>(current: ${{zoom}}, need: ${{AUTO_LOAD_ZOOM}})</small>`;
-                }} else {{
-                    html += `<br><small>Click marker or pan to load</small>`;
-                }}
-                div.innerHTML = html;
-                return div;
-            }};
-            infoControl.addTo(map);
-        }}
-        let infoControl = null;
-
-        // Update info when zoom changes
-        map.on('zoomend', updateInfo);
-
-        // Legend
-        const legend = L.control({{ position: 'bottomright' }});
-        legend.onAdd = function() {{
-            const div = L.DomUtil.create('div', 'info legend');
-            div.innerHTML = '<b>Activity Types</b><br>';
-            for (const [type, color] of Object.entries(typeColors)) {{
-                div.innerHTML += `<i style="background:${{color}}"></i> ${{type}}<br>`;
-            }}
-            div.innerHTML += '<br><i style="background:#E91E63;border-radius:50%;"></i> Photos';
-            return div;
         }};
-        legend.addTo(map);
 
-        // Layer control
-        L.control.layers(null, {{
-            'Sessions': sessionsLayer,
-            'Tracks': tracksLayer,
-            'Photos': photosLayer
-        }}, {{ position: 'topleft' }}).addTo(map);
+        // ===== Stats View Module =====
+        const StatsView = {{
+            sessions: [],
+            typeColors: {json.dumps(type_colors)},
+            filters: {{ year: '', type: '' }},
 
-        // Start loading
-        loadSessions();
+            init() {{
+                document.getElementById('year-filter').addEventListener('change', (e) => {{
+                    this.filters.year = e.target.value;
+                    this.calculate();
+                }});
+
+                document.getElementById('stats-type-filter').addEventListener('change', (e) => {{
+                    this.filters.type = e.target.value;
+                    this.calculate();
+                }});
+
+                // Listen for athlete changes
+                document.getElementById('athlete-selector').addEventListener('change', () => {{
+                    this.calculate();
+                }});
+            }},
+
+            setSessions(sessions) {{
+                this.sessions = sessions;
+                this.populateFilters();
+                this.calculate();
+            }},
+
+            populateFilters() {{
+                const years = new Set();
+                const types = new Set();
+
+                for (const s of this.sessions) {{
+                    if (s.datetime && s.datetime.length >= 4) {{
+                        years.add(s.datetime.substring(0, 4));
+                    }}
+                    if (s.type) types.add(s.type);
+                }}
+
+                const yearSelect = document.getElementById('year-filter');
+                for (const year of [...years].sort().reverse()) {{
+                    const option = document.createElement('option');
+                    option.value = year;
+                    option.textContent = year;
+                    yearSelect.appendChild(option);
+                }}
+
+                const typeSelect = document.getElementById('stats-type-filter');
+                for (const type of [...types].sort()) {{
+                    const option = document.createElement('option');
+                    option.value = type;
+                    option.textContent = type;
+                    typeSelect.appendChild(option);
+                }}
+            }},
+
+            calculate() {{
+                const currentAthlete = document.getElementById('athlete-selector').value;
+
+                const filtered = this.sessions.filter(s => {{
+                    if (currentAthlete && s.athlete !== currentAthlete) return false;
+                    if (this.filters.year && (!s.datetime || !s.datetime.startsWith(this.filters.year))) return false;
+                    if (this.filters.type && s.type !== this.filters.type) return false;
+                    return true;
+                }});
+
+                // Calculate totals
+                const totals = {{
+                    sessions: filtered.length,
+                    distance: filtered.reduce((sum, s) => sum + parseFloat(s.distance_m || 0), 0),
+                    time: filtered.reduce((sum, s) => sum + parseInt(s.moving_time_s || 0), 0),
+                    elevation: filtered.reduce((sum, s) => sum + parseFloat(s.elevation_gain_m || 0), 0)
+                }};
+
+                // Group by month
+                const byMonth = {{}};
+                for (const s of filtered) {{
+                    if (!s.datetime || s.datetime.length < 6) continue;
+                    const month = s.datetime.substring(0, 6);
+                    if (!byMonth[month]) byMonth[month] = {{ count: 0, distance: 0 }};
+                    byMonth[month].count++;
+                    byMonth[month].distance += parseFloat(s.distance_m || 0);
+                }}
+
+                // Group by type
+                const byType = {{}};
+                for (const s of filtered) {{
+                    const type = s.type || 'Other';
+                    if (!byType[type]) byType[type] = {{ count: 0, distance: 0 }};
+                    byType[type].count++;
+                    byType[type].distance += parseFloat(s.distance_m || 0);
+                }}
+
+                this.renderSummary(totals);
+                this.renderMonthlyChart(byMonth);
+                this.renderTypeChart(byType);
+            }},
+
+            formatDuration(seconds) {{
+                const h = Math.floor(seconds / 3600);
+                const m = Math.floor((seconds % 3600) / 60);
+                if (h >= 24) {{
+                    const d = Math.floor(h / 24);
+                    return `${{d}}d ${{h % 24}}h`;
+                }}
+                return `${{h}}h ${{m}}m`;
+            }},
+
+            renderSummary(totals) {{
+                document.getElementById('total-sessions').textContent = totals.sessions.toLocaleString();
+                document.getElementById('total-distance').textContent = (totals.distance / 1000).toFixed(0) + ' km';
+                document.getElementById('total-time').textContent = this.formatDuration(totals.time);
+                document.getElementById('total-elevation').textContent = totals.elevation.toFixed(0) + ' m';
+            }},
+
+            renderMonthlyChart(byMonth) {{
+                const canvas = document.getElementById('monthly-chart');
+                const ctx = canvas.getContext('2d');
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width = rect.width - 32;
+                canvas.height = 250;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                const months = Object.keys(byMonth).sort();
+                if (months.length === 0) {{
+                    ctx.fillStyle = '#999';
+                    ctx.font = '14px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('No data available', canvas.width / 2, canvas.height / 2);
+                    return;
+                }}
+
+                const maxCount = Math.max(...months.map(m => byMonth[m].count));
+                const padding = {{ top: 20, right: 20, bottom: 60, left: 50 }};
+                const chartWidth = canvas.width - padding.left - padding.right;
+                const chartHeight = canvas.height - padding.top - padding.bottom;
+                const barWidth = Math.min(30, (chartWidth / months.length) - 4);
+
+                // Draw axes
+                ctx.strokeStyle = '#ddd';
+                ctx.beginPath();
+                ctx.moveTo(padding.left, padding.top);
+                ctx.lineTo(padding.left, canvas.height - padding.bottom);
+                ctx.lineTo(canvas.width - padding.right, canvas.height - padding.bottom);
+                ctx.stroke();
+
+                // Draw bars
+                months.forEach((month, i) => {{
+                    const data = byMonth[month];
+                    const barHeight = (data.count / maxCount) * chartHeight;
+                    const x = padding.left + (i * (chartWidth / months.length)) + ((chartWidth / months.length) - barWidth) / 2;
+                    const y = canvas.height - padding.bottom - barHeight;
+
+                    ctx.fillStyle = '#fc4c02';
+                    ctx.fillRect(x, y, barWidth, barHeight);
+
+                    // Draw count on top
+                    ctx.fillStyle = '#333';
+                    ctx.font = '11px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(data.count.toString(), x + barWidth / 2, y - 4);
+
+                    // Draw month label
+                    ctx.save();
+                    ctx.translate(x + barWidth / 2, canvas.height - padding.bottom + 8);
+                    ctx.rotate(-45 * Math.PI / 180);
+                    ctx.fillStyle = '#666';
+                    ctx.font = '10px sans-serif';
+                    ctx.textAlign = 'right';
+                    const label = month.substring(0, 4) + '-' + month.substring(4, 6);
+                    ctx.fillText(label, 0, 0);
+                    ctx.restore();
+                }});
+
+                // Y-axis label
+                ctx.save();
+                ctx.translate(14, canvas.height / 2);
+                ctx.rotate(-90 * Math.PI / 180);
+                ctx.fillStyle = '#666';
+                ctx.font = '12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Sessions', 0, 0);
+                ctx.restore();
+            }},
+
+            renderTypeChart(byType) {{
+                const canvas = document.getElementById('type-chart');
+                const ctx = canvas.getContext('2d');
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width = rect.width - 32;
+                canvas.height = 250;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                const types = Object.keys(byType).sort((a, b) => byType[b].count - byType[a].count);
+                if (types.length === 0) {{
+                    ctx.fillStyle = '#999';
+                    ctx.font = '14px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('No data available', canvas.width / 2, canvas.height / 2);
+                    return;
+                }}
+
+                const maxCount = Math.max(...types.map(t => byType[t].count));
+                const padding = {{ top: 20, right: 60, bottom: 20, left: 80 }};
+                const chartWidth = canvas.width - padding.left - padding.right;
+                const chartHeight = canvas.height - padding.top - padding.bottom;
+                const barHeight = Math.min(25, (chartHeight / types.length) - 4);
+
+                types.forEach((type, i) => {{
+                    const data = byType[type];
+                    const barWidth = (data.count / maxCount) * chartWidth;
+                    const y = padding.top + (i * (chartHeight / types.length)) + ((chartHeight / types.length) - barHeight) / 2;
+
+                    // Bar
+                    ctx.fillStyle = this.typeColors[type] || '#607D8B';
+                    ctx.fillRect(padding.left, y, barWidth, barHeight);
+
+                    // Type label
+                    ctx.fillStyle = '#333';
+                    ctx.font = '12px sans-serif';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(type, padding.left - 8, y + barHeight / 2 + 4);
+
+                    // Count label
+                    ctx.fillStyle = '#666';
+                    ctx.font = '11px sans-serif';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(data.count.toString(), padding.left + barWidth + 6, y + barHeight / 2 + 4);
+                }});
+            }}
+        }};
+
+        // ===== Initialize App =====
+        // Set up wrapper BEFORE MapView.init() since init() calls loadSessions()
+        const originalLoadSessions = MapView.loadSessions.bind(MapView);
+        MapView.loadSessions = async function() {{
+            await originalLoadSessions();
+            // Pass full session data to views
+            SessionsView.setSessions(this.allSessions);
+            StatsView.setSessions(this.allSessions);
+        }};
+
+        Router.init();
+        MapView.init();
+        SessionsView.init();
+        StatsView.init();
     </script>
 </body>
 </html>'''
