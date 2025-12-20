@@ -86,13 +86,21 @@ def _collect_geotagged_photos(
                 # Get photo file path (for local serving)
                 photo_created = photo.get("created_at", "")
                 local_path = None
-                if photos_dir.exists():
-                    # Find matching photo file
-                    for photo_file in photos_dir.iterdir():
-                        if photo_file.is_file() and photo_file.suffix.lower() in (".jpg", ".jpeg", ".png"):
-                            # Full path relative to data_dir
-                            local_path = f"sub={username}/ses={session_key}/photos/{photo_file.name}"
-                            break
+                if photos_dir.exists() and photo_created:
+                    # Parse created_at to match local filename format (YYYYMMDDTHHMMSS.jpg)
+                    try:
+                        # Handle ISO format with timezone: 2025-01-30T01:59:56+00:00
+                        created_str = photo_created.replace("+00:00", "").replace("Z", "")
+                        created_dt = datetime.fromisoformat(created_str)
+                        expected_filename = created_dt.strftime("%Y%m%dT%H%M%S")
+
+                        # Look for matching photo file
+                        for photo_file in photos_dir.iterdir():
+                            if photo_file.is_file() and photo_file.stem == expected_filename:
+                                local_path = f"sub={username}/ses={session_key}/photos/{photo_file.name}"
+                                break
+                    except (ValueError, AttributeError):
+                        pass  # Skip if can't parse timestamp
 
                 photos.append({
                     "lat": location[0],
