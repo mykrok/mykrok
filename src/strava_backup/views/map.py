@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from strava_backup.lib.paths import (
+    ATHLETE_PREFIX,
     get_photos_dir,
     iter_athlete_dirs,
     iter_session_dirs,
@@ -97,7 +98,7 @@ def _collect_geotagged_photos(
                         # Look for matching photo file
                         for photo_file in photos_dir.iterdir():
                             if photo_file.is_file() and photo_file.stem == expected_filename:
-                                local_path = f"sub={username}/ses={session_key}/photos/{photo_file.name}"
+                                local_path = f"{ATHLETE_PREFIX}{username}/ses={session_key}/photos/{photo_file.name}"
                                 break
                     except (ValueError, AttributeError):
                         pass  # Skip if can't parse timestamp

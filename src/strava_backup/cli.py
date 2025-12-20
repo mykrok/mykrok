@@ -695,6 +695,62 @@ def browse(ctx: Context, port: int, host: str, no_open: bool) -> None:
         sys.exit(1)
 
 
+@main.command()
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Show what would be done without making changes",
+)
+@pass_context
+def migrate(ctx: Context, dry_run: bool) -> None:
+    """Migrate data directory to latest format.
+
+    Performs the following migrations:
+    - Renames sub= directories to athl= prefix
+    - Generates top-level athletes.tsv
+    - Adds center GPS coordinates to sessions.tsv files
+    """
+    from strava_backup.services.migrate import run_full_migration
+
+    config = ctx.config
+    if config is None:
+        ctx.error("Configuration not loaded")
+        sys.exit(1)
+
+    data_dir = config.data.directory
+
+    if dry_run:
+        ctx.log("Dry run - no changes will be made")
+
+    try:
+        results = run_full_migration(data_dir, dry_run=dry_run)
+
+        # Report prefix renames
+        if results["prefix_renames"]:
+            ctx.log(f"Directory renames: {len(results['prefix_renames'])}")
+            for old, new in results["prefix_renames"]:
+                action = "Would rename" if dry_run else "Renamed"
+                ctx.log(f"  {action}: {old} -> {new}")
+        else:
+            ctx.log("No directory renames needed")
+
+        if not dry_run:
+            # Report athletes.tsv
+            if results["athletes_tsv"]:
+                ctx.log(f"Generated: {results['athletes_tsv']}")
+
+            # Report sessions updates
+            ctx.log(f"Sessions with center coords added: {results['sessions_updated']}")
+
+            ctx.log("Migration complete")
+        else:
+            ctx.log("Dry run complete - run without --dry-run to apply changes")
+
+    except Exception as e:
+        ctx.error(f"Migration failed: {e}")
+        sys.exit(1)
+
+
 @main.group()
 def export() -> None:
     """Export activities to external services."""

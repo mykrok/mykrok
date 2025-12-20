@@ -283,7 +283,7 @@ class TestBackupServiceMocked:
 
             # Verify files were created
             data_dir = mock_config.data.directory
-            athlete_dir = data_dir / "sub=testathlete"
+            athlete_dir = data_dir / "athl=testathlete"
             assert athlete_dir.exists()
 
             # Check for sessions.tsv
@@ -335,7 +335,7 @@ class TestBackupServiceMocked:
 
             # Verify no session directories were created
             data_dir = mock_config.data.directory
-            athlete_dir = data_dir / "sub=testathlete"
+            athlete_dir = data_dir / "athl=testathlete"
             # Athlete dir shouldn't have session subdirectories
             session_dirs = list(athlete_dir.glob("ses=*")) if athlete_dir.exists() else []
             assert len(session_dirs) == 0
