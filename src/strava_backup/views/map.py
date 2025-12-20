@@ -1283,6 +1283,134 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             display: none;
         }}
 
+        /* Loading spinner animation */
+        .loading::before {{
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #fc4c02;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }}
+
+        @keyframes spin {{
+            to {{ transform: rotate(360deg); }}
+        }}
+
+        /* Skeleton loading animation */
+        @keyframes shimmer {{
+            0% {{ background-position: -200% 0; }}
+            100% {{ background-position: 200% 0; }}
+        }}
+
+        .skeleton {{
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+        }}
+
+        .skeleton-row {{
+            display: flex;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid #eee;
+        }}
+
+        .skeleton-cell {{
+            height: 16px;
+            flex: 1;
+        }}
+
+        .skeleton-cell:first-child {{
+            flex: 2;
+        }}
+
+        /* Empty state styling */
+        .empty-state {{
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            text-align: center;
+            color: #666;
+        }}
+
+        .empty-state svg {{
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            fill: #ccc;
+        }}
+
+        .empty-state h3 {{
+            margin: 0 0 8px 0;
+            color: #333;
+            font-size: 18px;
+        }}
+
+        .empty-state p {{
+            margin: 0;
+            font-size: 14px;
+            max-width: 300px;
+        }}
+
+        .empty-state .clear-filters-btn {{
+            margin-top: 16px;
+            padding: 8px 16px;
+            background: #fc4c02;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }}
+
+        .empty-state .clear-filters-btn:hover {{
+            background: #e04400;
+        }}
+
+        /* Loading overlay for initial app load */
+        .loading-overlay {{
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            transition: opacity 0.3s ease-out;
+        }}
+
+        .loading-overlay.hidden {{
+            opacity: 0;
+            pointer-events: none;
+        }}
+
+        .loading-overlay .spinner {{
+            width: 48px;
+            height: 48px;
+            border: 4px solid #f0f0f0;
+            border-top-color: #fc4c02;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }}
+
+        .loading-overlay p {{
+            margin-top: 16px;
+            color: #666;
+            font-size: 14px;
+        }}
+
         /* ===== Sessions View ===== */
         .view-placeholder {{
             display: flex;
@@ -1869,6 +1997,12 @@ def generate_lightweight_map(_data_dir: Path) -> str:
     </style>
 </head>
 <body>
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <p>Loading activity data...</p>
+    </div>
+
     <!-- App Header -->
     <header class="app-header">
         <a href="https://github.com/yarikoptic/strava-backup" class="app-logo" target="_blank">
@@ -2608,6 +2742,25 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     this.closeDetail();
                 }});
 
+                // Set up swipe-to-close on detail panel (mobile touch gesture)
+                const detailPanel = document.getElementById('session-detail');
+                let touchStartX = 0;
+                let touchStartY = 0;
+                detailPanel.addEventListener('touchstart', (e) => {{
+                    touchStartX = e.touches[0].clientX;
+                    touchStartY = e.touches[0].clientY;
+                }}, {{ passive: true }});
+                detailPanel.addEventListener('touchend', (e) => {{
+                    const touchEndX = e.changedTouches[0].clientX;
+                    const touchEndY = e.changedTouches[0].clientY;
+                    const deltaX = touchEndX - touchStartX;
+                    const deltaY = Math.abs(touchEndY - touchStartY);
+                    // Close if swiped right by at least 80px and mostly horizontal
+                    if (deltaX > 80 && deltaY < 50) {{
+                        this.closeDetail();
+                    }}
+                }}, {{ passive: true }});
+
                 // Listen for athlete changes
                 document.getElementById('athlete-selector').addEventListener('change', () => {{
                     this.page = 1;
@@ -2663,6 +2816,11 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
                 this.sort();
                 this.render();
+            }},
+
+            // Alias for external calls (e.g., from stats chart clicks)
+            applyFilters() {{
+                this.applyFiltersAndRender();
             }},
 
             handleSort(field) {{
@@ -2741,7 +2899,15 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 const pageData = this.filtered.slice(start, end);
 
                 if (pageData.length === 0) {{
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:#666;">No sessions found</td></tr>';
+                    const hasFilters = this.filters.search || this.filters.type || this.filters.dateFrom || this.filters.dateTo;
+                    tbody.innerHTML = `<tr><td colspan="5">
+                        <div class="empty-state">
+                            <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H9V5h6v2z"/></svg>
+                            <h3>No sessions found</h3>
+                            <p>${{hasFilters ? 'Try adjusting your filters or search terms' : 'No activity data available yet'}}</p>
+                            ${{hasFilters ? '<button class="clear-filters-btn" onclick="SessionsView.clearFilters()">Clear Filters</button>' : ''}}
+                        </div>
+                    </td></tr>`;
                 }} else {{
                     tbody.innerHTML = pageData.map(s => {{
                         const color = this.typeColors[s.type] || this.typeColors.Other || '#607D8B';
@@ -3491,6 +3657,13 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             // Pass full session data to views
             SessionsView.setSessions(this.allSessions);
             StatsView.setSessions(this.allSessions);
+            // Hide loading overlay
+            const overlay = document.getElementById('loading-overlay');
+            if (overlay) {{
+                overlay.classList.add('hidden');
+                // Remove from DOM after animation
+                setTimeout(() => overlay.remove(), 300);
+            }}
         }};
 
         Router.init();
