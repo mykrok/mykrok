@@ -42,7 +42,7 @@ def _collect_geotagged_photos(
     """
     photos: list[dict[str, Any]] = []
 
-    for _username, athlete_dir in iter_athlete_dirs(data_dir):
+    for username, athlete_dir in iter_athlete_dirs(data_dir):
         for session_key, session_dir in iter_session_dirs(athlete_dir):
             # Filter by date
             try:
@@ -85,12 +85,13 @@ def _collect_geotagged_photos(
 
                 # Get photo file path (for local serving)
                 photo_created = photo.get("created_at", "")
-                photo_filename = None
+                local_path = None
                 if photos_dir.exists():
                     # Find matching photo file
                     for photo_file in photos_dir.iterdir():
                         if photo_file.is_file() and photo_file.suffix.lower() in (".jpg", ".jpeg", ".png"):
-                            photo_filename = f"ses={session_key}/photos/{photo_file.name}"
+                            # Full path relative to data_dir
+                            local_path = f"sub={username}/ses={session_key}/photos/{photo_file.name}"
                             break
 
                 photos.append({
@@ -101,7 +102,7 @@ def _collect_geotagged_photos(
                     "activity_date": session_date.strftime("%Y-%m-%d"),
                     "photo_date": photo_created,
                     "urls": photo.get("urls", {}),
-                    "local_path": photo_filename,
+                    "local_path": local_path,
                     "session_key": session_key,
                 })
 
@@ -338,6 +339,65 @@ def _generate_routes_html(
             align-items: center;
             gap: 6px;
         }}
+        .photo-source-toggle {{
+            background: white;
+            padding: 8px 12px;
+            border-radius: 5px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            font: 12px/14px Arial, Helvetica, sans-serif;
+        }}
+        .photo-source-toggle label {{
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }}
+        .toggle-switch {{
+            position: relative;
+            width: 40px;
+            height: 20px;
+        }}
+        .toggle-switch input {{
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }}
+        .toggle-slider {{
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #4CAF50;
+            border-radius: 20px;
+            transition: 0.3s;
+        }}
+        .toggle-slider:before {{
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }}
+        .toggle-switch input:checked + .toggle-slider {{
+            background-color: #2196F3;
+        }}
+        .toggle-switch input:checked + .toggle-slider:before {{
+            transform: translateX(20px);
+        }}
+        .source-label {{
+            font-size: 11px;
+            color: #666;
+        }}
+        .source-label.active {{
+            font-weight: bold;
+            color: #333;
+        }}
     </style>
 </head>
 <body>
@@ -357,6 +417,53 @@ def _generate_routes_html(
         var routes = {json.dumps(routes_json)};
         var photos = {json.dumps(photos)};
         var bounds = L.latLngBounds();
+
+        // Photo source mode: 'local' or 'remote'
+        var photoSourceMode = 'local';
+
+        // Helper function to get photo URL based on current mode
+        function getPhotoUrl(photo, size) {{
+            if (photoSourceMode === 'local' && photo.local_path) {{
+                return photo.local_path;
+            }}
+            // Fall back to remote URLs
+            var urls = photo.urls || {{}};
+            if (size === 'full') {{
+                return urls['2048'] || urls['1024'] || urls['600'] || urls['256'] || Object.values(urls)[0] || '';
+            }}
+            return urls['600'] || urls['256'] || Object.values(urls)[0] || '';
+        }}
+
+        // Helper function to build popup content for a location's photos
+        function buildPopupContent(locationPhotos) {{
+            var popupContent;
+            if (locationPhotos.length === 1) {{
+                var photo = locationPhotos[0];
+                var imgUrl = getPhotoUrl(photo, 'preview');
+                var fullUrl = getPhotoUrl(photo, 'full');
+                popupContent = '<div class="photo-popup">' +
+                    (imgUrl ? '<a href="' + fullUrl + '" target="_blank"><img src="' + imgUrl + '" alt="Photo"></a>' : '<p>No image available</p>') +
+                    '<div class="photo-meta">' +
+                    '<strong>' + photo.activity_name + '</strong><br>' +
+                    photo.activity_type + ' - ' + photo.activity_date +
+                    '</div></div>';
+            }} else {{
+                popupContent = '<div class="photo-popup photo-gallery">' +
+                    '<div class="photo-gallery-header">' + locationPhotos.length + ' photos at this location</div>';
+                locationPhotos.forEach(function(photo, idx) {{
+                    var imgUrl = getPhotoUrl(photo, 'preview');
+                    var fullUrl = getPhotoUrl(photo, 'full');
+                    popupContent += '<div class="photo-item">' +
+                        (imgUrl ? '<a href="' + fullUrl + '" target="_blank"><img src="' + imgUrl + '" alt="Photo ' + (idx+1) + '"></a>' : '<p>No image available</p>') +
+                        '<div class="photo-meta">' +
+                        '<strong>' + photo.activity_name + '</strong><br>' +
+                        photo.activity_type + ' - ' + photo.activity_date +
+                        '</div></div>';
+                }});
+                popupContent += '</div>';
+            }}
+            return popupContent;
+        }}
 
         // Routes layer
         var routesLayer = L.layerGroup();
@@ -407,6 +514,9 @@ def _generate_routes_html(
             photosByLocation[key].push(photo);
         }});
 
+        // Store markers for popup updates
+        var photoMarkers = [];
+
         // Create markers for each unique location
         Object.keys(photosByLocation).forEach(function(key) {{
             var locationPhotos = photosByLocation[key];
@@ -422,41 +532,25 @@ def _generate_routes_html(
             }});
 
             var marker = L.marker([firstPhoto.lat, firstPhoto.lng], {{ icon: photoIcon }});
+            marker._locationPhotos = locationPhotos;  // Store reference for popup updates
 
-            // Build popup content
-            var popupContent;
-            if (locationPhotos.length === 1) {{
-                var photo = locationPhotos[0];
-                var imgUrl = photo.urls['600'] || photo.urls['256'] || Object.values(photo.urls)[0] || '';
-                var fullUrl = photo.urls['2048'] || photo.urls['1024'] || imgUrl;
-                popupContent = '<div class="photo-popup">' +
-                    (imgUrl ? '<a href="' + fullUrl + '" target="_blank"><img src="' + imgUrl + '" alt="Photo"></a>' : '') +
-                    '<div class="photo-meta">' +
-                    '<strong>' + photo.activity_name + '</strong><br>' +
-                    photo.activity_type + ' - ' + photo.activity_date +
-                    '</div></div>';
-            }} else {{
-                popupContent = '<div class="photo-popup photo-gallery">' +
-                    '<div class="photo-gallery-header">' + locationPhotos.length + ' photos at this location</div>';
-                locationPhotos.forEach(function(photo, idx) {{
-                    var imgUrl = photo.urls['600'] || photo.urls['256'] || Object.values(photo.urls)[0] || '';
-                    var fullUrl = photo.urls['2048'] || photo.urls['1024'] || imgUrl;
-                    popupContent += '<div class="photo-item">' +
-                        (imgUrl ? '<a href="' + fullUrl + '" target="_blank"><img src="' + imgUrl + '" alt="Photo ' + (idx+1) + '"></a>' : '') +
-                        '<div class="photo-meta">' +
-                        '<strong>' + photo.activity_name + '</strong><br>' +
-                        photo.activity_type + ' - ' + photo.activity_date +
-                        '</div></div>';
-                }});
-                popupContent += '</div>';
-            }}
-
-            marker.bindPopup(popupContent, {{ maxWidth: 350, maxHeight: 450 }});
+            marker.bindPopup(buildPopupContent(locationPhotos), {{ maxWidth: 350, maxHeight: 450 }});
             photoCluster.addLayer(marker);
+            photoMarkers.push(marker);
 
             // Extend bounds to include photos
             bounds.extend([firstPhoto.lat, firstPhoto.lng]);
         }});
+
+        // Function to update all photo popups when source mode changes
+        function updatePhotoPopups() {{
+            photoMarkers.forEach(function(marker) {{
+                marker.setPopupContent(buildPopupContent(marker._locationPhotos));
+            }});
+            // Update toggle labels
+            document.getElementById('local-label').className = 'source-label' + (photoSourceMode === 'local' ? ' active' : '');
+            document.getElementById('remote-label').className = 'source-label' + (photoSourceMode === 'remote' ? ' active' : '');
+        }}
 
         if (photos.length > 0) {{
             photoCluster.addTo(map);
@@ -473,6 +567,31 @@ def _generate_routes_html(
                 "Photos": photoCluster
             }};
             L.control.layers(null, overlays, {{ position: 'topleft' }}).addTo(map);
+
+            // Photo source toggle control
+            var sourceToggle = L.control({{position: 'bottomleft'}});
+            sourceToggle.onAdd = function(map) {{
+                var div = L.DomUtil.create('div', 'photo-source-toggle');
+                div.innerHTML = '<label>' +
+                    '<span id="local-label" class="source-label active">Local</span>' +
+                    '<span class="toggle-switch">' +
+                    '<input type="checkbox" id="photo-source-toggle">' +
+                    '<span class="toggle-slider"></span>' +
+                    '</span>' +
+                    '<span id="remote-label" class="source-label">Remote</span>' +
+                    '</label>';
+                L.DomEvent.disableClickPropagation(div);
+                return div;
+            }};
+            sourceToggle.addTo(map);
+
+            // Handle toggle change
+            setTimeout(function() {{
+                document.getElementById('photo-source-toggle').addEventListener('change', function() {{
+                    photoSourceMode = this.checked ? 'remote' : 'local';
+                    updatePhotoPopups();
+                }});
+            }}, 100);
         }}
 
         // Legend
@@ -619,6 +738,65 @@ def _generate_heatmap_html(
             padding-bottom: 8px;
             border-bottom: 2px solid #E91E63;
         }}
+        .photo-source-toggle {{
+            background: white;
+            padding: 8px 12px;
+            border-radius: 5px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            font: 12px/14px Arial, Helvetica, sans-serif;
+        }}
+        .photo-source-toggle label {{
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }}
+        .toggle-switch {{
+            position: relative;
+            width: 40px;
+            height: 20px;
+        }}
+        .toggle-switch input {{
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }}
+        .toggle-slider {{
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #4CAF50;
+            border-radius: 20px;
+            transition: 0.3s;
+        }}
+        .toggle-slider:before {{
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }}
+        .toggle-switch input:checked + .toggle-slider {{
+            background-color: #2196F3;
+        }}
+        .toggle-switch input:checked + .toggle-slider:before {{
+            transform: translateX(20px);
+        }}
+        .source-label {{
+            font-size: 11px;
+            color: #666;
+        }}
+        .source-label.active {{
+            font-weight: bold;
+            color: #333;
+        }}
     </style>
 </head>
 <body>
@@ -636,6 +814,53 @@ def _generate_heatmap_html(
 
         var heatData = {json.dumps(heat_data)};
         var photos = {json.dumps(photos)};
+
+        // Photo source mode: 'local' or 'remote'
+        var photoSourceMode = 'local';
+
+        // Helper function to get photo URL based on current mode
+        function getPhotoUrl(photo, size) {{
+            if (photoSourceMode === 'local' && photo.local_path) {{
+                return photo.local_path;
+            }}
+            // Fall back to remote URLs
+            var urls = photo.urls || {{}};
+            if (size === 'full') {{
+                return urls['2048'] || urls['1024'] || urls['600'] || urls['256'] || Object.values(urls)[0] || '';
+            }}
+            return urls['600'] || urls['256'] || Object.values(urls)[0] || '';
+        }}
+
+        // Helper function to build popup content for a location's photos
+        function buildPopupContent(locationPhotos) {{
+            var popupContent;
+            if (locationPhotos.length === 1) {{
+                var photo = locationPhotos[0];
+                var imgUrl = getPhotoUrl(photo, 'preview');
+                var fullUrl = getPhotoUrl(photo, 'full');
+                popupContent = '<div class="photo-popup">' +
+                    (imgUrl ? '<a href="' + fullUrl + '" target="_blank"><img src="' + imgUrl + '" alt="Photo"></a>' : '<p>No image available</p>') +
+                    '<div class="photo-meta">' +
+                    '<strong>' + photo.activity_name + '</strong><br>' +
+                    photo.activity_type + ' - ' + photo.activity_date +
+                    '</div></div>';
+            }} else {{
+                popupContent = '<div class="photo-popup photo-gallery">' +
+                    '<div class="photo-gallery-header">' + locationPhotos.length + ' photos at this location</div>';
+                locationPhotos.forEach(function(photo, idx) {{
+                    var imgUrl = getPhotoUrl(photo, 'preview');
+                    var fullUrl = getPhotoUrl(photo, 'full');
+                    popupContent += '<div class="photo-item">' +
+                        (imgUrl ? '<a href="' + fullUrl + '" target="_blank"><img src="' + imgUrl + '" alt="Photo ' + (idx+1) + '"></a>' : '<p>No image available</p>') +
+                        '<div class="photo-meta">' +
+                        '<strong>' + photo.activity_name + '</strong><br>' +
+                        photo.activity_type + ' - ' + photo.activity_date +
+                        '</div></div>';
+                }});
+                popupContent += '</div>';
+            }}
+            return popupContent;
+        }}
 
         var heat = L.heatLayer(heatData, {{
             radius: 15,
@@ -676,6 +901,9 @@ def _generate_heatmap_html(
             photosByLocation[key].push(photo);
         }});
 
+        // Store markers for popup updates
+        var photoMarkers = [];
+
         Object.keys(photosByLocation).forEach(function(key) {{
             var locationPhotos = photosByLocation[key];
             var firstPhoto = locationPhotos[0];
@@ -690,37 +918,22 @@ def _generate_heatmap_html(
             }});
 
             var marker = L.marker([firstPhoto.lat, firstPhoto.lng], {{ icon: photoIcon }});
+            marker._locationPhotos = locationPhotos;  // Store reference for popup updates
 
-            var popupContent;
-            if (locationPhotos.length === 1) {{
-                var photo = locationPhotos[0];
-                var imgUrl = photo.urls['600'] || photo.urls['256'] || Object.values(photo.urls)[0] || '';
-                var fullUrl = photo.urls['2048'] || photo.urls['1024'] || imgUrl;
-                popupContent = '<div class="photo-popup">' +
-                    (imgUrl ? '<a href="' + fullUrl + '" target="_blank"><img src="' + imgUrl + '" alt="Photo"></a>' : '') +
-                    '<div class="photo-meta">' +
-                    '<strong>' + photo.activity_name + '</strong><br>' +
-                    photo.activity_type + ' - ' + photo.activity_date +
-                    '</div></div>';
-            }} else {{
-                popupContent = '<div class="photo-popup photo-gallery">' +
-                    '<div class="photo-gallery-header">' + locationPhotos.length + ' photos at this location</div>';
-                locationPhotos.forEach(function(photo, idx) {{
-                    var imgUrl = photo.urls['600'] || photo.urls['256'] || Object.values(photo.urls)[0] || '';
-                    var fullUrl = photo.urls['2048'] || photo.urls['1024'] || imgUrl;
-                    popupContent += '<div class="photo-item">' +
-                        (imgUrl ? '<a href="' + fullUrl + '" target="_blank"><img src="' + imgUrl + '" alt="Photo ' + (idx+1) + '"></a>' : '') +
-                        '<div class="photo-meta">' +
-                        '<strong>' + photo.activity_name + '</strong><br>' +
-                        photo.activity_type + ' - ' + photo.activity_date +
-                        '</div></div>';
-                }});
-                popupContent += '</div>';
-            }}
-
-            marker.bindPopup(popupContent, {{ maxWidth: 350, maxHeight: 450 }});
+            marker.bindPopup(buildPopupContent(locationPhotos), {{ maxWidth: 350, maxHeight: 450 }});
             photoCluster.addLayer(marker);
+            photoMarkers.push(marker);
         }});
+
+        // Function to update all photo popups when source mode changes
+        function updatePhotoPopups() {{
+            photoMarkers.forEach(function(marker) {{
+                marker.setPopupContent(buildPopupContent(marker._locationPhotos));
+            }});
+            // Update toggle labels
+            document.getElementById('local-label').className = 'source-label' + (photoSourceMode === 'local' ? ' active' : '');
+            document.getElementById('remote-label').className = 'source-label' + (photoSourceMode === 'remote' ? ' active' : '');
+        }}
 
         if (photos.length > 0) {{
             photoCluster.addTo(map);
@@ -747,6 +960,31 @@ def _generate_heatmap_html(
                 "Photos": photoCluster
             }};
             L.control.layers(null, overlays, {{ position: 'topleft' }}).addTo(map);
+
+            // Photo source toggle control
+            var sourceToggle = L.control({{position: 'bottomleft'}});
+            sourceToggle.onAdd = function(map) {{
+                var div = L.DomUtil.create('div', 'photo-source-toggle');
+                div.innerHTML = '<label>' +
+                    '<span id="local-label" class="source-label active">Local</span>' +
+                    '<span class="toggle-switch">' +
+                    '<input type="checkbox" id="photo-source-toggle">' +
+                    '<span class="toggle-slider"></span>' +
+                    '</span>' +
+                    '<span id="remote-label" class="source-label">Remote</span>' +
+                    '</label>';
+                L.DomEvent.disableClickPropagation(div);
+                return div;
+            }};
+            sourceToggle.addTo(map);
+
+            // Handle toggle change
+            setTimeout(function() {{
+                document.getElementById('photo-source-toggle').addEventListener('change', function() {{
+                    photoSourceMode = this.checked ? 'remote' : 'local';
+                    updatePhotoPopups();
+                }});
+            }}, 100);
         }}
 
         // Info control

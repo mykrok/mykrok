@@ -634,7 +634,11 @@ def map_cmd(
         )
 
         if serve:
-            output_path = output or Path("./map.html")
+            # When serving with photos, save HTML in data directory for local photo paths
+            if photos and not output:
+                output_path = config.data.directory / "map.html"
+            else:
+                output_path = output or Path("./map.html")
             output_path.write_text(html, encoding="utf-8")
             ctx.log(f"Map saved to {output_path}")
             ctx.log(f"Starting server at http://127.0.0.1:{port}")
