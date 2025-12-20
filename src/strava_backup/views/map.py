@@ -1499,6 +1499,7 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
         const MapView = {{
             map: null,
             typeColors: {json.dumps(type_colors)},
+            athleteColors: {{}},
             bounds: null,
             sessionsLayer: null,
             tracksLayer: null,
@@ -1507,11 +1508,24 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
             loadingTracks: new Set(),
             loadedPhotos: new Set(),
             allMarkers: [],
+            athleteStats: {{}},
+            currentAthlete: '',
             totalSessions: 0,
             loadedTrackCount: 0,
             totalPhotos: 0,
             infoControl: null,
             AUTO_LOAD_ZOOM: 11,
+
+            // Color palette for athletes
+            ATHLETE_PALETTE: ['#2196F3', '#4CAF50', '#9C27B0', '#FF9800', '#00BCD4', '#E91E63', '#795548', '#607D8B'],
+
+            getAthleteColor(username) {{
+                if (!this.athleteColors[username]) {{
+                    const idx = Object.keys(this.athleteColors).length % this.ATHLETE_PALETTE.length;
+                    this.athleteColors[username] = this.ATHLETE_PALETTE[idx];
+                }}
+                return this.athleteColors[username];
+            }},
 
             init() {{
                 // Initialize map
@@ -1545,6 +1559,11 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
                     this.updateInfo();
                 }});
 
+                // Set up athlete selector
+                document.getElementById('athlete-selector').addEventListener('change', (e) => {{
+                    this.filterByAthlete(e.target.value);
+                }});
+
                 // Start loading sessions
                 this.loadSessions();
             }},
@@ -1557,6 +1576,62 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
                     const values = line.split('\\t');
                     return Object.fromEntries(headers.map((h, i) => [h, values[i] || '']));
                 }});
+            }},
+
+            filterByAthlete(username) {{
+                this.currentAthlete = username;
+
+                // Update marker visibility
+                for (const data of this.allMarkers) {{
+                    const visible = !username || data.athlete === username;
+                    if (visible) {{
+                        if (!this.sessionsLayer.hasLayer(data.marker)) {{
+                            data.marker.addTo(this.sessionsLayer);
+                        }}
+                    }} else {{
+                        this.sessionsLayer.removeLayer(data.marker);
+                    }}
+                }}
+
+                // Recalculate bounds for visible markers
+                this.bounds = L.latLngBounds();
+                for (const data of this.allMarkers) {{
+                    if (!username || data.athlete === username) {{
+                        this.bounds.extend(data.marker.getLatLng());
+                    }}
+                }}
+
+                // Fit to new bounds if valid
+                if (this.bounds.isValid()) {{
+                    this.map.fitBounds(this.bounds, {{ padding: [20, 20] }});
+                }}
+
+                this.updateInfo();
+            }},
+
+            populateAthleteSelector() {{
+                const selector = document.getElementById('athlete-selector');
+                // Clear existing options except "All Athletes"
+                while (selector.options.length > 1) {{
+                    selector.remove(1);
+                }}
+
+                // Add options with stats
+                const athletes = Object.keys(this.athleteStats).sort();
+                for (const username of athletes) {{
+                    const stats = this.athleteStats[username];
+                    const distanceKm = (stats.distance / 1000).toFixed(0);
+                    const option = document.createElement('option');
+                    option.value = username;
+                    option.textContent = `${{username}} (${{stats.sessions}} sessions, ${{distanceKm}} km)`;
+                    option.style.color = this.athleteColors[username] || '#333';
+                    selector.appendChild(option);
+                }}
+
+                // Update "All Athletes" option with total
+                const totalSessions = Object.values(this.athleteStats).reduce((sum, s) => sum + s.sessions, 0);
+                const totalDistance = Object.values(this.athleteStats).reduce((sum, s) => sum + s.distance, 0);
+                selector.options[0].textContent = `All Athletes (${{totalSessions}} sessions, ${{(totalDistance / 1000).toFixed(0)}} km)`;
             }},
 
             async loadTrack(athlete, session, color) {{
@@ -1713,15 +1788,6 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
                         if (athletesResp.ok) {{
                             const athletesText = await athletesResp.text();
                             athletes = this.parseTSV(athletesText);
-
-                            // Populate athlete selector
-                            const selector = document.getElementById('athlete-selector');
-                            athletes.forEach(athlete => {{
-                                const option = document.createElement('option');
-                                option.value = athlete.username;
-                                option.textContent = athlete.username;
-                                selector.appendChild(option);
-                            }});
                         }}
                     }} catch (e) {{
                         console.warn('Could not load athletes.tsv, scanning directories...');
@@ -1729,6 +1795,16 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
 
                     if (athletes.length === 0) {{
                         loading.textContent = 'Looking for sessions...';
+                    }}
+
+                    // Initialize athlete stats
+                    for (const athlete of athletes) {{
+                        const username = athlete.username;
+                        if (username) {{
+                            this.athleteStats[username] = {{ sessions: 0, distance: 0 }};
+                            // Assign color for each athlete
+                            this.getAthleteColor(username);
+                        }}
                     }}
 
                     for (const athlete of athletes) {{
@@ -1745,6 +1821,11 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
                             for (const session of sessions) {{
                                 const lat = parseFloat(session.center_lat);
                                 const lng = parseFloat(session.center_lng);
+                                const distance = parseFloat(session.distance_m || 0);
+
+                                // Track athlete stats
+                                this.athleteStats[username].sessions++;
+                                this.athleteStats[username].distance += distance;
 
                                 if (isNaN(lat) || isNaN(lng)) continue;
 
@@ -1817,6 +1898,9 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
                         this.map.fitBounds(this.bounds, {{ padding: [20, 20] }});
                     }}
 
+                    // Populate athlete selector with stats
+                    this.populateAthleteSelector();
+
                     loading.classList.add('hidden');
                     this.updateInfo();
 
@@ -1834,7 +1918,21 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
                 const self = this;
                 this.infoControl.onAdd = function() {{
                     const div = L.DomUtil.create('div', 'info');
-                    let html = `<b>Activities</b><br>${{self.totalSessions}} sessions`;
+
+                    // Calculate visible stats
+                    let visibleSessions = 0;
+                    for (const data of self.allMarkers) {{
+                        if (!self.currentAthlete || data.athlete === self.currentAthlete) {{
+                            visibleSessions++;
+                        }}
+                    }}
+
+                    let html = '<b>Activities</b>';
+                    if (self.currentAthlete) {{
+                        const color = self.athleteColors[self.currentAthlete] || '#333';
+                        html += `<br><span style="color:${{color}}">${{self.currentAthlete}}</span>`;
+                    }}
+                    html += `<br>${{visibleSessions}} sessions`;
                     if (self.loadedTrackCount > 0) {{
                         html += `<br>${{self.loadedTrackCount}} tracks loaded`;
                     }}
