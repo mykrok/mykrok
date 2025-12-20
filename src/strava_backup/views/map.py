@@ -1247,6 +1247,32 @@ def generate_lightweight_map(data_dir: Path) -> str:
             if (loadedPhotos.has(photoKey)) return;
             loadedPhotos.add(photoKey);
 
+            // Find and update the session marker to remove photo badge
+            const markerData = allMarkers.find(m => m.athlete === athlete && m.session === session);
+            if (markerData && markerData.hasPhotos) {{
+                // Replace with simple circle marker (no photo badge)
+                const newMarker = L.circleMarker(markerData.marker.getLatLng(), {{
+                    radius: 6,
+                    fillColor: markerData.color,
+                    color: 'white',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8,
+                    className: 'session-marker'
+                }});
+                // Copy popup
+                newMarker.bindPopup(markerData.marker.getPopup());
+                // Copy click handler
+                newMarker.on('click', () => {{
+                    loadTrack(athlete, session, markerData.color);
+                    loadPhotos(athlete, session, sessionName);
+                }});
+                // Replace in layer
+                sessionsLayer.removeLayer(markerData.marker);
+                newMarker.addTo(sessionsLayer);
+                markerData.marker = newMarker;
+            }}
+
             try {{
                 const url = `athl=${{athlete}}/ses=${{session}}/info.json`;
                 const response = await fetch(url);
