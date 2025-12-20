@@ -107,6 +107,10 @@ source = "vcs"
 [tool.hatch.build.hooks.vcs]
 version-file = "src/strava_backup/_version.py"
 
+# Include bundled JavaScript/CSS assets for lightweight map generation
+[tool.hatch.build.targets.wheel.force-include]
+"src/strava_backup/assets" = "strava_backup/assets"
+
 [tool.ruff]
 target-version = "py310"
 line-length = 100

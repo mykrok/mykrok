@@ -614,7 +614,7 @@ class BackupService:
         # Get athlete info
         logger.debug("Fetching athlete info")
         log("Fetching athlete info", 1)
-        athlete = Athlete.from_strava(self.strava.get_athlete())
+        athlete = Athlete.from_strava_athlete(self.strava.get_athlete())
         username = athlete.username
 
         # Iterate over existing sessions

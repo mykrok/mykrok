@@ -629,6 +629,11 @@ def stats(
     default=8080,
     help="Server port (default: 8080)",
 )
+@click.option(
+    "--lightweight",
+    is_flag=True,
+    help="Generate lightweight map that loads data on demand from TSV/parquet files",
+)
 @pass_context
 def map_cmd(
     ctx: Context,
@@ -640,14 +645,24 @@ def map_cmd(
     photos: bool,
     serve: bool,
     port: int,
+    lightweight: bool,
 ) -> None:
     """Generate interactive map visualization.
 
     By default, shows activity routes as colored polylines. Use --heatmap
     for a density visualization. Use --photos to overlay geotagged photos
     as clickable markers with preview popups.
+
+    Use --lightweight to generate a small HTML file that loads data on demand
+    from athletes.tsv, sessions.tsv and tracking.parquet files. This requires
+    serving from the data directory with a local HTTP server.
     """
-    from strava_backup.views.map import generate_map, serve_map
+    from strava_backup.views.map import (
+        copy_assets_to_output,
+        generate_lightweight_map,
+        generate_map,
+        serve_map,
+    )
 
     config = ctx.config
     if config is None:
@@ -655,30 +670,51 @@ def map_cmd(
         sys.exit(1)
 
     try:
-        html = generate_map(
-            data_dir=config.data.directory,
-            after=after,
-            before=before,
-            activity_type=activity_type,
-            heatmap=heatmap,
-            show_photos=photos,
-        )
+        if lightweight:
+            # Lightweight mode: generate minimal HTML, copy assets
+            html = generate_lightweight_map(config.data.directory)
 
-        if serve:
-            # When serving with photos, save HTML in data directory for local photo paths
-            if photos and not output:
-                output_path = config.data.directory / "map.html"
-            else:
-                output_path = output or Path("./map.html")
+            # Always output to data directory for lightweight mode
+            output_path = config.data.directory / "map.html"
             output_path.write_text(html, encoding="utf-8")
+
+            # Copy JS/CSS assets
+            assets_dst = copy_assets_to_output(config.data.directory)
             ctx.log(f"Map saved to {output_path}")
-            ctx.log(f"Starting server at http://127.0.0.1:{port}")
-            serve_map(output_path, port=port)
-        elif output:
-            output.write_text(html, encoding="utf-8")
-            ctx.log(f"Map saved to {output}")
+            ctx.log(f"Assets copied to {assets_dst}")
+
+            if serve:
+                ctx.log(f"Starting server at http://127.0.0.1:{port}")
+                serve_map(output_path, port=port)
+            else:
+                ctx.log("To view: python -m http.server --directory "
+                        f"{config.data.directory} {port}")
         else:
-            click.echo(html)
+            # Standard mode: embed all data in HTML
+            html = generate_map(
+                data_dir=config.data.directory,
+                after=after,
+                before=before,
+                activity_type=activity_type,
+                heatmap=heatmap,
+                show_photos=photos,
+            )
+
+            if serve:
+                # When serving with photos, save HTML in data directory for local photo paths
+                if photos and not output:
+                    output_path = config.data.directory / "map.html"
+                else:
+                    output_path = output or Path("./map.html")
+                output_path.write_text(html, encoding="utf-8")
+                ctx.log(f"Map saved to {output_path}")
+                ctx.log(f"Starting server at http://127.0.0.1:{port}")
+                serve_map(output_path, port=port)
+            elif output:
+                output.write_text(html, encoding="utf-8")
+                ctx.log(f"Map saved to {output}")
+            else:
+                click.echo(html)
 
     except Exception as e:
         ctx.error(f"Map generation failed: {e}")
@@ -787,6 +823,72 @@ def migrate(ctx: Context, dry_run: bool) -> None:
 
     except Exception as e:
         ctx.error(f"Migration failed: {e}")
+        sys.exit(1)
+
+
+@main.command()
+@click.option(
+    "--add-center-coords/--no-center-coords",
+    default=True,
+    help="Add start point GPS coordinates to sessions.tsv (default: True)",
+)
+@click.option(
+    "--force-coords",
+    is_flag=True,
+    help="Force recalculation of coordinates even if they already exist",
+)
+@pass_context
+def rebuild_sessions(ctx: Context, add_center_coords: bool, force_coords: bool) -> None:
+    """Rebuild sessions.tsv files from activity data.
+
+    Scans all session directories and regenerates sessions.tsv for each athlete
+    from their info.json files. Use this if sessions.tsv is missing entries
+    or needs to be recreated.
+
+    By default, also adds start point GPS coordinates for map visualization
+    (stored in center_lat/center_lng columns for backward compatibility).
+    """
+    from strava_backup.lib.paths import iter_athlete_dirs
+    from strava_backup.models.activity import update_sessions_tsv
+    from strava_backup.services.migrate import add_center_coords_to_sessions
+
+    config = ctx.config
+    if config is None:
+        ctx.error("Configuration not loaded")
+        sys.exit(1)
+
+    data_dir = config.data.directory
+
+    try:
+        # Find all athletes
+        athletes = list(iter_athlete_dirs(data_dir))
+        if not athletes:
+            ctx.log("No athlete directories found")
+            return
+
+        ctx.log(f"Found {len(athletes)} athlete(s)")
+
+        total_sessions = 0
+        for username, athlete_dir in athletes:
+            sessions_path = update_sessions_tsv(data_dir, username)
+            # Count sessions in the file
+            with open(sessions_path, encoding="utf-8") as f:
+                session_count = sum(1 for _ in f) - 1  # Subtract header
+            ctx.log(f"  {username}: {session_count} sessions -> {sessions_path}")
+            total_sessions += session_count
+
+        ctx.log(f"Total: {total_sessions} sessions across {len(athletes)} athlete(s)")
+
+        # Add start point coordinates if requested
+        if add_center_coords:
+            ctx.log("Adding start point GPS coordinates...")
+            updated = add_center_coords_to_sessions(data_dir, force=force_coords)
+            ctx.log(f"  Updated {updated} sessions with coordinates")
+
+        ctx.log("Done")
+
+    except Exception as e:
+        ctx.error(f"Failed to rebuild sessions: {e}")
         sys.exit(1)
 
 
