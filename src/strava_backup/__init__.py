@@ -5,8 +5,13 @@ comments, kudos) with incremental sync, store in Hive-partitioned layout for
 DuckDB queries, generate interactive map visualizations, and export to FitTrackee.
 """
 
-__version__ = "0.1.0"
-__author__ = "strava-backup contributors"
+try:
+    from strava_backup._version import __version__
+except ImportError:
+    # Fallback for development without build
+    __version__ = "0.0.0.dev0+unknown"
+
+__author__ = "strava_backup contributors"
 __license__ = "MIT"
 
 __all__ = ["__version__"]
