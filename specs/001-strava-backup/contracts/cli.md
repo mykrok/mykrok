@@ -76,6 +76,8 @@ Options:
 - `social`: Only refresh kudos/comments for existing local activities without
   re-downloading GPS data or photos. Useful for updating social metadata after
   bug fixes or to capture new kudos/comments.
+- `athlete-profiles`: Refresh athlete profile information (name, location) and
+  download avatar photos. Updates athletes.tsv with profile data.
 
 **Exit Codes**:
 - 0: Success (activities synced)

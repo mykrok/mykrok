@@ -58,8 +58,8 @@ def generate_athletes_tsv(data_dir: Path) -> Path:
     """Generate top-level athletes.tsv file.
 
     Columns:
-        username, session_count, first_activity, last_activity, total_distance_km,
-        total_moving_time_h, activity_types
+        username, firstname, lastname, city, country, session_count, first_activity,
+        last_activity, total_distance_km, total_moving_time_h, activity_types
 
     Args:
         data_dir: Base data directory.
@@ -67,12 +67,17 @@ def generate_athletes_tsv(data_dir: Path) -> Path:
     Returns:
         Path to generated athletes.tsv.
     """
+    from strava_backup.models.athlete import load_athlete_profile
+
     athletes_path = get_athletes_tsv_path(data_dir)
 
     rows: list[dict[str, Any]] = []
 
     for username, athlete_dir in iter_athlete_dirs(data_dir):
         sessions_path = get_sessions_tsv_path(athlete_dir)
+
+        # Load athlete profile if available
+        athlete = load_athlete_profile(athlete_dir)
 
         session_count = 0
         first_activity = None
@@ -109,6 +114,10 @@ def generate_athletes_tsv(data_dir: Path) -> Path:
 
         rows.append({
             "username": username,
+            "firstname": athlete.firstname if athlete else "",
+            "lastname": athlete.lastname if athlete else "",
+            "city": athlete.city if athlete else "",
+            "country": athlete.country if athlete else "",
             "session_count": session_count,
             "first_activity": first_activity or "",
             "last_activity": last_activity or "",
@@ -120,6 +129,10 @@ def generate_athletes_tsv(data_dir: Path) -> Path:
     # Write TSV
     fieldnames = [
         "username",
+        "firstname",
+        "lastname",
+        "city",
+        "country",
         "session_count",
         "first_activity",
         "last_activity",

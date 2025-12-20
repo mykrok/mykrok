@@ -267,9 +267,9 @@ def auth(
 @main.command()
 @click.option(
     "--what",
-    type=click.Choice(["recent", "full", "social"], case_sensitive=False),
+    type=click.Choice(["recent", "full", "social", "athlete-profiles"], case_sensitive=False),
     default="recent",
-    help="What to sync: recent (default, new since last sync), full (all activities), social (refresh kudos/comments only)",
+    help="What to sync: recent (default), full, social (kudos/comments), athlete-profiles (profile info & avatar)",
 )
 @click.option(
     "--after",
@@ -330,9 +330,10 @@ def sync(
 
     \b
     Sync modes (--what):
-      recent  Incremental sync of new activities since last sync (default)
-      full    Sync all activities from Strava (ignores last sync time)
-      social  Only refresh kudos/comments for existing local activities
+      recent           Incremental sync of new activities since last sync (default)
+      full             Sync all activities from Strava (ignores last sync time)
+      social           Only refresh kudos/comments for existing local activities
+      athlete-profiles Refresh athlete profile info (name, location) and avatar photos
     """
     from strava_backup.services.backup import BackupService
 
@@ -352,6 +353,26 @@ def sync(
 
     try:
         service = BackupService(config)
+
+        # Handle athlete-profiles mode
+        if what == "athlete-profiles":
+            result = service.refresh_athlete_profiles(
+                dry_run=dry_run,
+                log_callback=ctx.log if not ctx.json_output else None,
+            )
+
+            if ctx.json_output:
+                ctx.output.update({
+                    "status": "success",
+                    **result,
+                })
+                ctx.output.output()
+            else:
+                ctx.log(f"\nUpdated {result['profiles_updated']} profile(s), "
+                       f"downloaded {result['avatars_downloaded']} avatar(s)")
+                if result.get("errors"):
+                    ctx.log(f"Errors: {len(result['errors'])}")
+            return
 
         # Handle social mode (only update kudos/comments for existing activities)
         if what == "social":

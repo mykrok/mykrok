@@ -699,3 +699,127 @@ class BackupService:
             "activities_scanned": processed,
             "errors": errors,
         }
+
+    def refresh_athlete_profiles(
+        self,
+        dry_run: bool = False,
+        log_callback: Callable[[str, int], None] | None = None,
+    ) -> dict[str, Any]:
+        """Refresh athlete profile information and avatars.
+
+        Downloads profile data (name, location) and avatar photos for all
+        athletes in the backup. Currently only supports the authenticated athlete.
+
+        Args:
+            dry_run: If True, only report what would be done.
+            log_callback: Optional callback for logging.
+
+        Returns:
+            Dictionary with refresh results.
+        """
+        from strava_backup.lib.paths import get_athlete_dir, get_avatar_path
+        from strava_backup.models.athlete import (
+            get_existing_avatar_path,
+            save_athlete_profile,
+        )
+        from strava_backup.services.migrate import generate_athletes_tsv
+
+        log = log_callback or (lambda _msg, _lvl: None)
+
+        logger.info("Refreshing athlete profiles")
+        log("Refreshing athlete profiles", 0)
+
+        # Get authenticated athlete info
+        logger.debug("Fetching athlete info from Strava")
+        strava_athlete = self.strava.get_athlete()
+        athlete = Athlete.from_strava_athlete(strava_athlete)
+
+        log(f"  {athlete.username}: {athlete.firstname} {athlete.lastname}", 1)
+        if athlete.city or athlete.country:
+            location = ", ".join(filter(None, [athlete.city, athlete.country]))
+            log(f"    Location: {location}", 1)
+
+        profiles_updated = 0
+        avatars_downloaded = 0
+        errors: list[dict[str, Any]] = []
+
+        if dry_run:
+            log("Dry run - no changes made", 1)
+            return {
+                "profiles_updated": 0,
+                "avatars_downloaded": 0,
+                "errors": [],
+            }
+
+        # Save athlete profile
+        try:
+            save_athlete_profile(self.data_dir, athlete)
+            profiles_updated += 1
+            log("    Saved profile to athlete.json", 1)
+        except Exception as e:
+            logger.warning("Failed to save athlete profile: %s", e)
+            errors.append({
+                "username": athlete.username,
+                "error": str(e),
+                "type": "profile",
+            })
+
+        # Download avatar if profile_url is available
+        if athlete.profile_url:
+            athlete_dir = get_athlete_dir(self.data_dir, athlete.username)
+
+            # Determine extension from URL
+            ext = "jpg"
+            url_lower = athlete.profile_url.lower()
+            if ".png" in url_lower:
+                ext = "png"
+            elif ".gif" in url_lower:
+                ext = "gif"
+            elif ".webp" in url_lower:
+                ext = "webp"
+
+            avatar_path = get_avatar_path(athlete_dir, ext)
+
+            # Remove old avatar with different extension if exists
+            existing_avatar = get_existing_avatar_path(athlete_dir)
+            if existing_avatar and existing_avatar != avatar_path:
+                try:
+                    existing_avatar.unlink()
+                    log(f"    Removed old avatar: {existing_avatar.name}", 1)
+                except OSError:
+                    pass
+
+            try:
+                response = requests.get(athlete.profile_url, timeout=30)
+                response.raise_for_status()
+
+                with open(avatar_path, "wb") as f:
+                    f.write(response.content)
+
+                avatars_downloaded += 1
+                log(f"    Downloaded avatar: {avatar_path.name}", 1)
+
+            except Exception as e:
+                logger.warning("Failed to download avatar: %s", e)
+                errors.append({
+                    "username": athlete.username,
+                    "error": str(e),
+                    "type": "avatar",
+                })
+
+        # Regenerate athletes.tsv with updated profile info
+        try:
+            generate_athletes_tsv(self.data_dir)
+            log("Updated athletes.tsv", 1)
+        except Exception as e:
+            logger.warning("Failed to update athletes.tsv: %s", e)
+            errors.append({
+                "error": str(e),
+                "type": "athletes_tsv",
+            })
+
+        return {
+            "profiles_updated": profiles_updated,
+            "avatars_downloaded": avatars_downloaded,
+            "errors": errors,
+        }
