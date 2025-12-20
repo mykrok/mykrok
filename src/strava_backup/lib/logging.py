@@ -5,6 +5,7 @@ Provides structured logging to console and file with configurable levels.
 
 from __future__ import annotations
 
+import atexit
 import logging
 import sys
 from datetime import datetime
@@ -16,6 +17,11 @@ if TYPE_CHECKING:
 
 # Module logger
 logger = logging.getLogger("strava_backup")
+
+# Track current log file for cleanup
+_current_log_file: Path | None = None
+_file_handler: logging.FileHandler | None = None
+_cleanup_registered: bool = False
 
 
 def setup_logging(
@@ -63,6 +69,8 @@ def setup_logging(
     log_dir.mkdir(parents=True, exist_ok=True)
 
     # File handler with timestamp-based filename (ISO 8601 basic format)
+    global _current_log_file, _file_handler
+
     timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
     log_file = log_dir / f"strava-backup-{timestamp}.log"
 
@@ -74,6 +82,16 @@ def setup_logging(
     )
     file_handler.setFormatter(file_formatter)
     logger.addHandler(file_handler)
+
+    # Track for cleanup
+    _current_log_file = log_file
+    _file_handler = file_handler
+
+    # Register cleanup on exit (only once)
+    global _cleanup_registered
+    if not _cleanup_registered:
+        atexit.register(cleanup_empty_log)
+        _cleanup_registered = True
 
     # Also capture stravalib logs
     stravalib_logger = logging.getLogger("stravalib")
@@ -95,3 +113,42 @@ def get_logger(name: str = "strava_backup") -> logging.Logger:
         Logger instance.
     """
     return logging.getLogger(name)
+
+
+def cleanup_empty_log() -> None:
+    """Remove log file if it only contains the initialization message.
+
+    This prevents accumulation of empty log files when commands complete
+    without logging anything meaningful.
+    """
+    global _current_log_file, _file_handler
+
+    if _current_log_file is None or _file_handler is None:
+        return
+
+    if not _current_log_file.exists():
+        return
+
+    # Close the file handler first to ensure all writes are flushed
+    _file_handler.close()
+    logger.removeHandler(_file_handler)
+
+    # Also remove from stravalib logger
+    stravalib_logger = logging.getLogger("stravalib")
+    stravalib_logger.removeHandler(_file_handler)
+
+    # Check if log file has only the initialization line
+    try:
+        with open(_current_log_file, encoding="utf-8") as f:
+            lines = f.readlines()
+
+        # If only one line and it's the init message, remove the file
+        if len(lines) == 1 and "Logging initialized" in lines[0]:
+            _current_log_file.unlink()
+    except OSError:
+        # If we can't read/remove the file, just leave it
+        pass
+
+    # Reset globals
+    _current_log_file = None
+    _file_handler = None
