@@ -339,3 +339,200 @@ class TestBackupServiceMocked:
             # Athlete dir shouldn't have session subdirectories
             session_dirs = list(athlete_dir.glob("ses=*")) if athlete_dir.exists() else []
             assert len(session_dirs) == 0
+
+    def test_refresh_social_updates_kudos_and_comments(
+        self,
+        mock_config: Config,
+        sample_strava_activity: dict,
+        sample_strava_streams: dict,
+    ) -> None:
+        """Test that refresh_social updates kudos and comments for existing activities."""
+        from strava_backup.services.backup import BackupService
+
+        # Create mock athlete
+        mock_athlete = MagicMock()
+        mock_athlete.id = 12345
+        mock_athlete.username = "testathlete"
+        mock_athlete.firstname = "Test"
+        mock_athlete.lastname = "Athlete"
+        mock_athlete.profile = None
+        mock_athlete.city = None
+        mock_athlete.country = None
+        mock_athlete.bikes = []
+        mock_athlete.shoes = []
+
+        # Create mock activity
+        mock_activity = MagicMock()
+        for key, value in sample_strava_activity.items():
+            setattr(mock_activity, key, value)
+        mock_activity.moving_time = timedelta(seconds=1800)
+        mock_activity.elapsed_time = timedelta(seconds=1850)
+
+        with patch("strava_backup.services.backup.StravaClient") as MockStravaClient:
+            mock_strava = MagicMock()
+            mock_strava.get_athlete.return_value = mock_athlete
+            mock_strava.get_activities.return_value = iter([mock_activity])
+            mock_strava.get_activity.return_value = mock_activity
+            mock_strava.get_activity_streams.return_value = {
+                k: v["data"] for k, v in sample_strava_streams.items()
+            }
+            mock_strava.get_activity_photos.return_value = []
+            mock_strava.get_activity_comments.return_value = []
+            mock_strava.get_activity_kudos.return_value = []
+            mock_strava.get_athlete_gear.return_value = []
+            MockStravaClient.return_value = mock_strava
+
+            service = BackupService(mock_config)
+            service.strava = mock_strava
+
+            # First, sync to create activity files
+            result = service.sync(limit=1)
+            assert result["activities_synced"] == 1
+
+            # Now set up new kudos/comments for refresh
+            mock_strava.get_activity_comments.return_value = [
+                {"id": 1001, "text": "Great run!", "created_at": "2025-12-18T08:00:00",
+                 "athlete_id": 54321, "athlete_firstname": "Jane", "athlete_lastname": "Doe"},
+            ]
+            mock_strava.get_activity_kudos.return_value = [
+                {"athlete_id": 99999, "firstname": "John", "lastname": "Smith"},
+                {"athlete_id": 88888, "firstname": "Bob", "lastname": "Jones"},
+            ]
+
+            # Run refresh_social
+            refresh_result = service.refresh_social()
+
+            assert refresh_result["activities_scanned"] == 1
+            assert refresh_result["activities_updated"] == 1
+            assert refresh_result["errors"] == []
+
+            # Verify the API was called to get comments and kudos
+            mock_strava.get_activity_comments.assert_called()
+            mock_strava.get_activity_kudos.assert_called()
+
+    def test_refresh_social_dry_run_no_changes(
+        self,
+        mock_config: Config,
+        sample_strava_activity: dict,
+        sample_strava_streams: dict,
+    ) -> None:
+        """Test that refresh_social with dry_run doesn't modify files."""
+        from strava_backup.services.backup import BackupService
+
+        # Create mock athlete
+        mock_athlete = MagicMock()
+        mock_athlete.id = 12345
+        mock_athlete.username = "testathlete"
+        mock_athlete.firstname = "Test"
+        mock_athlete.lastname = "Athlete"
+        mock_athlete.profile = None
+        mock_athlete.city = None
+        mock_athlete.country = None
+        mock_athlete.bikes = []
+        mock_athlete.shoes = []
+
+        # Create mock activity
+        mock_activity = MagicMock()
+        for key, value in sample_strava_activity.items():
+            setattr(mock_activity, key, value)
+        mock_activity.moving_time = timedelta(seconds=1800)
+        mock_activity.elapsed_time = timedelta(seconds=1850)
+
+        with patch("strava_backup.services.backup.StravaClient") as MockStravaClient:
+            mock_strava = MagicMock()
+            mock_strava.get_athlete.return_value = mock_athlete
+            mock_strava.get_activities.return_value = iter([mock_activity])
+            mock_strava.get_activity.return_value = mock_activity
+            mock_strava.get_activity_streams.return_value = {
+                k: v["data"] for k, v in sample_strava_streams.items()
+            }
+            mock_strava.get_activity_photos.return_value = []
+            mock_strava.get_activity_comments.return_value = []
+            mock_strava.get_activity_kudos.return_value = []
+            mock_strava.get_athlete_gear.return_value = []
+            MockStravaClient.return_value = mock_strava
+
+            service = BackupService(mock_config)
+            service.strava = mock_strava
+
+            # First, sync to create activity files
+            result = service.sync(limit=1)
+            assert result["activities_synced"] == 1
+
+            # Run refresh_social with dry_run=True
+            refresh_result = service.refresh_social(dry_run=True)
+
+            assert refresh_result["activities_scanned"] == 1
+            assert refresh_result["activities_updated"] == 0  # No updates in dry run
+
+            # Verify the API was NOT called to get comments/kudos (dry run skips)
+            # Reset call counts after sync
+            mock_strava.get_activity_comments.reset_mock()
+            mock_strava.get_activity_kudos.reset_mock()
+
+            refresh_result = service.refresh_social(dry_run=True)
+            mock_strava.get_activity_comments.assert_not_called()
+            mock_strava.get_activity_kudos.assert_not_called()
+
+    def test_refresh_social_respects_limit(
+        self,
+        mock_config: Config,
+        sample_strava_activity: dict,
+        sample_strava_streams: dict,
+    ) -> None:
+        """Test that refresh_social respects limit parameter."""
+        from strava_backup.services.backup import BackupService
+
+        # Create mock athlete
+        mock_athlete = MagicMock()
+        mock_athlete.id = 12345
+        mock_athlete.username = "testathlete"
+        mock_athlete.firstname = "Test"
+        mock_athlete.lastname = "Athlete"
+        mock_athlete.profile = None
+        mock_athlete.city = None
+        mock_athlete.country = None
+        mock_athlete.bikes = []
+        mock_athlete.shoes = []
+
+        # Create two mock activities with different dates
+        activities = []
+        for i, day in enumerate([18, 17]):
+            mock_activity = MagicMock()
+            for key, value in sample_strava_activity.items():
+                setattr(mock_activity, key, value)
+            mock_activity.id = 12345678901 + i
+            mock_activity.name = f"Run {i+1}"
+            mock_activity.start_date = datetime(2025, 12, day, 6, 30, 0)
+            mock_activity.start_date_local = datetime(2025, 12, day, 7, 30, 0)
+            mock_activity.moving_time = timedelta(seconds=1800)
+            mock_activity.elapsed_time = timedelta(seconds=1850)
+            activities.append(mock_activity)
+
+        with patch("strava_backup.services.backup.StravaClient") as MockStravaClient:
+            mock_strava = MagicMock()
+            mock_strava.get_athlete.return_value = mock_athlete
+            mock_strava.get_activities.return_value = iter(activities)
+            mock_strava.get_activity.side_effect = activities
+            mock_strava.get_activity_streams.return_value = {}
+            mock_strava.get_activity_photos.return_value = []
+            mock_strava.get_activity_comments.return_value = []
+            mock_strava.get_activity_kudos.return_value = []
+            mock_strava.get_athlete_gear.return_value = []
+            MockStravaClient.return_value = mock_strava
+
+            service = BackupService(mock_config)
+            service.strava = mock_strava
+
+            # First, sync both activities
+            result = service.sync(limit=2)
+            assert result["activities_synced"] == 2
+
+            # Reset mock for refresh
+            mock_strava.get_activity_comments.reset_mock()
+
+            # Run refresh_social with limit=1
+            refresh_result = service.refresh_social(limit=1)
+
+            assert refresh_result["activities_scanned"] == 1
+            assert refresh_result["activities_updated"] == 1
