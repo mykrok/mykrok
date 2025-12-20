@@ -112,8 +112,13 @@ class BackupService:
         if after:
             sync_after = after.timestamp()
         elif not full and state.last_activity_date:
-            # Sync from last activity date (with some overlap for safety)
-            sync_after = state.last_activity_date.timestamp() - 86400  # 1 day overlap
+            # Use last activity date as cutoff
+            # Only add overlap if last sync was more than 1 day ago (to catch late uploads)
+            sync_after = state.last_activity_date.timestamp()
+            if state.last_sync is None or (datetime.now() - state.last_sync).total_seconds() > 86400:
+                # Add 1-day overlap for safety when sync hasn't run recently
+                sync_after -= 86400
+                logger.debug("Adding 1-day overlap (last sync was old or never ran)")
 
         sync_before: float | None = None
         if before:
