@@ -1598,6 +1598,89 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
             background: #e04400;
         }}
 
+        /* ===== Stats View ===== */
+        .stats-container {{
+            height: 100%;
+            overflow-y: auto;
+            padding: 16px;
+            background: #f5f5f5;
+        }}
+
+        .stats-filters {{
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }}
+
+        .summary-cards {{
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }}
+
+        .summary-card {{
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }}
+
+        .summary-value {{
+            font-size: 28px;
+            font-weight: 700;
+            color: #fc4c02;
+            margin-bottom: 4px;
+        }}
+
+        .summary-label {{
+            font-size: 13px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }}
+
+        .charts-grid {{
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }}
+
+        .chart-container {{
+            background: #fff;
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }}
+
+        .chart-container h3 {{
+            margin: 0 0 16px 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }}
+
+        .chart-container canvas {{
+            width: 100% !important;
+            height: 250px !important;
+        }}
+
+        @media (max-width: 900px) {{
+            .summary-cards {{
+                grid-template-columns: repeat(2, 1fr);
+            }}
+            .charts-grid {{
+                grid-template-columns: 1fr;
+            }}
+        }}
+
+        @media (max-width: 500px) {{
+            .summary-cards {{
+                grid-template-columns: 1fr;
+            }}
+        }}
+
         /* ===== Mobile Bottom Navigation ===== */
         .mobile-nav {{
             display: none;
@@ -1729,9 +1812,43 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
 
         <!-- Stats View -->
         <div id="view-stats" class="view">
-            <div class="view-placeholder">
-                <h2>Statistics</h2>
-                <p>Statistics dashboard coming soon.</p>
+            <div class="stats-container">
+                <div class="stats-filters">
+                    <select id="year-filter" class="filter-select">
+                        <option value="">All Years</option>
+                    </select>
+                    <select id="stats-type-filter" class="filter-select">
+                        <option value="">All Types</option>
+                    </select>
+                </div>
+                <div class="summary-cards" id="summary-cards">
+                    <div class="summary-card">
+                        <div class="summary-value" id="total-sessions">-</div>
+                        <div class="summary-label">Sessions</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-value" id="total-distance">-</div>
+                        <div class="summary-label">Total Distance</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-value" id="total-time">-</div>
+                        <div class="summary-label">Total Time</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-value" id="total-elevation">-</div>
+                        <div class="summary-label">Elevation Gain</div>
+                    </div>
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <h3>Monthly Activity</h3>
+                        <canvas id="monthly-chart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>By Activity Type</h3>
+                        <canvas id="type-chart"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
     </main>
@@ -2700,17 +2817,254 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
             }}
         }};
 
+        // ===== Stats View Module =====
+        const StatsView = {{
+            sessions: [],
+            typeColors: {json.dumps(type_colors)},
+            filters: {{ year: '', type: '' }},
+
+            init() {{
+                document.getElementById('year-filter').addEventListener('change', (e) => {{
+                    this.filters.year = e.target.value;
+                    this.calculate();
+                }});
+
+                document.getElementById('stats-type-filter').addEventListener('change', (e) => {{
+                    this.filters.type = e.target.value;
+                    this.calculate();
+                }});
+
+                // Listen for athlete changes
+                document.getElementById('athlete-selector').addEventListener('change', () => {{
+                    this.calculate();
+                }});
+            }},
+
+            setSessions(sessions) {{
+                this.sessions = sessions;
+                this.populateFilters();
+                this.calculate();
+            }},
+
+            populateFilters() {{
+                const years = new Set();
+                const types = new Set();
+
+                for (const s of this.sessions) {{
+                    if (s.datetime && s.datetime.length >= 4) {{
+                        years.add(s.datetime.substring(0, 4));
+                    }}
+                    if (s.type) types.add(s.type);
+                }}
+
+                const yearSelect = document.getElementById('year-filter');
+                for (const year of [...years].sort().reverse()) {{
+                    const option = document.createElement('option');
+                    option.value = year;
+                    option.textContent = year;
+                    yearSelect.appendChild(option);
+                }}
+
+                const typeSelect = document.getElementById('stats-type-filter');
+                for (const type of [...types].sort()) {{
+                    const option = document.createElement('option');
+                    option.value = type;
+                    option.textContent = type;
+                    typeSelect.appendChild(option);
+                }}
+            }},
+
+            calculate() {{
+                const currentAthlete = document.getElementById('athlete-selector').value;
+
+                const filtered = this.sessions.filter(s => {{
+                    if (currentAthlete && s.athlete !== currentAthlete) return false;
+                    if (this.filters.year && (!s.datetime || !s.datetime.startsWith(this.filters.year))) return false;
+                    if (this.filters.type && s.type !== this.filters.type) return false;
+                    return true;
+                }});
+
+                // Calculate totals
+                const totals = {{
+                    sessions: filtered.length,
+                    distance: filtered.reduce((sum, s) => sum + parseFloat(s.distance_m || 0), 0),
+                    time: filtered.reduce((sum, s) => sum + parseInt(s.moving_time_s || 0), 0),
+                    elevation: filtered.reduce((sum, s) => sum + parseFloat(s.elevation_gain_m || 0), 0)
+                }};
+
+                // Group by month
+                const byMonth = {{}};
+                for (const s of filtered) {{
+                    if (!s.datetime || s.datetime.length < 6) continue;
+                    const month = s.datetime.substring(0, 6);
+                    if (!byMonth[month]) byMonth[month] = {{ count: 0, distance: 0 }};
+                    byMonth[month].count++;
+                    byMonth[month].distance += parseFloat(s.distance_m || 0);
+                }}
+
+                // Group by type
+                const byType = {{}};
+                for (const s of filtered) {{
+                    const type = s.type || 'Other';
+                    if (!byType[type]) byType[type] = {{ count: 0, distance: 0 }};
+                    byType[type].count++;
+                    byType[type].distance += parseFloat(s.distance_m || 0);
+                }}
+
+                this.renderSummary(totals);
+                this.renderMonthlyChart(byMonth);
+                this.renderTypeChart(byType);
+            }},
+
+            formatDuration(seconds) {{
+                const h = Math.floor(seconds / 3600);
+                const m = Math.floor((seconds % 3600) / 60);
+                if (h >= 24) {{
+                    const d = Math.floor(h / 24);
+                    return `${{d}}d ${{h % 24}}h`;
+                }}
+                return `${{h}}h ${{m}}m`;
+            }},
+
+            renderSummary(totals) {{
+                document.getElementById('total-sessions').textContent = totals.sessions.toLocaleString();
+                document.getElementById('total-distance').textContent = (totals.distance / 1000).toFixed(0) + ' km';
+                document.getElementById('total-time').textContent = this.formatDuration(totals.time);
+                document.getElementById('total-elevation').textContent = totals.elevation.toFixed(0) + ' m';
+            }},
+
+            renderMonthlyChart(byMonth) {{
+                const canvas = document.getElementById('monthly-chart');
+                const ctx = canvas.getContext('2d');
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width = rect.width - 32;
+                canvas.height = 250;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                const months = Object.keys(byMonth).sort();
+                if (months.length === 0) {{
+                    ctx.fillStyle = '#999';
+                    ctx.font = '14px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('No data available', canvas.width / 2, canvas.height / 2);
+                    return;
+                }}
+
+                const maxCount = Math.max(...months.map(m => byMonth[m].count));
+                const padding = {{ top: 20, right: 20, bottom: 60, left: 50 }};
+                const chartWidth = canvas.width - padding.left - padding.right;
+                const chartHeight = canvas.height - padding.top - padding.bottom;
+                const barWidth = Math.min(30, (chartWidth / months.length) - 4);
+
+                // Draw axes
+                ctx.strokeStyle = '#ddd';
+                ctx.beginPath();
+                ctx.moveTo(padding.left, padding.top);
+                ctx.lineTo(padding.left, canvas.height - padding.bottom);
+                ctx.lineTo(canvas.width - padding.right, canvas.height - padding.bottom);
+                ctx.stroke();
+
+                // Draw bars
+                months.forEach((month, i) => {{
+                    const data = byMonth[month];
+                    const barHeight = (data.count / maxCount) * chartHeight;
+                    const x = padding.left + (i * (chartWidth / months.length)) + ((chartWidth / months.length) - barWidth) / 2;
+                    const y = canvas.height - padding.bottom - barHeight;
+
+                    ctx.fillStyle = '#fc4c02';
+                    ctx.fillRect(x, y, barWidth, barHeight);
+
+                    // Draw count on top
+                    ctx.fillStyle = '#333';
+                    ctx.font = '11px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(data.count.toString(), x + barWidth / 2, y - 4);
+
+                    // Draw month label
+                    ctx.save();
+                    ctx.translate(x + barWidth / 2, canvas.height - padding.bottom + 8);
+                    ctx.rotate(-45 * Math.PI / 180);
+                    ctx.fillStyle = '#666';
+                    ctx.font = '10px sans-serif';
+                    ctx.textAlign = 'right';
+                    const label = month.substring(0, 4) + '-' + month.substring(4, 6);
+                    ctx.fillText(label, 0, 0);
+                    ctx.restore();
+                }});
+
+                // Y-axis label
+                ctx.save();
+                ctx.translate(14, canvas.height / 2);
+                ctx.rotate(-90 * Math.PI / 180);
+                ctx.fillStyle = '#666';
+                ctx.font = '12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Sessions', 0, 0);
+                ctx.restore();
+            }},
+
+            renderTypeChart(byType) {{
+                const canvas = document.getElementById('type-chart');
+                const ctx = canvas.getContext('2d');
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width = rect.width - 32;
+                canvas.height = 250;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                const types = Object.keys(byType).sort((a, b) => byType[b].count - byType[a].count);
+                if (types.length === 0) {{
+                    ctx.fillStyle = '#999';
+                    ctx.font = '14px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('No data available', canvas.width / 2, canvas.height / 2);
+                    return;
+                }}
+
+                const maxCount = Math.max(...types.map(t => byType[t].count));
+                const padding = {{ top: 20, right: 60, bottom: 20, left: 80 }};
+                const chartWidth = canvas.width - padding.left - padding.right;
+                const chartHeight = canvas.height - padding.top - padding.bottom;
+                const barHeight = Math.min(25, (chartHeight / types.length) - 4);
+
+                types.forEach((type, i) => {{
+                    const data = byType[type];
+                    const barWidth = (data.count / maxCount) * chartWidth;
+                    const y = padding.top + (i * (chartHeight / types.length)) + ((chartHeight / types.length) - barHeight) / 2;
+
+                    // Bar
+                    ctx.fillStyle = this.typeColors[type] || '#607D8B';
+                    ctx.fillRect(padding.left, y, barWidth, barHeight);
+
+                    // Type label
+                    ctx.fillStyle = '#333';
+                    ctx.font = '12px sans-serif';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(type, padding.left - 8, y + barHeight / 2 + 4);
+
+                    // Count label
+                    ctx.fillStyle = '#666';
+                    ctx.font = '11px sans-serif';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(data.count.toString(), padding.left + barWidth + 6, y + barHeight / 2 + 4);
+                }});
+            }}
+        }};
+
         // ===== Initialize App =====
         Router.init();
         MapView.init();
         SessionsView.init();
+        StatsView.init();
 
-        // Pass sessions data to SessionsView when MapView finishes loading
+        // Pass sessions data to SessionsView and StatsView when MapView finishes loading
         const originalLoadSessions = MapView.loadSessions.bind(MapView);
         MapView.loadSessions = async function() {{
             await originalLoadSessions();
-            // Pass full session data to SessionsView
+            // Pass full session data to views
             SessionsView.setSessions(this.allSessions);
+            StatsView.setSessions(this.allSessions);
         }};
     </script>
 </body>
