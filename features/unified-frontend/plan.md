@@ -423,3 +423,52 @@ Phase 3: Sessions View            Phase 4: Stats    (Map already works)
 - `src/strava_backup/views/stats.py` - Reference for stats calculation logic to port to JS
 - `src/strava_backup/models/activity.py` - Data model for sessions.tsv columns
 - `features/unified-frontend/spec.md` - UX specification for design reference
+
+---
+
+## Future Enhancement: Permalinks/Deep Linking
+
+**Goal**: Preserve UI state in the URL so page refresh maintains the current view.
+
+### URL State to Preserve
+- Map zoom level and center position
+- Currently selected session (open popup)
+- Layer visibility (sessions, tracks, photos)
+- Active view (map, sessions, stats)
+- Current athlete filter
+- Sessions view: current page, sort order, filters
+
+### Implementation Approach
+```javascript
+const URLState = {
+  // Encode state to URL hash
+  encode(state) {
+    const params = new URLSearchParams();
+    if (state.view) params.set('v', state.view);
+    if (state.zoom) params.set('z', state.zoom);
+    if (state.lat) params.set('lat', state.lat.toFixed(5));
+    if (state.lng) params.set('lng', state.lng.toFixed(5));
+    if (state.session) params.set('s', state.session);
+    if (state.athlete) params.set('a', state.athlete);
+    return '#/' + state.view + (params.toString() ? '?' + params.toString() : '');
+  },
+
+  // Decode state from URL hash
+  decode() {
+    const hash = location.hash.slice(2);
+    const [path, queryStr] = hash.split('?');
+    const params = new URLSearchParams(queryStr || '');
+    return {
+      view: path || 'map',
+      zoom: params.get('z') ? parseInt(params.get('z')) : null,
+      lat: params.get('lat') ? parseFloat(params.get('lat')) : null,
+      lng: params.get('lng') ? parseFloat(params.get('lng')) : null,
+      session: params.get('s'),
+      athlete: params.get('a')
+    };
+  }
+};
+```
+
+### Priority: Low (Phase 7+)
+This enhancement can be implemented after core features are complete.

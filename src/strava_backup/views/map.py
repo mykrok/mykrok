@@ -1304,6 +1304,300 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
             font-size: 14px;
         }}
 
+        .sessions-container {{
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+        }}
+
+        .filter-bar {{
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px;
+            background: #f5f5f5;
+            border-bottom: 1px solid #ddd;
+            flex-wrap: wrap;
+        }}
+
+        .filter-input, .filter-select {{
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: #fff;
+        }}
+
+        .filter-input:focus, .filter-select:focus {{
+            outline: none;
+            border-color: #fc4c02;
+        }}
+
+        #session-search {{
+            flex: 1;
+            min-width: 150px;
+        }}
+
+        .filter-date {{
+            width: 130px;
+        }}
+
+        .filter-btn {{
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+            cursor: pointer;
+            font-size: 14px;
+        }}
+
+        .filter-btn:hover {{
+            background: #f0f0f0;
+        }}
+
+        .sessions-table-container {{
+            flex: 1;
+            overflow: auto;
+        }}
+
+        #sessions-table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }}
+
+        #sessions-table th {{
+            position: sticky;
+            top: 0;
+            background: #f5f5f5;
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #ddd;
+            white-space: nowrap;
+        }}
+
+        #sessions-table th.sortable {{
+            cursor: pointer;
+            user-select: none;
+        }}
+
+        #sessions-table th.sortable:hover {{
+            background: #eee;
+        }}
+
+        #sessions-table th.sortable::after {{
+            content: '';
+            display: inline-block;
+            width: 0;
+            height: 0;
+            margin-left: 6px;
+            vertical-align: middle;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+        }}
+
+        #sessions-table th.sorted-asc::after {{
+            border-bottom: 6px solid #666;
+        }}
+
+        #sessions-table th.sorted-desc::after {{
+            border-top: 6px solid #666;
+        }}
+
+        #sessions-table td {{
+            padding: 12px 16px;
+            border-bottom: 1px solid #eee;
+        }}
+
+        #sessions-table tbody tr {{
+            cursor: pointer;
+            transition: background 0.15s;
+        }}
+
+        #sessions-table tbody tr:hover {{
+            background: #f9f9f9;
+        }}
+
+        #sessions-table tbody tr.selected {{
+            background: rgba(252, 76, 2, 0.1);
+        }}
+
+        .session-type {{
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }}
+
+        .pagination {{
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            background: #f5f5f5;
+            border-top: 1px solid #ddd;
+        }}
+
+        .pagination button {{
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+            cursor: pointer;
+        }}
+
+        .pagination button:hover:not(:disabled) {{
+            background: #f0f0f0;
+        }}
+
+        .pagination button:disabled {{
+            opacity: 0.5;
+            cursor: not-allowed;
+        }}
+
+        .pagination .page-info {{
+            font-size: 14px;
+            color: #666;
+        }}
+
+        /* Session Detail Panel */
+        .session-detail {{
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 400px;
+            height: 100%;
+            background: #fff;
+            box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+        }}
+
+        .session-detail.hidden {{
+            transform: translateX(100%);
+        }}
+
+        .detail-header {{
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 1px solid #eee;
+            gap: 12px;
+        }}
+
+        .close-btn {{
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: #f0f0f0;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }}
+
+        .close-btn:hover {{
+            background: #ddd;
+        }}
+
+        .detail-header h2 {{
+            margin: 0;
+            font-size: 18px;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }}
+
+        .detail-content {{
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }}
+
+        .detail-meta {{
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 16px;
+        }}
+
+        .detail-stats {{
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }}
+
+        .stat-card {{
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }}
+
+        .stat-value {{
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+        }}
+
+        .stat-label {{
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }}
+
+        .detail-map {{
+            height: 200px;
+            background: #eee;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }}
+
+        .detail-photos {{
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }}
+
+        .detail-photos img {{
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+            border-radius: 4px;
+            cursor: pointer;
+        }}
+
+        .detail-photos img:hover {{
+            opacity: 0.9;
+        }}
+
+        .view-on-map-btn {{
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin-top: 16px;
+            background: #fc4c02;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+        }}
+
+        .view-on-map-btn:hover {{
+            background: #e04400;
+        }}
+
         /* ===== Mobile Bottom Navigation ===== */
         .mobile-nav {{
             display: none;
@@ -1393,9 +1687,43 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
 
         <!-- Sessions View -->
         <div id="view-sessions" class="view">
-            <div class="view-placeholder">
-                <h2>Sessions</h2>
-                <p>Session list coming soon.</p>
+            <div class="sessions-container">
+                <div class="filter-bar">
+                    <input type="search" id="session-search" placeholder="Search activities..." class="filter-input">
+                    <select id="type-filter" class="filter-select">
+                        <option value="">All Types</option>
+                    </select>
+                    <input type="date" id="date-from" class="filter-input filter-date" title="From date">
+                    <input type="date" id="date-to" class="filter-input filter-date" title="To date">
+                    <button id="clear-filters" class="filter-btn">Clear</button>
+                </div>
+                <div class="sessions-table-container">
+                    <table id="sessions-table">
+                        <thead>
+                            <tr>
+                                <th data-sort="datetime" class="sortable sorted-desc">Date</th>
+                                <th data-sort="name" class="sortable">Name</th>
+                                <th data-sort="type" class="sortable">Type</th>
+                                <th data-sort="distance" class="sortable">Distance</th>
+                                <th data-sort="duration" class="sortable">Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sessions-tbody"></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="pagination"></div>
+            </div>
+            <div id="session-detail" class="session-detail hidden">
+                <div class="detail-header">
+                    <button id="close-detail" class="close-btn">&times;</button>
+                    <h2 id="detail-name">Activity Name</h2>
+                </div>
+                <div class="detail-content">
+                    <div class="detail-meta" id="detail-meta"></div>
+                    <div class="detail-stats" id="detail-stats"></div>
+                    <div class="detail-map" id="detail-map"></div>
+                    <div class="detail-photos" id="detail-photos"></div>
+                </div>
             </div>
         </div>
 
@@ -1508,6 +1836,7 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
             loadingTracks: new Set(),
             loadedPhotos: new Set(),
             allMarkers: [],
+            allSessions: [],
             athleteStats: {{}},
             currentAthlete: '',
             totalSessions: 0,
@@ -1827,9 +2156,24 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
                                 this.athleteStats[username].sessions++;
                                 this.athleteStats[username].distance += distance;
 
+                                // Store full session data for SessionsView
+                                const type = session.sport || session.type || 'Other';
+                                this.allSessions.push({{
+                                    athlete: username,
+                                    datetime: session.datetime,
+                                    name: session.name || 'Activity',
+                                    type: type,
+                                    distance_m: session.distance_m || '0',
+                                    moving_time_s: session.moving_time_s || '0',
+                                    elevation_gain_m: session.elevation_gain_m || '0',
+                                    photo_count: session.photo_count || '0',
+                                    has_gps: session.has_gps,
+                                    center_lat: session.center_lat,
+                                    center_lng: session.center_lng
+                                }});
+
                                 if (isNaN(lat) || isNaN(lng)) continue;
 
-                                const type = session.sport || session.type || 'Other';
                                 const color = this.typeColors[type] || this.typeColors.Other;
                                 const hasPhotos = parseInt(session.photo_count || '0') > 0;
                                 const photoCount = parseInt(session.photo_count || '0');
@@ -1967,9 +2311,407 @@ def generate_lightweight_map(data_dir: Path) -> str:  # noqa: ARG001
             }}
         }};
 
+        // ===== Sessions View Module =====
+        const SessionsView = {{
+            sessions: [],
+            filtered: [],
+            sortBy: 'datetime',
+            sortDir: 'desc',
+            filters: {{ search: '', type: '', dateFrom: '', dateTo: '' }},
+            page: 1,
+            perPage: 50,
+            typeColors: {json.dumps(type_colors)},
+            selectedSession: null,
+
+            init() {{
+                // Set up filter event listeners
+                document.getElementById('session-search').addEventListener('input', (e) => {{
+                    this.filters.search = e.target.value.toLowerCase();
+                    this.page = 1;
+                    this.applyFiltersAndRender();
+                }});
+
+                document.getElementById('type-filter').addEventListener('change', (e) => {{
+                    this.filters.type = e.target.value;
+                    this.page = 1;
+                    this.applyFiltersAndRender();
+                }});
+
+                document.getElementById('date-from').addEventListener('change', (e) => {{
+                    this.filters.dateFrom = e.target.value;
+                    this.page = 1;
+                    this.applyFiltersAndRender();
+                }});
+
+                document.getElementById('date-to').addEventListener('change', (e) => {{
+                    this.filters.dateTo = e.target.value;
+                    this.page = 1;
+                    this.applyFiltersAndRender();
+                }});
+
+                document.getElementById('clear-filters').addEventListener('click', () => {{
+                    this.clearFilters();
+                }});
+
+                // Set up sortable headers
+                document.querySelectorAll('#sessions-table th.sortable').forEach(th => {{
+                    th.addEventListener('click', () => this.handleSort(th.dataset.sort));
+                }});
+
+                // Set up detail panel close
+                document.getElementById('close-detail').addEventListener('click', () => {{
+                    this.closeDetail();
+                }});
+
+                // Listen for athlete changes
+                document.getElementById('athlete-selector').addEventListener('change', () => {{
+                    this.page = 1;
+                    this.applyFiltersAndRender();
+                }});
+            }},
+
+            setSessions(sessions) {{
+                this.sessions = sessions;
+                this.populateTypeFilter();
+                this.applyFiltersAndRender();
+            }},
+
+            populateTypeFilter() {{
+                const types = new Set();
+                for (const s of this.sessions) {{
+                    if (s.type) types.add(s.type);
+                }}
+                const select = document.getElementById('type-filter');
+                for (const type of [...types].sort()) {{
+                    const option = document.createElement('option');
+                    option.value = type;
+                    option.textContent = type;
+                    select.appendChild(option);
+                }}
+            }},
+
+            clearFilters() {{
+                this.filters = {{ search: '', type: '', dateFrom: '', dateTo: '' }};
+                document.getElementById('session-search').value = '';
+                document.getElementById('type-filter').value = '';
+                document.getElementById('date-from').value = '';
+                document.getElementById('date-to').value = '';
+                this.page = 1;
+                this.applyFiltersAndRender();
+            }},
+
+            applyFiltersAndRender() {{
+                const currentAthlete = document.getElementById('athlete-selector').value;
+
+                this.filtered = this.sessions.filter(s => {{
+                    // Athlete filter
+                    if (currentAthlete && s.athlete !== currentAthlete) return false;
+                    // Search filter
+                    if (this.filters.search && !s.name.toLowerCase().includes(this.filters.search)) return false;
+                    // Type filter
+                    if (this.filters.type && s.type !== this.filters.type) return false;
+                    // Date filters
+                    if (this.filters.dateFrom && s.datetime < this.filters.dateFrom.replace(/-/g, '')) return false;
+                    if (this.filters.dateTo && s.datetime.substring(0, 8) > this.filters.dateTo.replace(/-/g, '')) return false;
+                    return true;
+                }});
+
+                this.sort();
+                this.render();
+            }},
+
+            handleSort(field) {{
+                if (this.sortBy === field) {{
+                    this.sortDir = this.sortDir === 'desc' ? 'asc' : 'desc';
+                }} else {{
+                    this.sortBy = field;
+                    this.sortDir = 'desc';
+                }}
+
+                // Update header styles
+                document.querySelectorAll('#sessions-table th.sortable').forEach(th => {{
+                    th.classList.remove('sorted-asc', 'sorted-desc');
+                    if (th.dataset.sort === field) {{
+                        th.classList.add(this.sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+                    }}
+                }});
+
+                this.sort();
+                this.render();
+            }},
+
+            sort() {{
+                this.filtered.sort((a, b) => {{
+                    let valA, valB;
+                    switch (this.sortBy) {{
+                        case 'datetime':
+                            valA = a.datetime || '';
+                            valB = b.datetime || '';
+                            break;
+                        case 'name':
+                            valA = (a.name || '').toLowerCase();
+                            valB = (b.name || '').toLowerCase();
+                            break;
+                        case 'type':
+                            valA = a.type || '';
+                            valB = b.type || '';
+                            break;
+                        case 'distance':
+                            valA = parseFloat(a.distance_m) || 0;
+                            valB = parseFloat(b.distance_m) || 0;
+                            break;
+                        case 'duration':
+                            valA = parseInt(a.moving_time_s) || 0;
+                            valB = parseInt(b.moving_time_s) || 0;
+                            break;
+                        default:
+                            valA = a[this.sortBy] || '';
+                            valB = b[this.sortBy] || '';
+                    }}
+                    const cmp = valA > valB ? 1 : valA < valB ? -1 : 0;
+                    return this.sortDir === 'desc' ? -cmp : cmp;
+                }});
+            }},
+
+            formatDuration(seconds) {{
+                if (!seconds) return '-';
+                const h = Math.floor(seconds / 3600);
+                const m = Math.floor((seconds % 3600) / 60);
+                if (h > 0) return `${{h}}h ${{m}}m`;
+                return `${{m}}m`;
+            }},
+
+            formatDate(datetime) {{
+                if (!datetime || datetime.length < 8) return '-';
+                const y = datetime.substring(0, 4);
+                const m = datetime.substring(4, 6);
+                const d = datetime.substring(6, 8);
+                return `${{y}}-${{m}}-${{d}}`;
+            }},
+
+            render() {{
+                const tbody = document.getElementById('sessions-tbody');
+                const start = (this.page - 1) * this.perPage;
+                const end = start + this.perPage;
+                const pageData = this.filtered.slice(start, end);
+
+                if (pageData.length === 0) {{
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:#666;">No sessions found</td></tr>';
+                }} else {{
+                    tbody.innerHTML = pageData.map(s => {{
+                        const color = this.typeColors[s.type] || this.typeColors.Other || '#607D8B';
+                        const distance = parseFloat(s.distance_m) || 0;
+                        const duration = parseInt(s.moving_time_s) || 0;
+                        return `
+                            <tr data-athlete="${{s.athlete}}" data-session="${{s.datetime}}">
+                                <td>${{this.formatDate(s.datetime)}}</td>
+                                <td>${{s.name || 'Activity'}}</td>
+                                <td><span class="session-type" style="background:${{color}}20;color:${{color}}">${{s.type || 'Other'}}</span></td>
+                                <td>${{(distance / 1000).toFixed(2)}} km</td>
+                                <td>${{this.formatDuration(duration)}}</td>
+                            </tr>
+                        `;
+                    }}).join('');
+
+                    // Add click handlers
+                    tbody.querySelectorAll('tr').forEach(tr => {{
+                        tr.addEventListener('click', () => {{
+                            const athlete = tr.dataset.athlete;
+                            const session = tr.dataset.session;
+                            this.showDetail(athlete, session);
+
+                            // Update selection style
+                            tbody.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
+                            tr.classList.add('selected');
+                        }});
+                    }});
+                }}
+
+                this.renderPagination();
+            }},
+
+            renderPagination() {{
+                const totalPages = Math.ceil(this.filtered.length / this.perPage);
+                const pagination = document.getElementById('pagination');
+
+                if (totalPages <= 1) {{
+                    pagination.innerHTML = `<span class="page-info">${{this.filtered.length}} sessions</span>`;
+                    return;
+                }}
+
+                pagination.innerHTML = `
+                    <button ${{this.page <= 1 ? 'disabled' : ''}} id="prev-page">Previous</button>
+                    <span class="page-info">Page ${{this.page}} of ${{totalPages}} (${{this.filtered.length}} sessions)</span>
+                    <button ${{this.page >= totalPages ? 'disabled' : ''}} id="next-page">Next</button>
+                `;
+
+                document.getElementById('prev-page')?.addEventListener('click', () => {{
+                    if (this.page > 1) {{
+                        this.page--;
+                        this.render();
+                    }}
+                }});
+
+                document.getElementById('next-page')?.addEventListener('click', () => {{
+                    if (this.page < totalPages) {{
+                        this.page++;
+                        this.render();
+                    }}
+                }});
+            }},
+
+            showDetail(athlete, sessionId) {{
+                const session = this.sessions.find(s => s.athlete === athlete && s.datetime === sessionId);
+                if (!session) return;
+
+                this.selectedSession = session;
+                const panel = document.getElementById('session-detail');
+                panel.classList.remove('hidden');
+
+                document.getElementById('detail-name').textContent = session.name || 'Activity';
+
+                const distance = parseFloat(session.distance_m) || 0;
+                const duration = parseInt(session.moving_time_s) || 0;
+                const elevation = parseFloat(session.elevation_gain_m) || 0;
+
+                document.getElementById('detail-meta').innerHTML = `
+                    <div>${{session.type || 'Activity'}} · ${{this.formatDate(session.datetime)}}</div>
+                    <div style="font-size:12px;color:#999;margin-top:4px;">Athlete: ${{athlete}}</div>
+                `;
+
+                document.getElementById('detail-stats').innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-value">${{(distance / 1000).toFixed(2)}}</div>
+                        <div class="stat-label">km</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${{this.formatDuration(duration)}}</div>
+                        <div class="stat-label">Duration</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${{elevation.toFixed(0)}}</div>
+                        <div class="stat-label">m elevation</div>
+                    </div>
+                `;
+
+                // Load track for mini-map
+                this.loadDetailMap(athlete, sessionId);
+
+                // Load photos if available
+                const photoCount = parseInt(session.photo_count) || 0;
+                if (photoCount > 0) {{
+                    this.loadDetailPhotos(athlete, sessionId);
+                }} else {{
+                    document.getElementById('detail-photos').innerHTML = '';
+                }}
+            }},
+
+            async loadDetailMap(athlete, sessionId) {{
+                const mapContainer = document.getElementById('detail-map');
+                mapContainer.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#666;">Loading track...</div>';
+
+                try {{
+                    const url = `athl=${{athlete}}/ses=${{sessionId}}/tracking.parquet`;
+                    const response = await fetch(url);
+                    if (!response.ok) {{
+                        mapContainer.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#999;">No track data</div>';
+                        return;
+                    }}
+
+                    const arrayBuffer = await response.arrayBuffer();
+                    const {{ parquetReadObjects }} = await import('./assets/hyparquet/index.js');
+                    const rows = await parquetReadObjects({{ file: arrayBuffer, columns: ['lat', 'lng'] }});
+
+                    if (rows && rows.length > 0) {{
+                        mapContainer.innerHTML = '';
+                        const detailMap = L.map(mapContainer, {{ zoomControl: false, attributionControl: false }});
+                        L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png').addTo(detailMap);
+
+                        const coords = rows.filter(r => r.lat && r.lng).map(r => [r.lat, r.lng]);
+                        if (coords.length > 0) {{
+                            const session = this.selectedSession;
+                            const color = this.typeColors[session?.type] || '#fc4c02';
+                            const polyline = L.polyline(coords, {{ color, weight: 3 }}).addTo(detailMap);
+                            detailMap.fitBounds(polyline.getBounds(), {{ padding: [10, 10] }});
+
+                            // Add "View on Map" button
+                            const btnHtml = `<button class="view-on-map-btn" onclick="Router.navigate('map'); setTimeout(() => {{ window.mapInstance.setView([${{coords[0][0]}}, ${{coords[0][1]}}], 14); }}, 200);">View on Map</button>`;
+                            mapContainer.insertAdjacentHTML('afterend', btnHtml);
+                        }}
+                    }} else {{
+                        mapContainer.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#999;">No GPS data</div>';
+                    }}
+                }} catch (e) {{
+                    console.warn('Failed to load detail map:', e);
+                    mapContainer.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#999;">Error loading track</div>';
+                }}
+            }},
+
+            async loadDetailPhotos(athlete, sessionId) {{
+                const container = document.getElementById('detail-photos');
+                container.innerHTML = '<div style="color:#666;">Loading photos...</div>';
+
+                try {{
+                    const response = await fetch(`athl=${{athlete}}/ses=${{sessionId}}/info.json`);
+                    if (!response.ok) {{
+                        container.innerHTML = '';
+                        return;
+                    }}
+
+                    const info = await response.json();
+                    const photos = info.photos || [];
+
+                    if (photos.length === 0) {{
+                        container.innerHTML = '';
+                        return;
+                    }}
+
+                    container.innerHTML = photos.map(photo => {{
+                        const urls = photo.urls || {{}};
+                        const thumbUrl = urls['256'] || urls['600'] || Object.values(urls)[0] || '';
+                        const fullUrl = urls['2048'] || urls['1024'] || urls['600'] || thumbUrl;
+
+                        // Try local path
+                        const createdAt = photo.created_at || '';
+                        let localPath = '';
+                        if (createdAt) {{
+                            const dt = createdAt.replace(/[-:]/g, '').replace(/\\+.*$/, '').substring(0, 15);
+                            localPath = `athl=${{athlete}}/ses=${{sessionId}}/photos/${{dt}}.jpg`;
+                        }}
+
+                        const src = localPath || thumbUrl;
+                        const href = localPath || fullUrl;
+
+                        return src ? `<a href="${{href}}" target="_blank"><img src="${{src}}" alt="Photo"></a>` : '';
+                    }}).join('');
+                }} catch (e) {{
+                    console.warn('Failed to load detail photos:', e);
+                    container.innerHTML = '';
+                }}
+            }},
+
+            closeDetail() {{
+                document.getElementById('session-detail').classList.add('hidden');
+                document.querySelectorAll('#sessions-tbody tr').forEach(r => r.classList.remove('selected'));
+                this.selectedSession = null;
+
+                // Remove any "View on Map" button that was added
+                document.querySelectorAll('.view-on-map-btn').forEach(btn => btn.remove());
+            }}
+        }};
+
         // ===== Initialize App =====
         Router.init();
         MapView.init();
+        SessionsView.init();
+
+        // Pass sessions data to SessionsView when MapView finishes loading
+        const originalLoadSessions = MapView.loadSessions.bind(MapView);
+        MapView.loadSessions = async function() {{
+            await originalLoadSessions();
+            // Pass full session data to SessionsView
+            SessionsView.setSessions(this.allSessions);
+        }};
     </script>
 </body>
 </html>'''
