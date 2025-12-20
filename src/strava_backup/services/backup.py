@@ -580,3 +580,117 @@ class BackupService:
         save_activity(self.data_dir, username, activity)
 
         return activity
+
+    def refresh_social(
+        self,
+        after: datetime | None = None,
+        before: datetime | None = None,
+        limit: int | None = None,
+        dry_run: bool = False,
+        log_callback: Callable[[str, int], None] | None = None,
+    ) -> dict[str, Any]:
+        """Refresh comments and kudos for existing activities.
+
+        This method only updates social metadata (kudos, comments) for activities
+        that already exist locally. It does not fetch new activities, GPS streams,
+        or photos. Useful for fixing missing athlete_id values or updating
+        social data after a bug fix.
+
+        Args:
+            after: Only refresh activities after this date.
+            before: Only refresh activities before this date.
+            limit: Maximum number of activities to refresh.
+            dry_run: If True, only report what would be done.
+            log_callback: Optional callback for logging.
+
+        Returns:
+            Dictionary with refresh results.
+        """
+        log = log_callback or (lambda _msg, _lvl: None)
+
+        logger.info("Refreshing social data")
+        log("Refreshing social data for existing activities", 0)
+
+        # Get athlete info
+        logger.debug("Fetching athlete info")
+        log("Fetching athlete info", 1)
+        athlete = Athlete.from_strava(self.strava.get_athlete())
+        username = athlete.username
+
+        # Iterate over existing sessions
+        from strava_backup.lib.paths import (
+            get_athlete_dir,
+            iter_session_dirs,
+            parse_session_datetime,
+        )
+        from strava_backup.models.activity import load_activity
+
+        athlete_dir = get_athlete_dir(self.data_dir, username)
+        activities_updated = 0
+        errors: list[dict[str, Any]] = []
+
+        log(f"Scanning activities for {username}", 1)
+
+        processed = 0
+        for session_key, session_dir in iter_session_dirs(athlete_dir):
+            # Apply date filters
+            try:
+                session_dt = parse_session_datetime(session_key)
+                if after and session_dt < after:
+                    continue
+                if before and session_dt > before:
+                    continue
+            except ValueError:
+                continue
+
+            # Apply limit
+            if limit and processed >= limit:
+                break
+
+            # Load existing activity
+            activity = load_activity(session_dir)
+            if activity is None:
+                continue
+
+            processed += 1
+            log(f"  [{processed}] {activity.name} ({session_key})", 1)
+
+            if dry_run:
+                continue
+
+            # Fetch fresh comments and kudos
+            try:
+                new_comments = self.strava.get_activity_comments(activity.id)
+                new_kudos = self.strava.get_activity_kudos(activity.id)
+
+                # Update activity
+                activity.comments = new_comments
+                activity.comment_count = len(new_comments)
+                activity.kudos = new_kudos
+                activity.kudos_count = len(new_kudos)
+
+                # Save updated activity
+                save_activity(self.data_dir, username, activity)
+                activities_updated += 1
+
+                # Small delay to be nice to API
+                time.sleep(0.2)
+
+            except Exception as e:
+                logger.warning("Failed to refresh social data for %s: %s", session_key, e)
+                errors.append({
+                    "session": session_key,
+                    "activity_id": activity.id,
+                    "error": str(e),
+                })
+
+        # Update sessions.tsv
+        if activities_updated > 0 and not dry_run:
+            update_sessions_tsv(self.data_dir, username)
+            log("Updated sessions.tsv", 1)
+
+        return {
+            "activities_updated": activities_updated,
+            "activities_scanned": processed,
+            "errors": errors,
+        }

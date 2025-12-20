@@ -301,6 +301,11 @@ def auth(
     help="Skip comments and kudos download",
 )
 @click.option(
+    "--refresh-social",
+    is_flag=True,
+    help="Only refresh comments and kudos for existing activities (no new activities, streams, or photos)",
+)
+@click.option(
     "--dry-run",
     is_flag=True,
     help="Show what would be synced without downloading",
@@ -319,6 +324,7 @@ def sync(
     no_photos: bool,
     no_streams: bool,
     no_comments: bool,
+    refresh_social: bool,
     dry_run: bool,
     activity_ids: str | None,
 ) -> None:
@@ -345,6 +351,30 @@ def sync(
 
     try:
         service = BackupService(config)
+
+        # Handle refresh-social mode (only update kudos/comments for existing activities)
+        if refresh_social:
+            result = service.refresh_social(
+                after=after,
+                before=before,
+                limit=limit,
+                dry_run=dry_run,
+                log_callback=ctx.log if not ctx.json_output else None,
+            )
+
+            if ctx.json_output:
+                ctx.output.update({
+                    "status": "success",
+                    **result,
+                })
+                ctx.output.output()
+            else:
+                ctx.log(f"\nRefreshed social data for {result['activities_updated']} activities")
+                if result.get("errors"):
+                    ctx.log(f"Errors: {len(result['errors'])}")
+            return
+
+        # Normal sync
         result = service.sync(
             full=full,
             after=after,
