@@ -243,6 +243,25 @@ Benefits of DataLad integration:
 - Reproducible sync operations with `datalad run`
 - Efficient storage of binary files with git-annex
 - Easy to clone and share datasets
+- Simple publishing to web servers (see below)
+
+### Publishing to a Web Server
+
+With DataLad, publishing your backup to a web server for browser-based viewing is trivial:
+
+```bash
+# Create a sibling that excludes sensitive files (API credentials)
+datalad create-sibling -s public-website \
+    --annex-wanted "not metadata=distribution-restrictions=*" \
+    user@server.example.com:/var/www/strava-backup
+
+# Push your data (sensitive config files are automatically excluded)
+datalad push --to=public-website
+```
+
+Then access the map visualization at `https://your-server.example.com/strava-backup/map.html`.
+
+**Note**: Access restrictions and user management are outside the scope of this project. Implement access control using your web server's authentication mechanisms (HTTP Basic Auth, OAuth proxy, IP allowlisting, etc.).
 
 ## Data Storage
 
