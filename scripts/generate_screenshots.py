@@ -27,6 +27,11 @@ PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 sys.path.insert(0, str(PROJECT_ROOT / "tests" / "e2e" / "fixtures"))
 
+# Screenshot settings - use smaller size and JPEG for smaller file sizes
+VIEWPORT_WIDTH = 1024
+VIEWPORT_HEIGHT = 640
+SCREENSHOT_QUALITY = 80  # JPEG quality (0-100)
+
 
 def generate_demo_data(output_dir: Path) -> None:
     """Generate demo data for screenshots."""
@@ -62,6 +67,15 @@ def start_server(data_dir: Path, port: int = 18081) -> subprocess.Popen:
     return proc
 
 
+def take_screenshot(page, path: Path, caption: str) -> tuple[str, str, int]:
+    """Take a JPEG screenshot and return (filename, caption, size)."""
+    # Use JPEG for smaller file sizes
+    jpeg_path = path.with_suffix(".jpg")
+    page.screenshot(path=jpeg_path, type="jpeg", quality=SCREENSHOT_QUALITY)
+    size = jpeg_path.stat().st_size
+    return (jpeg_path.name, caption, size)
+
+
 def capture_screenshots(
     base_url: str,
     output_dir: Path,
@@ -73,38 +87,39 @@ def capture_screenshots(
     """
     from playwright.sync_api import sync_playwright
 
-    screenshots: list[tuple[str, str]] = []
+    screenshots: list[tuple[str, str, int]] = []
     output_dir.mkdir(parents=True, exist_ok=True)
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=headless, args=["--no-sandbox"])
-        page = browser.new_page(viewport={"width": 1280, "height": 800})
+        page = browser.new_page(viewport={"width": VIEWPORT_WIDTH, "height": VIEWPORT_HEIGHT})
 
         print("\nCapturing screenshots...")
 
-        # 1. Map View - World view with all markers
-        print("  1/9: Map view (world)")
+        # 1. Map View - Initial view with markers
+        print("  1/9: Map view (overview)")
         page.goto(f"{base_url}/strava-backup.html#/map")
         page.wait_for_selector(".leaflet-marker-icon", timeout=15000)
         # Wait for all markers to load and let map settle
         page.wait_for_timeout(3000)
-        page.screenshot(path=output_dir / "01-map-world.png")
-        screenshots.append(("01-map-world.png", "World map with activity markers"))
+        screenshots.append(take_screenshot(
+            page, output_dir / "01-map-overview", "Map view with activity markers"
+        ))
 
         # 2. Map View - Zoomed to activity cluster
         print("  2/9: Map view (zoomed)")
         # Use JavaScript to zoom to fit all markers in view
         page.evaluate("""() => {
             if (window.mapInstance && window.MapView && window.MapView.bounds) {
-                // Fit to the bounds that contain all markers
                 if (window.MapView.bounds.isValid()) {
-                    window.mapInstance.fitBounds(window.MapView.bounds, {padding: [50, 50]});
+                    window.mapInstance.fitBounds(window.MapView.bounds, {padding: [30, 30]});
                 }
             }
         }""")
         page.wait_for_timeout(1500)
-        page.screenshot(path=output_dir / "02-map-zoomed.png")
-        screenshots.append(("02-map-zoomed.png", "Activity cluster with route details"))
+        screenshots.append(take_screenshot(
+            page, output_dir / "02-map-zoomed", "Activities zoomed to fit"
+        ))
 
         # 3. Map View - Marker popup
         print("  3/9: Map view (popup)")
@@ -112,27 +127,26 @@ def capture_screenshots(
         page.evaluate("""() => {
             const markers = document.querySelectorAll('.leaflet-marker-icon');
             if (markers.length > 0) {
-                // Find a marker that's visible in viewport
                 for (const marker of markers) {
                     const rect = marker.getBoundingClientRect();
-                    if (rect.top > 0 && rect.left > 0 &&
-                        rect.bottom < window.innerHeight && rect.right < window.innerWidth) {
+                    if (rect.top > 50 && rect.left > 50 &&
+                        rect.bottom < window.innerHeight - 50 &&
+                        rect.right < window.innerWidth - 50) {
                         marker.click();
                         return;
                     }
                 }
-                // Fallback: click first marker anyway
                 markers[0].click();
             }
         }""")
         page.wait_for_timeout(1000)
-        # Check if popup appeared, if not try force click
         if page.locator(".leaflet-popup").count() == 0:
             page.locator(".leaflet-marker-icon").first.click(force=True)
         page.wait_for_selector(".leaflet-popup", timeout=5000)
         page.wait_for_timeout(500)
-        page.screenshot(path=output_dir / "03-map-popup.png")
-        screenshots.append(("03-map-popup.png", "Activity popup with details"))
+        screenshots.append(take_screenshot(
+            page, output_dir / "03-map-popup", "Activity popup with details"
+        ))
 
         # 4. Sessions View - Table with all sessions
         print("  4/9: Sessions view")
@@ -140,15 +154,17 @@ def capture_screenshots(
         page.wait_for_selector("#view-sessions.active", timeout=5000)
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
         page.wait_for_timeout(500)
-        page.screenshot(path=output_dir / "04-sessions-list.png")
-        screenshots.append(("04-sessions-list.png", "Sessions list with filters"))
+        screenshots.append(take_screenshot(
+            page, output_dir / "04-sessions-list", "Sessions list with filters"
+        ))
 
         # 5. Sessions View - Filtered by type
         print("  5/9: Sessions view (filtered)")
         page.select_option("#type-filter", "Run")
         page.wait_for_timeout(500)
-        page.screenshot(path=output_dir / "05-sessions-filtered.png")
-        screenshots.append(("05-sessions-filtered.png", "Sessions filtered by activity type"))
+        screenshots.append(take_screenshot(
+            page, output_dir / "05-sessions-filtered", "Sessions filtered by type"
+        ))
 
         # Clear filter
         page.select_option("#type-filter", "")
@@ -156,39 +172,79 @@ def capture_screenshots(
 
         # 6. Sessions View - Detail panel
         print("  6/9: Session detail panel")
-        page.locator("#sessions-table tbody tr").first.click()
-        page.wait_for_selector(".detail-panel.open", timeout=5000)
-        page.wait_for_timeout(1000)  # Wait for map to load
-        page.screenshot(path=output_dir / "06-session-detail.png")
-        screenshots.append(("06-session-detail.png", "Session detail panel with map"))
+        # Click the first row using JavaScript to ensure it works
+        page.evaluate("""() => {
+            const row = document.querySelector('#sessions-table tbody tr');
+            if (row) row.click();
+        }""")
+        # Wait longer and check for panel
+        page.wait_for_timeout(1000)
+        # Try clicking again if panel didn't open
+        if page.locator(".detail-panel.open").count() == 0:
+            page.locator("#sessions-table tbody tr").first.click(force=True)
+        page.wait_for_selector(".detail-panel.open", timeout=10000)
+        page.wait_for_timeout(1500)  # Wait for map to load
+        screenshots.append(take_screenshot(
+            page, output_dir / "06-session-detail", "Session detail panel"
+        ))
 
         # 7. Full-screen Session View
         print("  7/9: Full-screen session view")
-        page.locator(".detail-expand-btn").click()
-        page.wait_for_selector("#view-session.active", timeout=5000)
-        page.wait_for_timeout(2000)  # Wait for content to load
-        page.screenshot(path=output_dir / "07-session-full.png")
-        screenshots.append(("07-session-full.png", "Full-screen session view"))
+        expand_btn = page.locator(".detail-expand-btn")
+        if expand_btn.count() > 0:
+            expand_btn.click()
+            page.wait_for_selector("#view-session.active", timeout=5000)
+            page.wait_for_timeout(2000)  # Wait for content to load
+            screenshots.append(take_screenshot(
+                page, output_dir / "07-session-full", "Full-screen session view"
+            ))
+        else:
+            print("    (skipped - expand button not found)")
 
         # 8. Stats View
         print("  8/9: Stats view")
         page.locator(".nav-tab[data-view='stats']").click()
         page.wait_for_selector("#view-stats.active", timeout=5000)
         page.wait_for_timeout(1000)  # Wait for charts to render
-        page.screenshot(path=output_dir / "08-stats-dashboard.png")
-        screenshots.append(("08-stats-dashboard.png", "Statistics dashboard"))
+        screenshots.append(take_screenshot(
+            page, output_dir / "08-stats-dashboard", "Statistics dashboard"
+        ))
 
         # 9. Stats View - Filtered by athlete
         print("  9/9: Stats view (filtered)")
         page.select_option("#athlete-select", "alice")
         page.wait_for_timeout(500)
-        page.screenshot(path=output_dir / "09-stats-filtered.png")
-        screenshots.append(("09-stats-filtered.png", "Statistics filtered by athlete"))
+        screenshots.append(take_screenshot(
+            page, output_dir / "09-stats-filtered", "Statistics by athlete"
+        ))
 
         browser.close()
 
+    # QC: Validate screenshots
+    print("\nValidating screenshots...")
+    sizes = [s[2] for s in screenshots]
+    min_size = 5000  # Minimum 5KB for a valid screenshot
+
+    # Check for empty/degenerate files
+    for filename, _caption, size in screenshots:
+        if size < min_size:
+            print(f"  WARNING: {filename} is suspiciously small ({size} bytes)")
+
+    # Check for duplicate screenshots (same size often means identical)
+    if len(sizes) != len(set(sizes)):
+        print("  WARNING: Some screenshots have identical sizes (may be duplicates)")
+
+    # Check that sizes vary reasonably (different content)
+    size_variance = max(sizes) - min(sizes)
+    if size_variance < 1000:
+        print(f"  WARNING: Screenshot sizes too similar (variance: {size_variance} bytes)")
+
+    total_size = sum(sizes)
     print(f"\nSaved {len(screenshots)} screenshots to {output_dir}")
-    return screenshots
+    print(f"Total size: {total_size / 1024:.1f} KB (avg: {total_size / len(screenshots) / 1024:.1f} KB each)")
+
+    # Return without sizes for compatibility
+    return [(f, c) for f, c, _ in screenshots]
 
 
 def generate_readme_section(screenshots: list[tuple[str, str]]) -> str:
@@ -197,7 +253,7 @@ def generate_readme_section(screenshots: list[tuple[str, str]]) -> str:
         "## Screenshots",
         "",
         "The unified web frontend provides a complete activity browsing experience.",
-        "Screenshots are auto-generated from the demo dataset.",
+        "Screenshots are auto-generated from the demo dataset (`tox -e screenshots`).",
         "",
     ]
 
@@ -220,6 +276,10 @@ def generate_readme_section(screenshots: list[tuple[str, str]]) -> str:
                 lines.append(f"![{caption}](docs/screenshots/{filename})")
                 lines.append(f"*{caption}*")
                 lines.append("")
+
+    lines.append("---")
+    lines.append("*Screenshots generated with `tox -e screenshots`*")
+    lines.append("")
 
     return "\n".join(lines)
 
