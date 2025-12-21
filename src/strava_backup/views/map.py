@@ -2137,12 +2137,59 @@ def generate_lightweight_map(_data_dir: Path) -> str:
     <script type="module">
         import {{ parquetReadObjects }} from './assets/hyparquet/index.js';
 
+        // ===== URL State Manager =====
+        const URLState = {{
+            // Encode state to URL hash with query params
+            encode(state) {{
+                const params = new URLSearchParams();
+                if (state.athlete) params.set('a', state.athlete);
+                if (state.zoom) params.set('z', state.zoom);
+                if (state.lat) params.set('lat', state.lat.toFixed(4));
+                if (state.lng) params.set('lng', state.lng.toFixed(4));
+                if (state.session) params.set('s', state.session);
+                if (state.search) params.set('q', state.search);
+                if (state.type) params.set('t', state.type);
+                const queryStr = params.toString();
+                return '#/' + state.view + (queryStr ? '?' + queryStr : '');
+            }},
+
+            // Decode state from URL hash
+            decode() {{
+                const hash = location.hash.slice(2) || 'map';
+                const [path, queryStr] = hash.split('?');
+                const params = new URLSearchParams(queryStr || '');
+                return {{
+                    view: path.split('/')[0] || 'map',
+                    athlete: params.get('a') || '',
+                    zoom: params.get('z') ? parseInt(params.get('z')) : null,
+                    lat: params.get('lat') ? parseFloat(params.get('lat')) : null,
+                    lng: params.get('lng') ? parseFloat(params.get('lng')) : null,
+                    session: params.get('s') || '',
+                    search: params.get('q') || '',
+                    type: params.get('t') || ''
+                }};
+            }},
+
+            // Update URL without triggering navigation
+            update(partialState) {{
+                const current = this.decode();
+                const newState = {{ ...current, ...partialState }};
+                const newHash = this.encode(newState);
+                // Use replaceState to avoid cluttering browser history
+                history.replaceState(null, '', newHash);
+            }}
+        }};
+
         // ===== Router =====
         const Router = {{
             views: ['map', 'sessions', 'stats'],
             currentView: 'map',
+            initialState: null,
 
             init() {{
+                // Decode initial state from URL
+                this.initialState = URLState.decode();
+
                 // Handle hash changes
                 window.addEventListener('hashchange', () => this.handleRoute());
 
@@ -2159,18 +2206,70 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             }},
 
             handleRoute() {{
-                const hash = window.location.hash.slice(1) || '/map';
-                const view = hash.replace('/', '') || 'map';
+                const state = URLState.decode();
+                const view = state.view;
 
                 if (this.views.includes(view)) {{
                     this.showView(view);
+                    // Apply state after view switch
+                    this.applyState(state);
                 }} else {{
                     this.navigate('map');
                 }}
             }},
 
+            applyState(state) {{
+                // Apply athlete filter if specified
+                if (state.athlete) {{
+                    const selector = document.getElementById('athlete-selector');
+                    if (selector) {{
+                        selector.value = state.athlete;
+                        selector.dispatchEvent(new Event('change'));
+                    }}
+                }}
+
+                // Apply map position if on map view
+                if (state.view === 'map' && state.zoom && state.lat && state.lng) {{
+                    if (MapView.map) {{
+                        MapView.map.setView([state.lat, state.lng], state.zoom);
+                    }}
+                }}
+
+                // Apply session filters
+                if (state.view === 'sessions') {{
+                    if (state.search) {{
+                        const searchInput = document.getElementById('session-search');
+                        if (searchInput) {{
+                            searchInput.value = state.search;
+                            SessionsView.filters.search = state.search.toLowerCase();
+                        }}
+                    }}
+                    if (state.type) {{
+                        const typeFilter = document.getElementById('type-filter');
+                        if (typeFilter) {{
+                            typeFilter.value = state.type;
+                            SessionsView.filters.type = state.type;
+                        }}
+                    }}
+                    // Trigger re-render after applying filters
+                    if (state.search || state.type) {{
+                        SessionsView.applyFiltersAndRender();
+                    }}
+                }}
+
+                // Open session detail if specified
+                if (state.session && state.athlete) {{
+                    setTimeout(() => {{
+                        SessionsView.showDetail(state.athlete, state.session);
+                    }}, 500);
+                }}
+            }},
+
             navigate(view) {{
-                window.location.hash = '/' + view;
+                // Preserve athlete when navigating
+                const currentAthlete = document.getElementById('athlete-selector')?.value || '';
+                URLState.update({{ view, athlete: currentAthlete }});
+                window.location.hash = URLState.encode({{ view, athlete: currentAthlete }});
             }},
 
             showView(view) {{
@@ -2267,9 +2366,21 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     this.updateInfo();
                 }});
 
+                // Update URL when map position changes (debounced)
+                let urlUpdateTimeout = null;
+                this.map.on('moveend', () => {{
+                    clearTimeout(urlUpdateTimeout);
+                    urlUpdateTimeout = setTimeout(() => {{
+                        const center = this.map.getCenter();
+                        const zoom = this.map.getZoom();
+                        URLState.update({{ zoom, lat: center.lat, lng: center.lng }});
+                    }}, 500);
+                }});
+
                 // Set up athlete selector
                 document.getElementById('athlete-selector').addEventListener('change', (e) => {{
                     this.filterByAthlete(e.target.value);
+                    URLState.update({{ athlete: e.target.value }});
                 }});
 
                 // Start loading sessions
@@ -2703,17 +2814,24 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             selectedSession: null,
 
             init() {{
-                // Set up filter event listeners
+                // Set up filter event listeners with URL state updates
+                let searchTimeout = null;
                 document.getElementById('session-search').addEventListener('input', (e) => {{
                     this.filters.search = e.target.value.toLowerCase();
                     this.page = 1;
                     this.applyFiltersAndRender();
+                    // Debounce URL update for search
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {{
+                        URLState.update({{ search: e.target.value }});
+                    }}, 500);
                 }});
 
                 document.getElementById('type-filter').addEventListener('change', (e) => {{
                     this.filters.type = e.target.value;
                     this.page = 1;
                     this.applyFiltersAndRender();
+                    URLState.update({{ type: e.target.value }});
                 }});
 
                 document.getElementById('date-from').addEventListener('change', (e) => {{
@@ -2730,6 +2848,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
                 document.getElementById('clear-filters').addEventListener('click', () => {{
                     this.clearFilters();
+                    URLState.update({{ search: '', type: '', session: '' }});
                 }});
 
                 // Set up sortable headers
@@ -2978,6 +3097,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 this.selectedSession = session;
                 const panel = document.getElementById('session-detail');
                 panel.classList.remove('hidden');
+
+                // Update URL with session permalink
+                URLState.update({{ session: sessionId, athlete: athlete }});
 
                 document.getElementById('detail-name').textContent = session.name || 'Activity';
 
@@ -3326,6 +3448,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 document.getElementById('session-detail').classList.add('hidden');
                 document.querySelectorAll('#sessions-tbody tr').forEach(r => r.classList.remove('selected'));
                 this.selectedSession = null;
+
+                // Clear session from URL
+                URLState.update({{ session: '' }});
 
                 // Clean up detail map instance
                 if (this.detailMapInstance) {{
