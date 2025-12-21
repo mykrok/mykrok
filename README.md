@@ -65,12 +65,15 @@ Before using strava-backup, you need to create a Strava API application:
 strava-backup looks for configuration in the following order:
 
 1. `STRAVA_BACKUP_CONFIG` environment variable (explicit path)
-2. `.strava-backup.toml` in the current directory
-3. `~/.config/strava-backup/config.toml`
+2. `.strava-backup/config.toml` in the current directory (recommended for DataLad datasets)
+3. `.strava-backup.toml` in the current directory (legacy, still supported)
+4. `~/.config/strava-backup/config.toml`
+
+OAuth tokens are stored separately in `.strava-backup/oauth-tokens.toml` (gitignored).
 
 ### Configuration File Format
 
-Create `.strava-backup.toml` in your project directory or `~/.config/strava-backup/config.toml`:
+Create `.strava-backup/config.toml` in your project directory or `~/.config/strava-backup/config.toml`:
 
 ```toml
 [strava]
@@ -124,11 +127,17 @@ strava-backup auth --force
 ### Sync Activities
 
 ```bash
-# Incremental sync (default)
+# Incremental sync (default) - only new activities since last sync
 strava-backup sync
 
-# Full sync (re-download everything)
-strava-backup sync --full
+# Full sync - re-download all activities
+strava-backup sync --what=full
+
+# Refresh social data (kudos/comments) for existing activities
+strava-backup sync --what=social
+
+# Refresh athlete profile info and avatar
+strava-backup sync --what=athlete-profiles
 
 # Sync with limits
 strava-backup sync --limit 100
@@ -138,6 +147,9 @@ strava-backup sync --dry-run
 
 # Skip photos/comments
 strava-backup sync --no-photos --no-comments
+
+# Sync specific activities by ID
+strava-backup sync --activity-ids 12345678901,12345678902
 ```
 
 ### View Statistics
@@ -165,14 +177,21 @@ strava-backup view stats --json
 ### Generate Maps
 
 ```bash
-# Create HTML map file
+# Create HTML map file (embeds all data)
 strava-backup view map --output activities.html
 
 # Create and serve locally
 strava-backup view map --serve
 
+# Lightweight mode - generates map.html in data directory that loads data on demand
+# Best for large datasets and web server publishing
+strava-backup view map --lightweight --serve
+
 # Heatmap mode
 strava-backup view map --heatmap --serve
+
+# Include photos on map
+strava-backup view map --photos --serve
 
 # Filter by date/type
 strava-backup view map --after 2025-01-01 --type Run
@@ -223,18 +242,21 @@ strava-backup create-datalad-dataset ./my-strava-backup
 cd my-strava-backup
 
 # Edit config with your Strava API credentials
-nano .strava-backup.toml
+nano .strava-backup/config.toml
 
 # Authenticate
 strava-backup auth
 
 # Sync using datalad run (creates versioned commit)
 make sync
+
+# Generate lightweight map for web viewing
+strava-backup view map --lightweight
 ```
 
 This creates a dataset with:
 - **text2git configuration**: Text files (JSON, TSV) tracked by git, binary files (photos, Parquet) by git-annex
-- **Sample config**: `.strava-backup.toml` with comments explaining each setting
+- **Sample config**: `.strava-backup/config.toml` with comments explaining each setting
 - **README**: Documentation for the dataset
 - **Makefile**: Targets for `make sync`, `make stats`, `make map`, etc. using `datalad run`
 
@@ -269,11 +291,15 @@ Activities are stored in a Hive-partitioned directory structure:
 
 ```
 data/
+├── athletes.tsv                  # Summary of all athletes
+├── map.html                      # Generated map (with --lightweight)
 └── athl={username}/
+    ├── athlete.json              # Athlete profile data
+    ├── avatar.jpg                # Profile photo
     ├── sessions.tsv              # Activity summary (TSV format)
     ├── gear.json                 # Equipment catalog
     └── ses={datetime}/           # Individual activity folder
-        ├── info.json             # Activity metadata
+        ├── info.json             # Activity metadata, comments, kudos
         ├── tracking.parquet      # GPS + sensor data (Parquet)
         ├── tracking.json         # Data manifest
         └── photos/               # Activity photos
@@ -319,7 +345,7 @@ strava-backup auth --force
 ```
 
 ### Rate Limit Hit
-The tool automatically pauses when hitting Strava's rate limit (600 requests/15 minutes) and resumes. For large initial syncs, run overnight.
+The tool automatically pauses when hitting Strava's rate limits (200 requests/15 minutes, 1000/day) and resumes. For large initial syncs, the process may span multiple days.
 
 ### Missing GPS Data
 Some activities (treadmill, manual entries) have no GPS. They appear in `sessions.tsv` but not on maps.
