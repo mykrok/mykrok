@@ -86,27 +86,49 @@ def capture_screenshots(
         print("  1/9: Map view (world)")
         page.goto(f"{base_url}/strava-backup.html#/map")
         page.wait_for_selector(".leaflet-marker-icon", timeout=15000)
-        # Wait for all markers to load
-        page.wait_for_timeout(2000)
+        # Wait for all markers to load and let map settle
+        page.wait_for_timeout(3000)
         page.screenshot(path=output_dir / "01-map-world.png")
         screenshots.append(("01-map-world.png", "World map with activity markers"))
 
         # 2. Map View - Zoomed to activity cluster
         print("  2/9: Map view (zoomed)")
-        # Click first marker to zoom
-        page.locator(".leaflet-marker-icon").first.click()
-        page.wait_for_timeout(1000)
-        # Zoom in more for detail
-        for _ in range(3):
-            page.locator(".leaflet-control-zoom-in").click()
-            page.wait_for_timeout(300)
-        page.wait_for_timeout(1000)
+        # Use JavaScript to zoom to fit all markers in view
+        page.evaluate("""() => {
+            if (window.mapInstance && window.MapView && window.MapView.bounds) {
+                // Fit to the bounds that contain all markers
+                if (window.MapView.bounds.isValid()) {
+                    window.mapInstance.fitBounds(window.MapView.bounds, {padding: [50, 50]});
+                }
+            }
+        }""")
+        page.wait_for_timeout(1500)
         page.screenshot(path=output_dir / "02-map-zoomed.png")
         screenshots.append(("02-map-zoomed.png", "Activity cluster with route details"))
 
         # 3. Map View - Marker popup
         print("  3/9: Map view (popup)")
-        page.locator(".leaflet-marker-icon").first.click()
+        # Click a marker using JavaScript to trigger the popup
+        page.evaluate("""() => {
+            const markers = document.querySelectorAll('.leaflet-marker-icon');
+            if (markers.length > 0) {
+                // Find a marker that's visible in viewport
+                for (const marker of markers) {
+                    const rect = marker.getBoundingClientRect();
+                    if (rect.top > 0 && rect.left > 0 &&
+                        rect.bottom < window.innerHeight && rect.right < window.innerWidth) {
+                        marker.click();
+                        return;
+                    }
+                }
+                // Fallback: click first marker anyway
+                markers[0].click();
+            }
+        }""")
+        page.wait_for_timeout(1000)
+        # Check if popup appeared, if not try force click
+        if page.locator(".leaflet-popup").count() == 0:
+            page.locator(".leaflet-marker-icon").first.click(force=True)
         page.wait_for_selector(".leaflet-popup", timeout=5000)
         page.wait_for_timeout(500)
         page.screenshot(path=output_dir / "03-map-popup.png")
