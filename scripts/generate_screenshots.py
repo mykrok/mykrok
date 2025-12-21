@@ -106,43 +106,44 @@ def capture_screenshots(
             page, output_dir / "01-map-overview", "Map view with activity markers"
         ))
 
-        # 2. Map View - Zoomed to activity cluster
+        # 2. Map View - Zoomed to activity cluster (California region)
         print("  2/9: Map view (zoomed)")
-        # Use JavaScript to zoom to fit all markers in view
+        # Wait for allMarkers to be populated
+        page.wait_for_function(
+            "window.MapView && window.MapView.allMarkers && window.MapView.allMarkers.length > 0",
+            timeout=15000
+        )
+        # Zoom to California region where multiple markers are clustered
         page.evaluate("""() => {
-            if (window.mapInstance && window.MapView && window.MapView.bounds) {
-                if (window.MapView.bounds.isValid()) {
-                    window.mapInstance.fitBounds(window.MapView.bounds, {padding: [30, 30]});
-                }
-            }
+            // Zoom to California/West Coast area to show a regional cluster
+            window.mapInstance.setView([36.5, -119.5], 6);
         }""")
-        page.wait_for_timeout(1500)
+        page.wait_for_timeout(2000)
         screenshots.append(take_screenshot(
             page, output_dir / "02-map-zoomed", "Activities zoomed to fit"
         ))
 
         # 3. Map View - Marker popup
         print("  3/9: Map view (popup)")
-        # Click a marker using JavaScript to trigger the popup
+        # Use MapView.allMarkers to zoom to first marker and open its popup
         page.evaluate("""() => {
-            const markers = document.querySelectorAll('.leaflet-marker-icon');
-            if (markers.length > 0) {
-                for (const marker of markers) {
-                    const rect = marker.getBoundingClientRect();
-                    if (rect.top > 50 && rect.left > 50 &&
-                        rect.bottom < window.innerHeight - 50 &&
-                        rect.right < window.innerWidth - 50) {
-                        marker.click();
-                        return;
-                    }
-                }
-                markers[0].click();
+            if (window.MapView && window.MapView.allMarkers && window.MapView.allMarkers.length > 0) {
+                const firstMarkerData = window.MapView.allMarkers[0];
+                const latlng = firstMarkerData.marker.getLatLng();
+                // Zoom to the marker location
+                window.mapInstance.setView(latlng, 13);
+            }
+        }""")
+        page.wait_for_timeout(2000)
+        # Open popup on the first marker
+        page.evaluate("""() => {
+            if (window.MapView && window.MapView.allMarkers && window.MapView.allMarkers.length > 0) {
+                const firstMarkerData = window.MapView.allMarkers[0];
+                firstMarkerData.marker.openPopup();
             }
         }""")
         page.wait_for_timeout(1000)
-        if page.locator(".leaflet-popup").count() == 0:
-            page.locator(".leaflet-marker-icon").first.click(force=True)
-        page.wait_for_selector(".leaflet-popup", timeout=5000)
+        page.wait_for_selector(".leaflet-popup", timeout=10000)
         page.wait_for_timeout(500)
         screenshots.append(take_screenshot(
             page, output_dir / "03-map-popup", "Activity popup with details"

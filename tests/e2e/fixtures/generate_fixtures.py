@@ -71,6 +71,41 @@ LOCATIONS = [
     (47.6062, -122.3321, "Seattle"),
 ]
 
+# Letter shapes for "DEMO" - normalized coordinates (0-1 range for x and y)
+# Each letter is a list of (x, y) points that trace the letter shape
+LETTER_SHAPES = {
+    "D": [
+        (0.0, 0.0), (0.0, 1.0), (0.5, 1.0), (0.7, 0.8), (0.7, 0.2), (0.5, 0.0), (0.0, 0.0),
+    ],
+    "E": [
+        (0.7, 0.0), (0.0, 0.0), (0.0, 0.5), (0.5, 0.5), (0.0, 0.5), (0.0, 1.0), (0.7, 1.0),
+    ],
+    "M": [
+        (0.0, 0.0), (0.0, 1.0), (0.35, 0.5), (0.7, 1.0), (0.7, 0.0),
+    ],
+    "O": [
+        (0.35, 0.0), (0.1, 0.2), (0.0, 0.5), (0.1, 0.8), (0.35, 1.0),
+        (0.55, 0.8), (0.7, 0.5), (0.55, 0.2), (0.35, 0.0),
+    ],
+}
+
+
+def get_demo_path() -> list[tuple[float, float]]:
+    """Generate path points that spell 'DEMO'."""
+    word = "DEMO"
+    path = []
+    letter_width = 0.8  # Width of each letter
+    spacing = 0.2  # Space between letters
+
+    for i, letter in enumerate(word):
+        if letter not in LETTER_SHAPES:
+            continue
+        x_offset = i * (letter_width + spacing)
+        for x, y in LETTER_SHAPES[letter]:
+            path.append((x * letter_width + x_offset, y))
+
+    return path
+
 
 def generate_gps_track(
     start_lat: float,
@@ -79,12 +114,11 @@ def generate_gps_track(
     duration_s: int,
     activity_type: str,
 ) -> list[dict]:
-    """Generate a realistic GPS track with sensor data."""
-    points = max(int(duration_s / 5), 20)  # Point every 5 seconds
-    track = []
-
-    # Random direction for the track
-    bearing = random.uniform(0, 360)
+    """Generate a GPS track that spells 'DEMO' with sensor data."""
+    # Get the DEMO path
+    demo_path = get_demo_path()
+    if not demo_path:
+        return []
 
     # Activity-specific parameters
     params = ACTIVITY_TYPES.get(activity_type, ACTIVITY_TYPES["Run"])
@@ -92,23 +126,52 @@ def generate_gps_track(
     has_cadence = activity_type in ("Run", "Ride") and random.random() > 0.2
     has_power = activity_type == "Ride" and random.random() > 0.3
 
-    for i in range(points):
-        progress = i / (points - 1) if points > 1 else 0
+    # Scale the path to fit the desired distance
+    # Calculate total path length in normalized units
+    path_length = 0.0
+    for i in range(1, len(demo_path)):
+        dx = demo_path[i][0] - demo_path[i - 1][0]
+        dy = demo_path[i][1] - demo_path[i - 1][1]
+        path_length += math.sqrt(dx * dx + dy * dy)
 
-        # Calculate position (simple linear track with some noise)
-        meters_per_point = distance_m / points
-        lat_delta = meters_per_point * math.cos(math.radians(bearing)) / 111320
-        lng_delta = (
-            meters_per_point
-            * math.sin(math.radians(bearing))
-            / (111320 * math.cos(math.radians(start_lat)))
-        )
+    # Scale factor to convert normalized units to meters
+    # Then convert to lat/lng degrees
+    scale_m = distance_m / path_length if path_length > 0 else 100
+    # Meters per degree of latitude
+    lat_scale = scale_m / 111320
+    # Meters per degree of longitude (adjusted for latitude)
+    lng_scale = scale_m / (111320 * math.cos(math.radians(start_lat)))
 
-        # Add some noise for realism
-        lat = start_lat + lat_delta * i + random.gauss(0, 0.00005)
-        lng = start_lng + lng_delta * i + random.gauss(0, 0.00005)
+    # Interpolate points along the path for smooth tracking
+    points_needed = max(int(duration_s / 5), 20)
+    track = []
 
-        # Time progression
+    for i in range(points_needed):
+        progress = i / (points_needed - 1) if points_needed > 1 else 0
+
+        # Find position along the path
+        target_dist = progress * path_length
+        current_dist = 0.0
+        px, py = demo_path[0]
+
+        for j in range(1, len(demo_path)):
+            dx = demo_path[j][0] - demo_path[j - 1][0]
+            dy = demo_path[j][1] - demo_path[j - 1][1]
+            seg_len = math.sqrt(dx * dx + dy * dy)
+
+            if current_dist + seg_len >= target_dist:
+                # Interpolate within this segment
+                t = (target_dist - current_dist) / seg_len if seg_len > 0 else 0
+                px = demo_path[j - 1][0] + dx * t
+                py = demo_path[j - 1][1] + dy * t
+                break
+            current_dist += seg_len
+            px, py = demo_path[j]
+
+        # Convert to lat/lng with small noise for realism
+        lat = start_lat + py * lat_scale + random.gauss(0, lat_scale * 0.01)
+        lng = start_lng + px * lng_scale + random.gauss(0, lng_scale * 0.01)
+
         time_s = int(progress * duration_s)
 
         point = {
@@ -119,7 +182,6 @@ def generate_gps_track(
         }
 
         if has_hr:
-            # HR curve: warm up, peak in middle, cool down
             hr_base = (params["hr_range"][0] + params["hr_range"][1]) / 2
             hr_variation = (params["hr_range"][1] - params["hr_range"][0]) / 2
             hr = hr_base + hr_variation * math.sin(progress * math.pi)

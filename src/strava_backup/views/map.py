@@ -3141,6 +3141,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 legend.addTo(this.map);
             }}
         }};
+        window.MapView = MapView;
 
         // ===== Sessions View Module =====
         const SessionsView = {{
