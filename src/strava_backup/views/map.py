@@ -1934,20 +1934,63 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 40px;
-            height: 40px;
-            background: #f5f5f5;
-            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 8px;
             cursor: pointer;
             margin-left: 8px;
+            transition: background 0.15s;
         }}
 
         .header-btn:hover {{
-            background: #e8e8e8;
+            background: #e0e0e0;
         }}
 
         .header-btn svg {{
-            fill: #666;
+            fill: #555;
+        }}
+
+        .header-btn.copied {{
+            background: #4CAF50;
+        }}
+
+        .header-btn.copied svg {{
+            fill: white;
+        }}
+
+        .map-actions {{
+            display: flex;
+            justify-content: center;
+            padding: 16px 0;
+        }}
+
+        .action-btn-primary {{
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-width: 160px;
+            padding: 12px 24px;
+            background: #fc4c02;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s;
+        }}
+
+        .action-btn-primary:hover {{
+            background: #e04400;
+        }}
+
+        .action-btn-primary svg {{
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
         }}
 
         .full-session-content {{
@@ -2341,17 +2384,20 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                         <h1 id="full-session-name">Activity Name</h1>
                         <div class="full-session-meta" id="full-session-meta"></div>
                     </div>
-                    <a id="full-session-map-btn" class="header-btn" title="View on Map">
-                        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
-                    </a>
-                    <a id="full-session-share" class="header-btn" title="Copy permalink">
-                        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
-                    </a>
+                    <button id="full-session-share" class="header-btn" title="Copy permalink" aria-label="Share activity">
+                        <svg viewBox="0 0 24 24" width="18" height="18"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
+                    </button>
                 </header>
                 <div class="full-session-content">
                     <section class="full-session-stats" id="full-session-stats"></section>
                     <section class="full-session-map">
                         <div id="full-session-map-container"></div>
+                        <div class="map-actions">
+                            <button id="full-session-map-btn" class="action-btn-primary">
+                                <svg viewBox="0 0 24 24"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+                                View on Map
+                            </button>
+                        </div>
                     </section>
                     <section class="full-session-streams" id="full-session-streams"></section>
                     <section class="full-session-photos" id="full-session-photos"></section>
@@ -3804,14 +3850,41 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 document.getElementById('full-session-meta').innerHTML =
                     `${{dateStr}} &bull; ${{session.type || 'Activity'}} &bull; ${{athlete}}`;
 
-                // Update share button
+                // Update share button with error handling and visual feedback
                 const shareBtn = document.getElementById('full-session-share');
-                shareBtn.onclick = () => {{
+                shareBtn.onclick = async () => {{
                     const url = location.origin + location.pathname + '#/session/' + athlete + '/' + datetime;
-                    navigator.clipboard.writeText(url).then(() => {{
+                    try {{
+                        await navigator.clipboard.writeText(url);
+                        // Visual feedback - green checkmark
+                        shareBtn.classList.add('copied');
                         shareBtn.title = 'Link copied!';
-                        setTimeout(() => {{ shareBtn.title = 'Copy permalink'; }}, 2000);
-                    }});
+                        setTimeout(() => {{
+                            shareBtn.classList.remove('copied');
+                            shareBtn.title = 'Copy permalink';
+                        }}, 2000);
+                    }} catch (err) {{
+                        // Fallback for browsers without clipboard API or insecure contexts
+                        console.warn('Clipboard API failed, using fallback:', err);
+                        // Create temporary input for copying
+                        const input = document.createElement('input');
+                        input.value = url;
+                        document.body.appendChild(input);
+                        input.select();
+                        try {{
+                            document.execCommand('copy');
+                            shareBtn.classList.add('copied');
+                            shareBtn.title = 'Link copied!';
+                            setTimeout(() => {{
+                                shareBtn.classList.remove('copied');
+                                shareBtn.title = 'Copy permalink';
+                            }}, 2000);
+                        }} catch (e) {{
+                            // Show URL in alert as last resort
+                            alert('Copy this link:\\n' + url);
+                        }}
+                        document.body.removeChild(input);
+                    }}
                 }};
 
                 // Update "View on Map" button
