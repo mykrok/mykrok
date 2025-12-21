@@ -1930,7 +1930,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             margin-top: 4px;
         }}
 
-        .share-btn {{
+        .header-btn {{
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1939,13 +1939,14 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             background: #f5f5f5;
             border-radius: 50%;
             cursor: pointer;
+            margin-left: 8px;
         }}
 
-        .share-btn:hover {{
+        .header-btn:hover {{
             background: #e8e8e8;
         }}
 
-        .share-btn svg {{
+        .header-btn svg {{
             fill: #666;
         }}
 
@@ -2340,7 +2341,10 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                         <h1 id="full-session-name">Activity Name</h1>
                         <div class="full-session-meta" id="full-session-meta"></div>
                     </div>
-                    <a id="full-session-share" class="share-btn" title="Copy permalink">
+                    <a id="full-session-map-btn" class="header-btn" title="View on Map">
+                        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+                    </a>
+                    <a id="full-session-share" class="header-btn" title="Copy permalink">
                         <svg viewBox="0 0 24 24" width="20" height="20"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
                     </a>
                 </header>
@@ -2584,6 +2588,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             totalPhotos: 0,
             infoControl: null,
             AUTO_LOAD_ZOOM: 11,
+            restoringFromURL: false,
 
             // Color palette for athletes
             ATHLETE_PALETTE: ['#2196F3', '#4CAF50', '#9C27B0', '#FF9800', '#00BCD4', '#E91E63', '#795548', '#607D8B'],
@@ -2597,8 +2602,18 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             }},
 
             init() {{
-                // Initialize map - start zoomed out to world view
-                this.map = L.map('map', {{ preferCanvas: true }}).setView([20, 0], 3);
+                // Check if we should restore map position from URL
+                const urlState = Router.initialState;
+                let initialLat = 20, initialLng = 0, initialZoom = 3;
+                if (urlState && urlState.zoom && urlState.lat && urlState.lng) {{
+                    initialLat = urlState.lat;
+                    initialLng = urlState.lng;
+                    initialZoom = urlState.zoom;
+                    this.restoringFromURL = true;
+                }}
+
+                // Initialize map with URL position or world view default
+                this.map = L.map('map', {{ preferCanvas: true }}).setView([initialLat, initialLng], initialZoom);
                 window.mapInstance = this.map;
 
                 L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
@@ -2997,9 +3012,11 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                         }}
                     }}
 
-                    if (this.bounds.isValid()) {{
+                    // Only fit bounds if not restoring from URL
+                    if (this.bounds.isValid() && !this.restoringFromURL) {{
                         this.map.fitBounds(this.bounds, {{ padding: [20, 20] }});
                     }}
+                    this.restoringFromURL = false;  // Reset flag after first load
 
                     // Populate athlete selector with stats
                     this.populateAthleteSelector();
@@ -3795,6 +3812,19 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                         shareBtn.title = 'Link copied!';
                         setTimeout(() => {{ shareBtn.title = 'Copy permalink'; }}, 2000);
                     }});
+                }};
+
+                // Update "View on Map" button
+                const mapBtn = document.getElementById('full-session-map-btn');
+                mapBtn.onclick = () => {{
+                    // Navigate to map view centered on this session
+                    const lat = parseFloat(session.center_lat);
+                    const lng = parseFloat(session.center_lng);
+                    if (!isNaN(lat) && !isNaN(lng)) {{
+                        location.hash = `#/map?z=14&lat=${{lat}}&lng=${{lng}}`;
+                    }} else {{
+                        location.hash = '#/map';
+                    }}
                 }};
 
                 // Render stats
