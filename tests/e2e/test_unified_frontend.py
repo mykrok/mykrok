@@ -376,3 +376,121 @@ class TestSharedRun:
 
         rows = page.locator("#sessions-table tbody tr")
         assert rows.count() >= 1
+
+
+@pytest.mark.ai_generated
+class TestFullScreenSessionView:
+    """Test full-screen session view (expand button) functionality."""
+
+    def test_expand_button_opens_full_view(self, demo_server: str, page: Page) -> None:
+        """Verify expand button opens full-screen session view."""
+        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
+
+        # Click first session to open detail panel
+        page.locator("#sessions-table tbody tr").first.click()
+        page.wait_for_selector(".detail-panel.open")
+
+        # Click expand button
+        page.locator(".detail-expand-btn").click()
+
+        # Should navigate to full session view
+        page.wait_for_timeout(1000)
+        assert "#/session/" in page.url
+
+        # Full session view should be visible
+        page.wait_for_selector("#view-session.active", timeout=5000)
+
+    def test_full_session_view_shows_content(
+        self, demo_server: str, page: Page
+    ) -> None:
+        """Verify full-screen session view shows session content."""
+        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
+
+        # Click first session and expand
+        page.locator("#sessions-table tbody tr").first.click()
+        page.wait_for_selector(".detail-panel.open")
+        page.locator(".detail-expand-btn").click()
+        page.wait_for_selector("#view-session.active", timeout=5000)
+
+        # Session name should be displayed (not "Activity Name" placeholder)
+        session_name = page.locator("#full-session-name").text_content()
+        assert session_name != "Activity Name"
+        assert session_name != "Loading..."
+        assert len(session_name or "") > 0
+
+    def test_back_button_returns_to_sessions(
+        self, demo_server: str, page: Page
+    ) -> None:
+        """Verify back button returns to sessions view."""
+        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
+
+        # Navigate to full session view
+        page.locator("#sessions-table tbody tr").first.click()
+        page.wait_for_selector(".detail-panel.open")
+        page.locator(".detail-expand-btn").click()
+        page.wait_for_selector("#view-session.active", timeout=5000)
+
+        # Click back button
+        page.locator("#full-session-back").click()
+
+        # Should return to sessions view
+        page.wait_for_timeout(500)
+        assert "#/sessions" in page.url
+        page.wait_for_selector("#view-sessions.active")
+
+    def test_direct_permalink_loads(self, demo_server: str, page: Page) -> None:
+        """Verify direct permalink URL loads the session."""
+        # First get a valid session URL
+        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
+
+        page.locator("#sessions-table tbody tr").first.click()
+        page.wait_for_selector(".detail-panel.open")
+        page.locator(".detail-expand-btn").click()
+        page.wait_for_selector("#view-session.active", timeout=5000)
+
+        # Capture the session URL
+        session_url = page.url
+
+        # Navigate away
+        page.goto(f"{demo_server}/strava-backup.html#/map")
+        page.wait_for_selector("#view-map.active")
+
+        # Navigate directly to the session URL
+        page.goto(session_url)
+        page.wait_for_selector("#view-session.active", timeout=10000)
+
+        # Session content should load
+        page.wait_for_timeout(2000)  # Wait for data to load
+        session_name = page.locator("#full-session-name").text_content()
+        assert session_name != "Activity Name"
+        assert session_name != "Session Not Found"
+
+    def test_permalink_preserved_on_map_interaction(
+        self, demo_server: str, page: Page
+    ) -> None:
+        """Verify session permalink is preserved when map loads."""
+        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
+
+        # Navigate to full session view
+        page.locator("#sessions-table tbody tr").first.click()
+        page.wait_for_selector(".detail-panel.open")
+        page.locator(".detail-expand-btn").click()
+        page.wait_for_selector("#view-session.active", timeout=5000)
+
+        # Capture the original session URL
+        original_url = page.url
+        assert "#/session/" in original_url
+
+        # Wait for map to potentially load and trigger URL changes
+        page.wait_for_timeout(2000)
+
+        # URL should still be the session permalink format
+        current_url = page.url
+        assert "#/session/" in current_url
+        # Should not have been corrupted to query params format
+        assert "?z=" not in current_url or "#/session/" in current_url.split("?")[0]

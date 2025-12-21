@@ -703,3 +703,54 @@ Should be implemented after permalinks/deep linking (shares URL infrastructure).
 
 ### Priority: Low (Phase 8)
 Depends on full-screen session view (Phase 7) for optimal presentation.
+
+---
+
+## TODO: Unified Charting Framework (Phase 8 Prerequisite)
+
+**Goal**: Adopt a consistent, interactive charting library across all views to replace the current basic Canvas charts.
+
+### Current State
+- Stats view uses basic Canvas API for bar charts
+- Charts are non-interactive (no hover tooltips, no click actions)
+- Labels and text are not as sharp as vector-based rendering
+- Inconsistent with the modern feel of the rest of the UI
+
+### Proposed Solution
+Evaluate and adopt a lightweight charting library that provides:
+
+1. **Sharp Vector Rendering**: SVG or high-DPI Canvas with proper text handling
+2. **Interactivity**: Hover tooltips, click handlers, zoom/pan
+3. **Responsive**: Auto-resize on container changes
+4. **Small Bundle Size**: Target < 50KB gzipped
+5. **No Dependencies**: Pure JavaScript, no jQuery/React required
+
+### Candidate Libraries
+| Library | Size | Features | Notes |
+|---------|------|----------|-------|
+| **uPlot** | ~10KB | Time-series focus, very fast | Good for data streams |
+| **Chart.js** | ~60KB | Full-featured, great docs | Popular, well-maintained |
+| **Frappe Charts** | ~18KB | Simple, beautiful | Limited customization |
+| **Chartist.js** | ~10KB | SVG-based, responsive | Less active development |
+
+### Implementation Approach
+1. **Replace Stats View charts first** (lower risk, visible improvement)
+2. **Use same library for data streams** (consistency, shared code)
+3. **Shared theme/config** for consistent colors, fonts, spacing
+
+### Charts to Upgrade
+
+**Stats View**:
+- Monthly activity chart → Interactive line/bar with tooltips
+- Activity type distribution → Interactive horizontal bar
+- Distance/time trends → Multi-line chart with legends
+
+**Sessions View (Data Streams)**:
+- Elevation profile (grey background)
+- Heart rate overlay
+- Cadence overlay
+- Power overlay (when available)
+- Synchronized cursor across all charts
+
+### Priority: Medium-High
+Should be addressed before Phase 8 data streams to establish the charting foundation.

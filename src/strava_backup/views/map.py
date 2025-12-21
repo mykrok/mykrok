@@ -1223,6 +1223,16 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             border-radius: 5px;
         }}
 
+        .info-link {{
+            color: #FC4C02;
+            text-decoration: none;
+            font-weight: 500;
+        }}
+
+        .info-link:hover {{
+            text-decoration: underline;
+        }}
+
         .legend {{
             line-height: 18px;
             color: #555;
@@ -1265,6 +1275,19 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             font-size: 12px;
             color: #666;
             margin-top: 8px;
+        }}
+
+        .popup-activity-link {{
+            display: inline-block;
+            margin-top: 6px;
+            color: #FC4C02;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 500;
+        }}
+
+        .popup-activity-link:hover {{
+            text-decoration: underline;
         }}
 
         .loading {{
@@ -2392,6 +2415,13 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
             // Update URL without triggering navigation
             update(partialState) {{
+                // Don't update URL if we're on a full-screen session route
+                // Session routes use a different format: #/session/athlete/datetime
+                const hash = location.hash;
+                if (hash.startsWith('#/session/') && hash.split('/').length >= 3) {{
+                    return; // Preserve session permalink
+                }}
+
                 const current = this.decode();
                 const newState = {{ ...current, ...partialState }};
                 const newHash = this.encode(newState);
@@ -2800,6 +2830,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                                 <div class="photo-meta">
                                     <strong>${{sessionName}}</strong><br>
                                     ${{session.substring(0, 8)}}
+                                    <br><a href="#/session/${{athlete}}/${{session}}" class="popup-activity-link">View Activity →</a>
                                 </div>
                             </div>
                         `, {{ maxWidth: 350 }});
@@ -2931,6 +2962,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                                     Type: ${{type}}<br>
                                     Date: ${{session.datetime?.substring(0, 8) || ''}}${{photoInfo}}<br>
                                     Distance: ${{(parseFloat(session.distance_m || 0) / 1000).toFixed(2)}} km
+                                    <br><a href="#/session/${{username}}/${{session.datetime}}" class="popup-activity-link">View Activity →</a>
                                 `);
 
                                 this.allMarkers.push({{
@@ -2997,7 +3029,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                         const color = self.athleteColors[self.currentAthlete] || '#333';
                         html += `<br><span style="color:${{color}}">${{self.currentAthlete}}</span>`;
                     }}
-                    html += `<br>${{visibleSessions}} sessions`;
+                    html += `<br><a href="#/sessions" class="info-link">${{visibleSessions}} sessions</a>`;
                     if (self.loadedTrackCount > 0) {{
                         html += `<br>${{self.loadedTrackCount}} tracks loaded`;
                     }}
@@ -3711,6 +3743,8 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             map: null,
             currentAthlete: null,
             currentSession: null,
+            retryCount: 0,
+            maxRetries: 10,
 
             show(athlete, datetime) {{
                 this.currentAthlete = athlete;
@@ -3721,11 +3755,25 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 const session = sessions.find(s => s.datetime === datetime);
 
                 if (!session) {{
-                    console.warn('Session not found:', athlete, datetime);
-                    // Try to load after data is ready
-                    setTimeout(() => this.show(athlete, datetime), 500);
-                    return;
+                    // Data might not be loaded yet, retry with limit
+                    this.retryCount++;
+                    if (this.retryCount <= this.maxRetries) {{
+                        console.log('Session data not loaded yet, retrying... (' + this.retryCount + '/' + this.maxRetries + ')');
+                        document.getElementById('full-session-name').textContent = 'Loading...';
+                        document.getElementById('full-session-meta').textContent = 'Please wait while data loads';
+                        setTimeout(() => this.show(athlete, datetime), 500);
+                        return;
+                    }} else {{
+                        console.warn('Session not found after retries:', athlete, datetime);
+                        document.getElementById('full-session-name').textContent = 'Session Not Found';
+                        document.getElementById('full-session-meta').textContent = `Could not find session ${{datetime}} for ${{athlete}}`;
+                        this.retryCount = 0;
+                        return;
+                    }}
                 }}
+
+                // Reset retry count on success
+                this.retryCount = 0;
 
                 // Update header
                 document.getElementById('full-session-name').textContent = session.name || 'Activity';
