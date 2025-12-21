@@ -180,9 +180,9 @@ def capture_screenshots(
         # Wait longer and check for panel
         page.wait_for_timeout(1000)
         # Try clicking again if panel didn't open
-        if page.locator(".detail-panel.open").count() == 0:
+        if page.locator("#session-detail:not(.hidden)").count() == 0:
             page.locator("#sessions-table tbody tr").first.click(force=True)
-        page.wait_for_selector(".detail-panel.open", timeout=10000)
+        page.wait_for_selector("#session-detail:not(.hidden)", timeout=10000)
         page.wait_for_timeout(1500)  # Wait for map to load
         screenshots.append(take_screenshot(
             page, output_dir / "06-session-detail", "Session detail panel"
@@ -190,7 +190,7 @@ def capture_screenshots(
 
         # 7. Full-screen Session View
         print("  7/9: Full-screen session view")
-        expand_btn = page.locator(".detail-expand-btn")
+        expand_btn = page.locator("#expand-detail")
         if expand_btn.count() > 0:
             expand_btn.click()
             page.wait_for_selector("#view-session.active", timeout=5000)
@@ -212,7 +212,7 @@ def capture_screenshots(
 
         # 9. Stats View - Filtered by athlete
         print("  9/9: Stats view (filtered)")
-        page.select_option("#athlete-select", "alice")
+        page.select_option("#athlete-selector", "alice")
         page.wait_for_timeout(500)
         screenshots.append(take_screenshot(
             page, output_dir / "09-stats-filtered", "Statistics by athlete"
