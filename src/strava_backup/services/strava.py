@@ -31,6 +31,12 @@ if TYPE_CHECKING:
 OAUTH_SCOPES = ["read", "activity:read_all", "profile:read_all"]
 
 
+class StravaRateLimitError(Exception):
+    """Raised when Strava API rate limit is exceeded."""
+
+    pass
+
+
 @dataclass
 class TokenInfo:
     """OAuth2 token information."""
@@ -239,7 +245,12 @@ class StravaClient:
 
         Returns:
             List of comment dictionaries.
+
+        Raises:
+            StravaRateLimitError: If rate limit is exceeded.
         """
+        from stravalib.exc import RateLimitExceeded, RateLimitTimeout
+
         try:
             comments = self.client.get_activity_comments(activity_id)
             result = []
@@ -271,6 +282,8 @@ class StravaClient:
                     "athlete_lastname": athlete_lastname,
                 })
             return result
+        except (RateLimitExceeded, RateLimitTimeout) as e:
+            raise StravaRateLimitError(str(e)) from e
         except Exception:
             return []
 
@@ -282,32 +295,30 @@ class StravaClient:
 
         Returns:
             List of kudo giver dictionaries.
+
+        Raises:
+            StravaRateLimitError: If rate limit is exceeded.
+
+        Note:
+            The Strava API does not return athlete IDs for kudos (privacy).
+            The athlete_id field will always be None.
         """
+        from stravalib.exc import RateLimitExceeded, RateLimitTimeout
+
         try:
             kudos = self.client.get_activity_kudos(activity_id)
             result = []
             for k in kudos:
-                # In stravalib v2, kudos returns SummaryAthlete objects
-                # The id attribute should be directly accessible
-                athlete_id = getattr(k, "id", None)
-
-                # If id is None, try alternative access patterns for pydantic v2
-                if athlete_id is None:
-                    # Try model_dump() for pydantic v2 models
-                    if hasattr(k, "model_dump"):
-                        data = k.model_dump()
-                        athlete_id = data.get("id")
-                    # Fallback: try dict() for older pydantic
-                    elif hasattr(k, "dict"):
-                        data = k.dict()
-                        athlete_id = data.get("id")
-
+                # Note: Strava API intentionally does not return athlete IDs
+                # for kudos (privacy). The id will always be None.
                 result.append({
-                    "athlete_id": athlete_id,
+                    "athlete_id": None,  # API limitation - not available
                     "firstname": getattr(k, "firstname", None),
                     "lastname": getattr(k, "lastname", None),
                 })
             return result
+        except (RateLimitExceeded, RateLimitTimeout) as e:
+            raise StravaRateLimitError(str(e)) from e
         except Exception:
             return []
 

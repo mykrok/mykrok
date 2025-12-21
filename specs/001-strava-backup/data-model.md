@@ -177,11 +177,11 @@
 | id | integer | Yes | Comment ID |
 | text | string | Yes | Comment text |
 | created_at | datetime | Yes | Comment timestamp |
-| athlete_id | integer | Yes* | Commenter's athlete ID |
+| athlete_id | integer | No* | Commenter's athlete ID |
 | athlete_firstname | string | No | Commenter's first name |
 | athlete_lastname | string | No | Commenter's last name |
 
-*Note: `athlete_id` should always be present for valid comments. May be null only if the commenter's account has been deleted or made fully private.
+*Note: The Strava API does not return `athlete_id` for comments (privacy restriction). This field will always be `null`. Only firstname/lastname are available.
 
 ---
 
@@ -195,11 +195,11 @@
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| athlete_id | integer | Yes* | Kudos giver's athlete ID |
+| athlete_id | integer | No* | Kudos giver's athlete ID |
 | firstname | string | No | First name |
 | lastname | string | No | Last name |
 
-*Note: `athlete_id` should always be present for valid kudos. May be null only if the kudos giver's account has been deleted or made fully private. The code must use proper attribute access for stravalib v2 pydantic models.
+*Note: The Strava API does not return `athlete_id` for kudos (privacy restriction). This field will always be `null`. Only firstname/lastname are available.
 
 ---
 

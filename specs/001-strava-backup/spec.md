@@ -170,7 +170,7 @@ As an athlete, I want to export my backed-up activities to a self-hosted FitTrac
 - **FR-021**: System MUST generate GPX files with extended data (heart rate, cadence, power) when available in tracking data for FitTrackee upload.
 - **FR-022**: System MUST respect FitTrackee API rate limits (default 300 requests per 5 minutes) with automatic pause and resume.
 - **FR-023**: System MUST provide integration tests for FitTrackee export using a Docker-based FitTrackee instance.
-- **FR-024**: *(Planned)* Map view SHOULD support URL permalinks that encode view state including: map center coordinates, zoom level, selected session/popup, visible layers, and active filters. This enables bookmarking specific views and preserving state across page reloads.
+- **FR-024**: *(Implemented)* Map view supports URL permalinks that encode view state including: map center coordinates, zoom level, selected session/popup, visible layers, and active filters. This enables bookmarking specific views and preserving state across page reloads.
 
 ### Key Entities
 
@@ -300,27 +300,10 @@ The system follows an **MVC (Model-View-Controller)** pattern with clear separat
 
 ## Open Questions / TODO
 
-### Multi-Athlete Aggregation
-
-**Status**: Decision pending
-
-**Context**: The Strava API does not provide endpoints to access followed athletes' activities ([API Reference](https://developers.strava.com/docs/reference/)). The `GET /athlete/activities` endpoint only returns activities for the authenticated athlete. Each athlete must separately OAuth-authorize the application to access their data ([Community discussion](https://communityhub.strava.com/t5/developer-discussions/how-to-pull-activity-information-from-all-athletes-via-api/m-p/14208)).
-
-**Problem**: Users want to view aggregated data from multiple athletes (e.g., family members, training partners) in a single map/stats view.
-
-**Options to evaluate**:
-1. **Merge tool**: Provide CLI command to merge multiple `athl={username}/` directories from separate backups into a combined dataset
-2. **Multi-account auth**: Support authenticating multiple Strava accounts in a single config, syncing each to its own partition
-3. **Import from shared storage**: Allow pointing to remote/shared athlete directories for read-only aggregation
-4. **Stay single-athlete**: Keep current design, document manual aggregation via filesystem
-
-**Decision**: TBD
-
----
-
-### CLI Refactoring - Deprecate Duplicate Functionality
+### 1. CLI Refactoring - Deprecate Duplicate Functionality
 
 **Status**: TODO
+**Priority**: High
 
 **Context**: The codebase has accumulated multiple ways to achieve similar functionality. With the unified web UI (lightweight SPA), some commands are now redundant.
 
@@ -343,9 +326,10 @@ The system follows an **MVC (Model-View-Controller)** pattern with clear separat
 
 ---
 
-### Release Automation with intuit-auto
+### 2. Release Automation with intuit-auto
 
 **Status**: TODO
+**Priority**: Medium
 
 **Context**: Manual releases are error-prone. Automate using intuit-auto like other projects.
 
@@ -366,3 +350,22 @@ The system follows an **MVC (Model-View-Controller)** pattern with clear separat
    - `workflow_dispatch` trigger for manual releases
 4. Set up required GitHub secrets (PyPI token, etc.)
 5. Document release process in CONTRIBUTING.md
+
+---
+
+### 3. Multi-Athlete Aggregation
+
+**Status**: Postponed
+**Priority**: Low
+
+**Context**: The Strava API does not provide endpoints to access followed athletes' activities ([API Reference](https://developers.strava.com/docs/reference/)). The `GET /athlete/activities` endpoint only returns activities for the authenticated athlete. Each athlete must separately OAuth-authorize the application to access their data ([Community discussion](https://communityhub.strava.com/t5/developer-discussions/how-to-pull-activity-information-from-all-athletes-via-api/m-p/14208)).
+
+**Problem**: Users want to view aggregated data from multiple athletes (e.g., family members, training partners) in a single map/stats view.
+
+**Options to evaluate**:
+1. **Merge tool**: Provide CLI command to merge multiple `athl={username}/` directories from separate backups into a combined dataset
+2. **Multi-account auth**: Support authenticating multiple Strava accounts in a single config, syncing each to its own partition
+3. **Import from shared storage**: Allow pointing to remote/shared athlete directories for read-only aggregation
+4. **Stay single-athlete**: Keep current design, document manual aggregation via filesystem
+
+**Decision**: TBD - revisit after higher priority items complete

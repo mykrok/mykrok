@@ -665,6 +665,8 @@ class BackupService:
 
             # Fetch fresh comments and kudos
             try:
+                from strava_backup.services.strava import StravaRateLimitError
+
                 new_comments = self.strava.get_activity_comments(activity.id)
                 new_kudos = self.strava.get_activity_kudos(activity.id)
 
@@ -680,6 +682,17 @@ class BackupService:
 
                 # Small delay to be nice to API
                 time.sleep(0.2)
+
+            except StravaRateLimitError as e:
+                # Rate limit hit - stop processing to avoid data loss
+                logger.warning("Rate limit exceeded, stopping refresh: %s", e)
+                log(f"Rate limit exceeded - stopping to preserve data", 0)
+                errors.append({
+                    "session": session_key,
+                    "activity_id": activity.id,
+                    "error": f"Rate limit: {e}",
+                })
+                break  # Stop processing more activities
 
             except Exception as e:
                 logger.warning("Failed to refresh social data for %s: %s", session_key, e)
