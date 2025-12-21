@@ -289,9 +289,29 @@ The system follows an **MVC (Model-View-Controller)** pattern with clear separat
 - Integration tests for FitTrackee export using Docker-based FitTrackee instance
 
 ### Out of Scope
-- Backup of activities from followed athletes (API limitation)
+- Backup of activities from followed athletes (API limitation - see TODO below)
 - Backup of club activities with full athlete identification (API limitation)
 - Real-time sync with Strava (batch backup model only)
 - Upload/sync back to Strava
 - Social features (commenting, giving kudos through this tool)
 - Mobile app version (command-line and local web interface only)
+
+---
+
+## Open Questions / TODO
+
+### Multi-Athlete Aggregation
+
+**Status**: Decision pending
+
+**Context**: The Strava API does not provide endpoints to access followed athletes' activities ([API Reference](https://developers.strava.com/docs/reference/)). The `GET /athlete/activities` endpoint only returns activities for the authenticated athlete. Each athlete must separately OAuth-authorize the application to access their data ([Community discussion](https://communityhub.strava.com/t5/developer-discussions/how-to-pull-activity-information-from-all-athletes-via-api/m-p/14208)).
+
+**Problem**: Users want to view aggregated data from multiple athletes (e.g., family members, training partners) in a single map/stats view.
+
+**Options to evaluate**:
+1. **Merge tool**: Provide CLI command to merge multiple `athl={username}/` directories from separate backups into a combined dataset
+2. **Multi-account auth**: Support authenticating multiple Strava accounts in a single config, syncing each to its own partition
+3. **Import from shared storage**: Allow pointing to remote/shared athlete directories for read-only aggregation
+4. **Stay single-athlete**: Keep current design, document manual aggregation via filesystem
+
+**Decision**: TBD
