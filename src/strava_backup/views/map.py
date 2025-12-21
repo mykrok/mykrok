@@ -2579,8 +2579,17 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             navigate(view) {{
                 // Preserve athlete when navigating
                 const currentAthlete = document.getElementById('athlete-selector')?.value || '';
-                URLState.update({{ view, athlete: currentAthlete }});
-                window.location.hash = URLState.encode({{ view, athlete: currentAthlete }});
+
+                // Build new hash - don't preserve zoom/lat/lng when changing views
+                // as they are view-specific (map position shouldn't carry to stats/sessions)
+                const params = new URLSearchParams();
+                if (currentAthlete) params.set('a', currentAthlete);
+                const queryStr = params.toString();
+                const newHash = '#/' + view + (queryStr ? '?' + queryStr : '');
+
+                // Set location.hash directly to trigger hashchange event
+                // Don't use URLState.update() as it uses replaceState which doesn't trigger hashchange
+                location.hash = newHash;
             }},
 
             showView(view) {{

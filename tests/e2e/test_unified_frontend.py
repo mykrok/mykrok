@@ -494,3 +494,87 @@ class TestFullScreenSessionView:
         assert "#/session/" in current_url
         # Should not have been corrupted to query params format
         assert "?z=" not in current_url or "#/session/" in current_url.split("?")[0]
+
+
+@pytest.mark.ai_generated
+class TestNavigation:
+    """Test tab navigation between views."""
+
+    def test_stats_tab_navigates_from_map(self, demo_server: str, page: Page) -> None:
+        """Verify clicking Stats tab from Map view navigates to Stats."""
+        page.goto(f"{demo_server}/strava-backup.html#/map")
+        page.wait_for_selector("#view-map.active", timeout=10000)
+
+        # Click Stats tab
+        page.locator(".nav-tab[data-view='stats']").click()
+
+        # Should navigate to stats view (without needing refresh)
+        page.wait_for_selector("#view-stats.active", timeout=5000)
+        assert "#/stats" in page.url
+
+    def test_stats_tab_navigates_from_sessions(
+        self, demo_server: str, page: Page
+    ) -> None:
+        """Verify clicking Stats tab from Sessions view navigates to Stats."""
+        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.wait_for_selector("#view-sessions.active", timeout=10000)
+
+        # Click Stats tab
+        page.locator(".nav-tab[data-view='stats']").click()
+
+        # Should navigate to stats view (without needing refresh)
+        page.wait_for_selector("#view-stats.active", timeout=5000)
+        assert "#/stats" in page.url
+
+    def test_map_from_stats_uses_reasonable_zoom(
+        self, demo_server: str, page: Page
+    ) -> None:
+        """Verify navigating to Map from Stats doesn't use extreme zoom levels."""
+        # First go to stats with some zoom params in URL (simulating prior navigation)
+        page.goto(f"{demo_server}/strava-backup.html#/stats?z=19&lat=18.5989&lng=15.4742")
+        page.wait_for_selector("#view-stats.active", timeout=10000)
+
+        # Click Map tab
+        page.locator(".nav-tab[data-view='map']").click()
+        page.wait_for_selector("#view-map.active", timeout=5000)
+
+        # URL should NOT have the extreme zoom level from stats
+        current_url = page.url
+        # Either no zoom param, or a reasonable zoom (not 19)
+        if "z=" in current_url:
+            import re
+
+            zoom_match = re.search(r"z=(\d+)", current_url)
+            if zoom_match:
+                zoom = int(zoom_match.group(1))
+                # Zoom 19 is street-level, too high for general navigation
+                # Should be world view (3) or a reasonable default
+                assert zoom < 15, f"Zoom level {zoom} is too high for default navigation"
+
+    def test_sessions_tab_navigates_from_stats(
+        self, demo_server: str, page: Page
+    ) -> None:
+        """Verify clicking Sessions tab from Stats view navigates properly."""
+        page.goto(f"{demo_server}/strava-backup.html#/stats")
+        page.wait_for_selector("#view-stats.active", timeout=10000)
+
+        # Click Sessions tab
+        page.locator(".nav-tab[data-view='sessions']").click()
+
+        # Should navigate to sessions view
+        page.wait_for_selector("#view-sessions.active", timeout=5000)
+        assert "#/sessions" in page.url
+
+    def test_map_tab_navigates_from_sessions(
+        self, demo_server: str, page: Page
+    ) -> None:
+        """Verify clicking Map tab from Sessions view navigates properly."""
+        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.wait_for_selector("#view-sessions.active", timeout=10000)
+
+        # Click Map tab
+        page.locator(".nav-tab[data-view='map']").click()
+
+        # Should navigate to map view
+        page.wait_for_selector("#view-map.active", timeout=5000)
+        assert "#/map" in page.url
