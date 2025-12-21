@@ -2576,6 +2576,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             loadedPhotos: new Set(),
             allMarkers: [],
             allSessions: [],
+            sessionsByAthlete: {{}},
             athleteStats: {{}},
             currentAthlete: '',
             totalSessions: 0,
@@ -2892,6 +2893,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                         const username = athlete.username;
                         if (!username) continue;
 
+                        // Initialize sessionsByAthlete for this athlete
+                        this.sessionsByAthlete[username] = [];
+
                         try {{
                             const sessionsResp = await fetch(`athl=${{username}}/sessions.tsv`);
                             if (!sessionsResp.ok) continue;
@@ -2910,7 +2914,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
                                 // Store full session data for SessionsView
                                 const type = session.sport || session.type || 'Other';
-                                this.allSessions.push({{
+                                const sessionData = {{
                                     athlete: username,
                                     datetime: session.datetime,
                                     name: session.name || 'Activity',
@@ -2922,7 +2926,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                                     has_gps: session.has_gps,
                                     center_lat: session.center_lat,
                                     center_lng: session.center_lng
-                                }});
+                                }};
+                                this.allSessions.push(sessionData);
+                                this.sessionsByAthlete[username].push(sessionData);
 
                                 if (isNaN(lat) || isNaN(lng)) continue;
 
@@ -3427,7 +3433,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
                 // Find sessions from other athletes with the same datetime
                 const sharedWith = [];
-                for (const [athleteUsername, sessions] of Object.entries(MapView.sessionsByAthlete)) {{
+                for (const [athleteUsername, sessions] of Object.entries(MapView.sessionsByAthlete || {{}})) {{
                     if (athleteUsername === currentAthlete) continue;
 
                     const match = sessions.find(s => s.datetime === sessionId);
