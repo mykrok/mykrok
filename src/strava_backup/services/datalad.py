@@ -292,11 +292,15 @@ __pycache__/
 !README.html
 """
 
-# Template for .gitattributes - forces config file to git-annex
+# Template for .gitattributes - forces certain files to git-annex
 GITATTRIBUTES_TEMPLATE = """\
 # Force .strava-backup/config.toml to be tracked by git-annex (contains sensitive data)
 # This ensures API credentials are not stored in plain git history
 .strava-backup/config.toml annex.largefiles=anything
+
+# Force log files to git-annex to avoid bloating .git/objects
+*.log annex.largefiles=anything
+logs/**/*.log annex.largefiles=anything
 """
 
 

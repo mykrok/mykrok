@@ -257,6 +257,47 @@ def update_dataset_files(dataset_dir: Path, dry_run: bool = False) -> list[str]:
     return updated_files
 
 
+# Gitattributes rule for log files (to avoid bloating .git/objects)
+LOG_GITATTRIBUTES_RULE = """\
+# Force log files to git-annex to avoid bloating .git/objects
+*.log annex.largefiles=anything
+logs/**/*.log annex.largefiles=anything
+"""
+
+
+def add_log_gitattributes_rule(dataset_dir: Path, dry_run: bool = False) -> bool:
+    """Add gitattributes rule to force log files to git-annex.
+
+    This prevents log files from bloating .git/objects by routing them
+    to git-annex instead.
+
+    Args:
+        dataset_dir: Dataset root directory containing .gitattributes.
+        dry_run: If True, only report what would be done.
+
+    Returns:
+        True if rule was added (or would be added), False if already present.
+    """
+    gitattributes_path = dataset_dir / ".gitattributes"
+
+    # Check if .gitattributes exists and already has the rule
+    if gitattributes_path.exists():
+        content = gitattributes_path.read_text(encoding="utf-8")
+        # Check if the essential rule is already present
+        if "*.log annex.largefiles" in content:
+            return False
+    else:
+        content = ""
+
+    if dry_run:
+        return True
+
+    # Append the rule
+    new_content = content.rstrip() + "\n\n" + LOG_GITATTRIBUTES_RULE
+    gitattributes_path.write_text(new_content, encoding="utf-8")
+    return True
+
+
 def run_full_migration(
     data_dir: Path,
     dry_run: bool = False,
@@ -265,8 +306,9 @@ def run_full_migration(
 
     1. Rename sub= directories to athl=
     2. Update Makefile and README.md to use athl=
-    3. Generate athletes.tsv
-    4. Add center coords to sessions.tsv
+    3. Add .gitattributes rule for log files (route to git-annex)
+    4. Generate athletes.tsv
+    5. Add center coords to sessions.tsv
 
     Args:
         data_dir: Base data directory.
@@ -278,6 +320,7 @@ def run_full_migration(
     results: dict[str, Any] = {
         "prefix_renames": [],
         "dataset_files_updated": [],
+        "log_gitattributes_added": False,
         "athletes_tsv": None,
         "sessions_updated": 0,
     }
@@ -296,12 +339,15 @@ def run_full_migration(
         dataset_dir = data_dir
     results["dataset_files_updated"] = update_dataset_files(dataset_dir, dry_run=dry_run)
 
+    # 3. Add log file gitattributes rule
+    results["log_gitattributes_added"] = add_log_gitattributes_rule(dataset_dir, dry_run=dry_run)
+
     if not dry_run:
-        # 3. Generate athletes.tsv
+        # 4. Generate athletes.tsv
         athletes_path = generate_athletes_tsv(data_dir)
         results["athletes_tsv"] = str(athletes_path)
 
-        # 4. Add center coords
+        # 5. Add center coords
         results["sessions_updated"] = add_center_coords_to_sessions(data_dir)
 
     return results
