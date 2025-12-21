@@ -1,0 +1,2 @@
+# This directory contains auto-generated screenshots.
+# Run `tox -e screenshots` or `python scripts/generate_screenshots.py` to regenerate.
