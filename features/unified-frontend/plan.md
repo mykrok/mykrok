@@ -542,3 +542,215 @@ const URLState = {
 
 ### Priority: Low (Phase 7+)
 This enhancement can be implemented after core features are complete.
+
+---
+
+## Future Enhancement: Full-Screen Session View
+
+**Goal**: Allow viewing session details in full-screen mode with permalinks for sharing.
+
+### Current Behavior
+- Session details appear in a 400px side panel
+- Clicking a session in sessions list opens the panel
+- Clicking a map marker shows a popup, then can open panel
+
+### Proposed Enhancement
+
+#### New Route: `#/session/{athlete}/{datetime}`
+Add a dedicated full-page session view accessible via:
+- `#/session/alice/20241218T063000` - Direct permalink
+- Click "Expand" button in side panel
+- Click "View Details" in map popup (optional)
+
+#### Full-Screen Layout
+```html
+<div id="view-session" class="view">
+  <header class="session-header">
+    <button class="back-btn" onclick="history.back()">← Back</button>
+    <h1 class="session-title">{activity name}</h1>
+    <div class="session-meta">{date} • {type} • {athlete}</div>
+  </header>
+
+  <div class="session-content">
+    <!-- Stats cards - larger, more prominent -->
+    <section class="session-stats">
+      <div class="stat-card large">...</div>
+    </section>
+
+    <!-- Full-width map with track -->
+    <section class="session-map-full">
+      <div id="session-map" style="height: 400px;"></div>
+    </section>
+
+    <!-- Data streams charts (if available) -->
+    <section class="session-charts">
+      <canvas id="hr-chart"></canvas>
+      <canvas id="elevation-chart"></canvas>
+    </section>
+
+    <!-- Photo gallery - grid layout -->
+    <section class="session-photos">
+      <div class="photo-grid">...</div>
+    </section>
+
+    <!-- Social section -->
+    <section class="session-social">
+      <div class="kudos-list">...</div>
+      <div class="comments-list">...</div>
+    </section>
+
+    <!-- Cross-athlete links -->
+    <section class="session-shared" id="shared-athletes">
+      Also ran with: <a href="#/session/bob/20241218T063000">Bob</a>
+    </section>
+  </div>
+</div>
+```
+
+#### Fragment IDs for Deep Linking
+Support scrolling to specific sections:
+- `#/session/alice/20241218T063000#map` - Scroll to map
+- `#/session/alice/20241218T063000#photos` - Scroll to photos
+- `#/session/alice/20241218T063000#social` - Scroll to kudos/comments
+
+#### Router Updates
+```javascript
+const Router = {
+  routes: {
+    map: showMapView,
+    sessions: showSessionsView,
+    stats: showStatsView,
+    session: showFullSessionView  // New route
+  },
+
+  navigate() {
+    const hash = location.hash.slice(2) || 'map';
+    const [view, ...params] = hash.split('/');
+    const fragment = params[params.length - 1]?.split('#')[1];
+
+    if (view === 'session' && params.length >= 2) {
+      const [athlete, datetime] = params;
+      this.routes.session(athlete, datetime.split('#')[0], fragment);
+    } else {
+      this.routes[view]?.(params);
+    }
+  }
+};
+```
+
+#### UI Integration
+- Add "Expand" icon button to side panel header
+- Side panel close button navigates back (not just hides)
+- Sessions list row click: opens side panel
+- Sessions list row double-click: opens full view
+- Mobile: always use full view (no side panel)
+
+### Estimated LOC: ~400 (JS) + ~200 (CSS)
+
+### Priority: Medium (Phase 7)
+Should be implemented after permalinks/deep linking (shares URL infrastructure).
+
+---
+
+## Future Enhancement: Data Streams Visualization (Phase 8)
+
+**Goal**: Rich visualization of activity data streams (heart rate, cadence, power, elevation, speed) with time-series charts and analytical scatter plots.
+
+### TODO: UX Design Required
+
+**Action**: Engage UX designer to create comprehensive design for data streams visualization, including:
+
+1. **Time-Series Charts**
+   - Primary X-axis: time (or distance)
+   - Elevation profile as grey background fill (standard cycling/running convention)
+   - Heart rate, cadence, power as colored line overlays
+   - Synchronized hover/crosshair showing values at cursor position
+   - Zoom/pan capabilities for detailed inspection
+
+2. **Multi-Stream Overlay Options**
+   - Toggle individual streams on/off
+   - Dual Y-axis support (e.g., HR on left, power on right)
+   - Color coding consistent with activity type colors
+
+3. **Analytical Scatter Plots**
+   - Heart rate vs. power (cycling power zones)
+   - Heart rate vs. speed/pace
+   - Cadence vs. speed
+   - Elevation vs. heart rate
+   - User-selectable X/Y axes
+
+4. **Basic Analytics**
+   - Zone distribution (HR zones, power zones)
+   - Time-in-zone pie/bar charts
+   - Moving averages (30s, 60s rolling)
+   - Lap/split markers on timeline
+
+5. **Integration Points**
+   - Session detail panel (compact view)
+   - Full-screen session view (expanded charts)
+   - Map synchronization (click on chart → highlight position on map)
+
+6. **Mobile Considerations**
+   - Touch-friendly zoom/pan
+   - Swipe between different chart views
+   - Landscape orientation for better chart viewing
+
+### Technical Considerations
+- Canvas-based rendering for performance (large datasets)
+- Lazy loading of stream data (only when chart visible)
+- Downsampling for overview, full resolution on zoom
+- Consider lightweight charting library (Chart.js, uPlot) vs. custom Canvas
+
+### Priority: Low (Phase 8)
+Depends on full-screen session view (Phase 7) for optimal presentation.
+
+---
+
+## TODO: Unified Charting Framework (Phase 8 Prerequisite)
+
+**Goal**: Adopt a consistent, interactive charting library across all views to replace the current basic Canvas charts.
+
+### Current State
+- Stats view uses basic Canvas API for bar charts
+- Charts are non-interactive (no hover tooltips, no click actions)
+- Labels and text are not as sharp as vector-based rendering
+- Inconsistent with the modern feel of the rest of the UI
+
+### Proposed Solution
+Evaluate and adopt a lightweight charting library that provides:
+
+1. **Sharp Vector Rendering**: SVG or high-DPI Canvas with proper text handling
+2. **Interactivity**: Hover tooltips, click handlers, zoom/pan
+3. **Responsive**: Auto-resize on container changes
+4. **Small Bundle Size**: Target < 50KB gzipped
+5. **No Dependencies**: Pure JavaScript, no jQuery/React required
+
+### Candidate Libraries
+| Library | Size | Features | Notes |
+|---------|------|----------|-------|
+| **uPlot** | ~10KB | Time-series focus, very fast | Good for data streams |
+| **Chart.js** | ~60KB | Full-featured, great docs | Popular, well-maintained |
+| **Frappe Charts** | ~18KB | Simple, beautiful | Limited customization |
+| **Chartist.js** | ~10KB | SVG-based, responsive | Less active development |
+
+### Implementation Approach
+1. **Replace Stats View charts first** (lower risk, visible improvement)
+2. **Use same library for data streams** (consistency, shared code)
+3. **Shared theme/config** for consistent colors, fonts, spacing
+
+### Charts to Upgrade
+
+**Stats View**:
+- Monthly activity chart → Interactive line/bar with tooltips
+- Activity type distribution → Interactive horizontal bar
+- Distance/time trends → Multi-line chart with legends
+
+**Sessions View (Data Streams)**:
+- Elevation profile (grey background)
+- Heart rate overlay
+- Cadence overlay
+- Power overlay (when available)
+- Synchronized cursor across all charts
+
+### Priority: Medium-High
+Should be addressed before Phase 8 data streams to establish the charting foundation.

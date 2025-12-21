@@ -1223,6 +1223,16 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             border-radius: 5px;
         }}
 
+        .info-link {{
+            color: #FC4C02;
+            text-decoration: none;
+            font-weight: 500;
+        }}
+
+        .info-link:hover {{
+            text-decoration: underline;
+        }}
+
         .legend {{
             line-height: 18px;
             color: #555;
@@ -1267,6 +1277,19 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             margin-top: 8px;
         }}
 
+        .popup-activity-link {{
+            display: inline-block;
+            margin-top: 6px;
+            color: #FC4C02;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 500;
+        }}
+
+        .popup-activity-link:hover {{
+            text-decoration: underline;
+        }}
+
         .loading {{
             position: absolute;
             top: 50%;
@@ -1281,6 +1304,134 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
         .loading.hidden {{
             display: none;
+        }}
+
+        /* Loading spinner animation */
+        .loading::before {{
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #fc4c02;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }}
+
+        @keyframes spin {{
+            to {{ transform: rotate(360deg); }}
+        }}
+
+        /* Skeleton loading animation */
+        @keyframes shimmer {{
+            0% {{ background-position: -200% 0; }}
+            100% {{ background-position: 200% 0; }}
+        }}
+
+        .skeleton {{
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+        }}
+
+        .skeleton-row {{
+            display: flex;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid #eee;
+        }}
+
+        .skeleton-cell {{
+            height: 16px;
+            flex: 1;
+        }}
+
+        .skeleton-cell:first-child {{
+            flex: 2;
+        }}
+
+        /* Empty state styling */
+        .empty-state {{
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            text-align: center;
+            color: #666;
+        }}
+
+        .empty-state svg {{
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            fill: #ccc;
+        }}
+
+        .empty-state h3 {{
+            margin: 0 0 8px 0;
+            color: #333;
+            font-size: 18px;
+        }}
+
+        .empty-state p {{
+            margin: 0;
+            font-size: 14px;
+            max-width: 300px;
+        }}
+
+        .empty-state .clear-filters-btn {{
+            margin-top: 16px;
+            padding: 8px 16px;
+            background: #fc4c02;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }}
+
+        .empty-state .clear-filters-btn:hover {{
+            background: #e04400;
+        }}
+
+        /* Loading overlay for initial app load */
+        .loading-overlay {{
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            transition: opacity 0.3s ease-out;
+        }}
+
+        .loading-overlay.hidden {{
+            opacity: 0;
+            pointer-events: none;
+        }}
+
+        .loading-overlay .spinner {{
+            width: 48px;
+            height: 48px;
+            border: 4px solid #f0f0f0;
+            border-top-color: #fc4c02;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }}
+
+        .loading-overlay p {{
+            margin-top: 16px;
+            color: #666;
+            font-size: 14px;
         }}
 
         /* ===== Sessions View ===== */
@@ -1701,6 +1852,260 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             background: #e04400;
         }}
 
+        .detail-shared {{
+            margin-top: 16px;
+        }}
+
+        .shared-runs {{
+            background: #e3f2fd;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 13px;
+            color: #1565c0;
+        }}
+
+        .shared-athlete-link {{
+            color: #1565c0;
+            font-weight: 600;
+            text-decoration: none;
+        }}
+
+        .shared-athlete-link:hover {{
+            text-decoration: underline;
+        }}
+
+        /* ===== Full-Screen Session View ===== */
+        .full-session-container {{
+            height: 100%;
+            overflow-y: auto;
+            background: #f5f5f5;
+        }}
+
+        .full-session-header {{
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 24px;
+            background: #fff;
+            border-bottom: 1px solid #ddd;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }}
+
+        .full-session-header .back-btn {{
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: #f5f5f5;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #333;
+        }}
+
+        .full-session-header .back-btn:hover {{
+            background: #e8e8e8;
+        }}
+
+        .full-session-header .back-btn svg {{
+            fill: currentColor;
+        }}
+
+        .full-session-title {{
+            flex: 1;
+        }}
+
+        .full-session-title h1 {{
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+        }}
+
+        .full-session-meta {{
+            font-size: 13px;
+            color: #666;
+            margin-top: 4px;
+        }}
+
+        .header-btn {{
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-left: 8px;
+            transition: background 0.15s;
+        }}
+
+        .header-btn:hover {{
+            background: #e0e0e0;
+        }}
+
+        .header-btn svg {{
+            fill: #555;
+        }}
+
+        .header-btn.copied {{
+            background: #4CAF50;
+        }}
+
+        .header-btn.copied svg {{
+            fill: white;
+        }}
+
+        .map-actions {{
+            display: flex;
+            justify-content: center;
+            padding: 16px 0;
+        }}
+
+        .action-btn-primary {{
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-width: 160px;
+            padding: 12px 24px;
+            background: #fc4c02;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s;
+        }}
+
+        .action-btn-primary:hover {{
+            background: #e04400;
+        }}
+
+        .action-btn-primary svg {{
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }}
+
+        .full-session-content {{
+            padding: 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }}
+
+        .full-session-stats {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }}
+
+        .full-session-stats .stat-card {{
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }}
+
+        .full-session-stats .stat-value {{
+            font-size: 28px;
+            font-weight: 700;
+            color: #333;
+        }}
+
+        .full-session-stats .stat-label {{
+            font-size: 13px;
+            color: #888;
+            margin-top: 4px;
+        }}
+
+        .full-session-map {{
+            background: #fff;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }}
+
+        #full-session-map-container {{
+            height: 400px;
+        }}
+
+        .full-session-streams,
+        .full-session-photos,
+        .full-session-social,
+        .full-session-shared {{
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }}
+
+        .full-session-section-title {{
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0 0 16px 0;
+            color: #333;
+        }}
+
+        .full-session-photos .photo-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+        }}
+
+        .full-session-photos .photo-item img {{
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+            cursor: pointer;
+        }}
+
+        .expand-btn {{
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            background: transparent;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 8px;
+        }}
+
+        .expand-btn:hover {{
+            background: rgba(0,0,0,0.1);
+        }}
+
+        .expand-btn svg {{
+            fill: #666;
+        }}
+
+        @media (max-width: 768px) {{
+            .full-session-header {{
+                padding: 12px 16px;
+            }}
+            .full-session-content {{
+                padding: 16px;
+            }}
+            .full-session-stats {{
+                grid-template-columns: repeat(2, 1fr);
+            }}
+            #full-session-map-container {{
+                height: 300px;
+            }}
+        }}
+
         /* ===== Stats View ===== */
         .stats-container {{
             height: 100%;
@@ -1847,6 +2252,12 @@ def generate_lightweight_map(_data_dir: Path) -> str:
     </style>
 </head>
 <body>
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <p>Loading activity data...</p>
+    </div>
+
     <!-- App Header -->
     <header class="app-header">
         <a href="https://github.com/yarikoptic/strava-backup" class="app-logo" target="_blank">
@@ -1903,6 +2314,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 <div class="detail-header">
                     <button id="close-detail" class="close-btn">&times;</button>
                     <h2 id="detail-name">Activity Name</h2>
+                    <button id="expand-detail" class="expand-btn" title="Open full view">
+                        <svg viewBox="0 0 24 24" width="18" height="18"><path d="M21 11V3h-8l3.29 3.29-10 10L3 13v8h8l-3.29-3.29 10-10L21 11z"/></svg>
+                    </button>
                 </div>
                 <div class="detail-content">
                     <div class="detail-meta" id="detail-meta"></div>
@@ -1911,6 +2325,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     <div class="detail-streams" id="detail-streams"></div>
                     <div class="detail-photos" id="detail-photos"></div>
                     <div class="detail-social" id="detail-social"></div>
+                    <div class="detail-shared" id="detail-shared"></div>
                 </div>
             </div>
         </div>
@@ -1956,6 +2371,41 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 </div>
             </div>
         </div>
+
+        <!-- Full-Screen Session View -->
+        <div id="view-session" class="view">
+            <div class="full-session-container">
+                <header class="full-session-header">
+                    <button class="back-btn" onclick="history.back()">
+                        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                        Back
+                    </button>
+                    <div class="full-session-title">
+                        <h1 id="full-session-name">Activity Name</h1>
+                        <div class="full-session-meta" id="full-session-meta"></div>
+                    </div>
+                    <button id="full-session-share" class="header-btn" title="Copy permalink" aria-label="Share activity">
+                        <svg viewBox="0 0 24 24" width="18" height="18"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
+                    </button>
+                </header>
+                <div class="full-session-content">
+                    <section class="full-session-stats" id="full-session-stats"></section>
+                    <section class="full-session-map">
+                        <div id="full-session-map-container"></div>
+                        <div class="map-actions">
+                            <button id="full-session-map-btn" class="action-btn-primary">
+                                <svg viewBox="0 0 24 24"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+                                View on Map
+                            </button>
+                        </div>
+                    </section>
+                    <section class="full-session-streams" id="full-session-streams"></section>
+                    <section class="full-session-photos" id="full-session-photos"></section>
+                    <section class="full-session-social" id="full-session-social"></section>
+                    <section class="full-session-shared" id="full-session-shared"></section>
+                </div>
+            </div>
+        </div>
     </main>
 
     <!-- Mobile Bottom Navigation -->
@@ -1980,12 +2430,66 @@ def generate_lightweight_map(_data_dir: Path) -> str:
     <script type="module">
         import {{ parquetReadObjects }} from './assets/hyparquet/index.js';
 
+        // ===== URL State Manager =====
+        const URLState = {{
+            // Encode state to URL hash with query params
+            encode(state) {{
+                const params = new URLSearchParams();
+                if (state.athlete) params.set('a', state.athlete);
+                if (state.zoom) params.set('z', state.zoom);
+                if (state.lat) params.set('lat', state.lat.toFixed(4));
+                if (state.lng) params.set('lng', state.lng.toFixed(4));
+                if (state.session) params.set('s', state.session);
+                if (state.search) params.set('q', state.search);
+                if (state.type) params.set('t', state.type);
+                const queryStr = params.toString();
+                return '#/' + state.view + (queryStr ? '?' + queryStr : '');
+            }},
+
+            // Decode state from URL hash
+            decode() {{
+                const hash = location.hash.slice(2) || 'map';
+                const [path, queryStr] = hash.split('?');
+                const params = new URLSearchParams(queryStr || '');
+                return {{
+                    view: path.split('/')[0] || 'map',
+                    athlete: params.get('a') || '',
+                    zoom: params.get('z') ? parseInt(params.get('z')) : null,
+                    lat: params.get('lat') ? parseFloat(params.get('lat')) : null,
+                    lng: params.get('lng') ? parseFloat(params.get('lng')) : null,
+                    session: params.get('s') || '',
+                    search: params.get('q') || '',
+                    type: params.get('t') || ''
+                }};
+            }},
+
+            // Update URL without triggering navigation
+            update(partialState) {{
+                // Don't update URL if we're on a full-screen session route
+                // Session routes use a different format: #/session/athlete/datetime
+                const hash = location.hash;
+                if (hash.startsWith('#/session/') && hash.split('/').length >= 3) {{
+                    return; // Preserve session permalink
+                }}
+
+                const current = this.decode();
+                const newState = {{ ...current, ...partialState }};
+                const newHash = this.encode(newState);
+                // Use replaceState to avoid cluttering browser history
+                history.replaceState(null, '', newHash);
+            }}
+        }};
+
         // ===== Router =====
         const Router = {{
-            views: ['map', 'sessions', 'stats'],
+            views: ['map', 'sessions', 'stats', 'session'],
             currentView: 'map',
+            initialState: null,
 
             init() {{
+                // Decode initial state from URL
+                this.initialState = URLState.decode();
+
                 // Handle hash changes
                 window.addEventListener('hashchange', () => this.handleRoute());
 
@@ -2002,18 +2506,90 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             }},
 
             handleRoute() {{
-                const hash = window.location.hash.slice(1) || '/map';
-                const view = hash.replace('/', '') || 'map';
+                const hash = location.hash.slice(2) || 'map';
+                const parts = hash.split('/');
+                const view = parts[0].split('?')[0];
 
-                if (this.views.includes(view)) {{
+                // Handle full-screen session route: #/session/athlete/datetime
+                if (view === 'session' && parts.length >= 3) {{
+                    const athlete = parts[1];
+                    const datetime = parts[2].split('?')[0];
+                    this.showView('session');
+                    FullSessionView.show(athlete, datetime);
+                    return;
+                }}
+
+                if (this.views.includes(view) && view !== 'session') {{
+                    const state = URLState.decode();
                     this.showView(view);
-                }} else {{
+                    // Apply state after view switch
+                    this.applyState(state);
+                }} else if (!this.views.includes(view)) {{
                     this.navigate('map');
                 }}
             }},
 
+            applyState(state) {{
+                // Apply athlete filter if specified
+                if (state.athlete) {{
+                    const selector = document.getElementById('athlete-selector');
+                    if (selector) {{
+                        selector.value = state.athlete;
+                        selector.dispatchEvent(new Event('change'));
+                    }}
+                }}
+
+                // Apply map position if on map view
+                if (state.view === 'map' && state.zoom && state.lat && state.lng) {{
+                    if (MapView.map) {{
+                        MapView.map.setView([state.lat, state.lng], state.zoom);
+                    }}
+                }}
+
+                // Apply session filters
+                if (state.view === 'sessions') {{
+                    if (state.search) {{
+                        const searchInput = document.getElementById('session-search');
+                        if (searchInput) {{
+                            searchInput.value = state.search;
+                            SessionsView.filters.search = state.search.toLowerCase();
+                        }}
+                    }}
+                    if (state.type) {{
+                        const typeFilter = document.getElementById('type-filter');
+                        if (typeFilter) {{
+                            typeFilter.value = state.type;
+                            SessionsView.filters.type = state.type;
+                        }}
+                    }}
+                    // Trigger re-render after applying filters
+                    if (state.search || state.type) {{
+                        SessionsView.applyFiltersAndRender();
+                    }}
+                }}
+
+                // Open session detail if specified
+                if (state.session && state.athlete) {{
+                    setTimeout(() => {{
+                        SessionsView.showDetail(state.athlete, state.session);
+                    }}, 500);
+                }}
+            }},
+
             navigate(view) {{
-                window.location.hash = '/' + view;
+                // Preserve athlete when navigating
+                const currentAthlete = document.getElementById('athlete-selector')?.value || '';
+
+                // Build new hash - don't preserve zoom/lat/lng when changing views
+                // as they are view-specific (map position shouldn't carry to stats/sessions)
+                const params = new URLSearchParams();
+                if (currentAthlete) params.set('a', currentAthlete);
+                const queryStr = params.toString();
+                const newHash = '#/' + view + (queryStr ? '?' + queryStr : '');
+
+                // Set location.hash directly to trigger hashchange event
+                // Don't use URLState.update() as it uses replaceState which doesn't trigger hashchange
+                location.hash = newHash;
             }},
 
             showView(view) {{
@@ -2059,6 +2635,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             loadedPhotos: new Set(),
             allMarkers: [],
             allSessions: [],
+            sessionsByAthlete: {{}},
             athleteStats: {{}},
             currentAthlete: '',
             totalSessions: 0,
@@ -2066,6 +2643,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             totalPhotos: 0,
             infoControl: null,
             AUTO_LOAD_ZOOM: 11,
+            restoringFromURL: false,
 
             // Color palette for athletes
             ATHLETE_PALETTE: ['#2196F3', '#4CAF50', '#9C27B0', '#FF9800', '#00BCD4', '#E91E63', '#795548', '#607D8B'],
@@ -2079,8 +2657,18 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             }},
 
             init() {{
-                // Initialize map
-                this.map = L.map('map', {{ preferCanvas: true }}).setView([40, -100], 4);
+                // Check if we should restore map position from URL
+                const urlState = Router.initialState;
+                let initialLat = 20, initialLng = 0, initialZoom = 3;
+                if (urlState && urlState.zoom && urlState.lat && urlState.lng) {{
+                    initialLat = urlState.lat;
+                    initialLng = urlState.lng;
+                    initialZoom = urlState.zoom;
+                    this.restoringFromURL = true;
+                }}
+
+                // Initialize map with URL position or world view default
+                this.map = L.map('map', {{ preferCanvas: true }}).setView([initialLat, initialLng], initialZoom);
                 window.mapInstance = this.map;
 
                 L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
@@ -2110,9 +2698,21 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     this.updateInfo();
                 }});
 
+                // Update URL when map position changes (debounced)
+                let urlUpdateTimeout = null;
+                this.map.on('moveend', () => {{
+                    clearTimeout(urlUpdateTimeout);
+                    urlUpdateTimeout = setTimeout(() => {{
+                        const center = this.map.getCenter();
+                        const zoom = this.map.getZoom();
+                        URLState.update({{ zoom, lat: center.lat, lng: center.lng }});
+                    }}, 500);
+                }});
+
                 // Set up athlete selector
                 document.getElementById('athlete-selector').addEventListener('change', (e) => {{
                     this.filterByAthlete(e.target.value);
+                    URLState.update({{ athlete: e.target.value }});
                 }});
 
                 // Start loading sessions
@@ -2301,6 +2901,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                                 <div class="photo-meta">
                                     <strong>${{sessionName}}</strong><br>
                                     ${{session.substring(0, 8)}}
+                                    <br><a href="#/session/${{athlete}}/${{session}}" class="popup-activity-link">View Activity →</a>
                                 </div>
                             </div>
                         `, {{ maxWidth: 350 }});
@@ -2362,6 +2963,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                         const username = athlete.username;
                         if (!username) continue;
 
+                        // Initialize sessionsByAthlete for this athlete
+                        this.sessionsByAthlete[username] = [];
+
                         try {{
                             const sessionsResp = await fetch(`athl=${{username}}/sessions.tsv`);
                             if (!sessionsResp.ok) continue;
@@ -2380,7 +2984,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
                                 // Store full session data for SessionsView
                                 const type = session.sport || session.type || 'Other';
-                                this.allSessions.push({{
+                                const sessionData = {{
                                     athlete: username,
                                     datetime: session.datetime,
                                     name: session.name || 'Activity',
@@ -2392,7 +2996,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                                     has_gps: session.has_gps,
                                     center_lat: session.center_lat,
                                     center_lng: session.center_lng
-                                }});
+                                }};
+                                this.allSessions.push(sessionData);
+                                this.sessionsByAthlete[username].push(sessionData);
 
                                 if (isNaN(lat) || isNaN(lng)) continue;
 
@@ -2432,6 +3038,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                                     Type: ${{type}}<br>
                                     Date: ${{session.datetime?.substring(0, 8) || ''}}${{photoInfo}}<br>
                                     Distance: ${{(parseFloat(session.distance_m || 0) / 1000).toFixed(2)}} km
+                                    <br><a href="#/session/${{username}}/${{session.datetime}}" class="popup-activity-link">View Activity →</a>
                                 `);
 
                                 this.allMarkers.push({{
@@ -2460,9 +3067,11 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                         }}
                     }}
 
-                    if (this.bounds.isValid()) {{
+                    // Only fit bounds if not restoring from URL
+                    if (this.bounds.isValid() && !this.restoringFromURL) {{
                         this.map.fitBounds(this.bounds, {{ padding: [20, 20] }});
                     }}
+                    this.restoringFromURL = false;  // Reset flag after first load
 
                     // Populate athlete selector with stats
                     this.populateAthleteSelector();
@@ -2498,7 +3107,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                         const color = self.athleteColors[self.currentAthlete] || '#333';
                         html += `<br><span style="color:${{color}}">${{self.currentAthlete}}</span>`;
                     }}
-                    html += `<br>${{visibleSessions}} sessions`;
+                    html += `<br><a href="#/sessions" class="info-link">${{visibleSessions}} sessions</a>`;
                     if (self.loadedTrackCount > 0) {{
                         html += `<br>${{self.loadedTrackCount}} tracks loaded`;
                     }}
@@ -2546,17 +3155,24 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             selectedSession: null,
 
             init() {{
-                // Set up filter event listeners
+                // Set up filter event listeners with URL state updates
+                let searchTimeout = null;
                 document.getElementById('session-search').addEventListener('input', (e) => {{
                     this.filters.search = e.target.value.toLowerCase();
                     this.page = 1;
                     this.applyFiltersAndRender();
+                    // Debounce URL update for search
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {{
+                        URLState.update({{ search: e.target.value }});
+                    }}, 500);
                 }});
 
                 document.getElementById('type-filter').addEventListener('change', (e) => {{
                     this.filters.type = e.target.value;
                     this.page = 1;
                     this.applyFiltersAndRender();
+                    URLState.update({{ type: e.target.value }});
                 }});
 
                 document.getElementById('date-from').addEventListener('change', (e) => {{
@@ -2573,6 +3189,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
                 document.getElementById('clear-filters').addEventListener('click', () => {{
                     this.clearFilters();
+                    URLState.update({{ search: '', type: '', session: '' }});
                 }});
 
                 // Set up sortable headers
@@ -2584,6 +3201,34 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 document.getElementById('close-detail').addEventListener('click', () => {{
                     this.closeDetail();
                 }});
+
+                // Set up expand button to open full-screen view
+                document.getElementById('expand-detail').addEventListener('click', () => {{
+                    if (this.selectedSession) {{
+                        const athlete = this.selectedSession.athlete;
+                        const datetime = this.selectedSession.datetime;
+                        location.hash = '#/session/' + athlete + '/' + datetime;
+                    }}
+                }});
+
+                // Set up swipe-to-close on detail panel (mobile touch gesture)
+                const detailPanel = document.getElementById('session-detail');
+                let touchStartX = 0;
+                let touchStartY = 0;
+                detailPanel.addEventListener('touchstart', (e) => {{
+                    touchStartX = e.touches[0].clientX;
+                    touchStartY = e.touches[0].clientY;
+                }}, {{ passive: true }});
+                detailPanel.addEventListener('touchend', (e) => {{
+                    const touchEndX = e.changedTouches[0].clientX;
+                    const touchEndY = e.changedTouches[0].clientY;
+                    const deltaX = touchEndX - touchStartX;
+                    const deltaY = Math.abs(touchEndY - touchStartY);
+                    // Close if swiped right by at least 80px and mostly horizontal
+                    if (deltaX > 80 && deltaY < 50) {{
+                        this.closeDetail();
+                    }}
+                }}, {{ passive: true }});
 
                 // Listen for athlete changes
                 document.getElementById('athlete-selector').addEventListener('change', () => {{
@@ -2640,6 +3285,11 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
                 this.sort();
                 this.render();
+            }},
+
+            // Alias for external calls (e.g., from stats chart clicks)
+            applyFilters() {{
+                this.applyFiltersAndRender();
             }},
 
             handleSort(field) {{
@@ -2718,7 +3368,15 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 const pageData = this.filtered.slice(start, end);
 
                 if (pageData.length === 0) {{
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:#666;">No sessions found</td></tr>';
+                    const hasFilters = this.filters.search || this.filters.type || this.filters.dateFrom || this.filters.dateTo;
+                    tbody.innerHTML = `<tr><td colspan="5">
+                        <div class="empty-state">
+                            <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H9V5h6v2z"/></svg>
+                            <h3>No sessions found</h3>
+                            <p>${{hasFilters ? 'Try adjusting your filters or search terms' : 'No activity data available yet'}}</p>
+                            ${{hasFilters ? '<button class="clear-filters-btn" onclick="SessionsView.clearFilters()">Clear Filters</button>' : ''}}
+                        </div>
+                    </td></tr>`;
                 }} else {{
                     tbody.innerHTML = pageData.map(s => {{
                         const color = this.typeColors[s.type] || this.typeColors.Other || '#607D8B';
@@ -2790,6 +3448,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 const panel = document.getElementById('session-detail');
                 panel.classList.remove('hidden');
 
+                // Update URL with session permalink
+                URLState.update({{ session: sessionId, athlete: athlete }});
+
                 document.getElementById('detail-name').textContent = session.name || 'Activity';
 
                 const distance = parseFloat(session.distance_m) || 0;
@@ -2832,6 +3493,64 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
                 // Load data streams (heart rate, cadence, etc.)
                 this.loadDetailStreams(athlete, sessionId);
+
+                // Check for shared runs (same datetime, different athlete)
+                this.loadSharedRuns(athlete, sessionId);
+            }},
+
+            async loadSharedRuns(currentAthlete, sessionId) {{
+                const container = document.getElementById('detail-shared');
+                if (!container) return;
+                container.innerHTML = '';
+
+                // Find sessions from other athletes with the same datetime
+                const sharedWith = [];
+                for (const [athleteUsername, sessions] of Object.entries(MapView.sessionsByAthlete || {{}})) {{
+                    if (athleteUsername === currentAthlete) continue;
+
+                    const match = sessions.find(s => s.datetime === sessionId);
+                    if (match) {{
+                        sharedWith.push({{
+                            username: athleteUsername,
+                            session: match
+                        }});
+                    }}
+                }}
+
+                if (sharedWith.length === 0) return;
+
+                container.innerHTML = `
+                    <div class="shared-runs">
+                        <strong>Also with:</strong>
+                        ${{sharedWith.map(s => `
+                            <a href="#" class="shared-athlete-link" data-athlete="${{s.username}}" data-session="${{s.session.datetime}}">
+                                ${{s.username}}
+                            </a>
+                        `).join(', ')}}
+                    </div>
+                `;
+
+                // Add click handlers for cross-athlete navigation
+                container.querySelectorAll('.shared-athlete-link').forEach(link => {{
+                    link.addEventListener('click', (e) => {{
+                        e.preventDefault();
+                        const athlete = e.target.dataset.athlete;
+                        const sessionDt = e.target.dataset.session;
+
+                        // Switch athlete and show their version of the session
+                        const athleteSelect = document.getElementById('athlete-select');
+                        athleteSelect.value = athlete;
+                        athleteSelect.dispatchEvent(new Event('change'));
+
+                        // After a short delay to allow filter update, show the session
+                        setTimeout(() => {{
+                            const session = MapView.sessionsByAthlete[athlete]?.find(s => s.datetime === sessionDt);
+                            if (session) {{
+                                this.showDetail(session, athlete);
+                            }}
+                        }}, 200);
+                    }});
+                }});
             }},
 
             detailMapInstance: null,
@@ -3080,6 +3799,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 document.querySelectorAll('#sessions-tbody tr').forEach(r => r.classList.remove('selected'));
                 this.selectedSession = null;
 
+                // Clear session from URL
+                URLState.update({{ session: '' }});
+
                 // Clean up detail map instance
                 if (this.detailMapInstance) {{
                     this.detailMapInstance.remove();
@@ -3094,11 +3816,370 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             }}
         }};
 
+        // ===== Full Session View Module =====
+        const FullSessionView = {{
+            map: null,
+            currentAthlete: null,
+            currentSession: null,
+            retryCount: 0,
+            maxRetries: 10,
+
+            show(athlete, datetime) {{
+                this.currentAthlete = athlete;
+                this.currentSession = datetime;
+
+                // Find session data
+                const sessions = MapView.sessionsByAthlete?.[athlete] || [];
+                const session = sessions.find(s => s.datetime === datetime);
+
+                if (!session) {{
+                    // Data might not be loaded yet, retry with limit
+                    this.retryCount++;
+                    if (this.retryCount <= this.maxRetries) {{
+                        console.log('Session data not loaded yet, retrying... (' + this.retryCount + '/' + this.maxRetries + ')');
+                        document.getElementById('full-session-name').textContent = 'Loading...';
+                        document.getElementById('full-session-meta').textContent = 'Please wait while data loads';
+                        setTimeout(() => this.show(athlete, datetime), 500);
+                        return;
+                    }} else {{
+                        console.warn('Session not found after retries:', athlete, datetime);
+                        document.getElementById('full-session-name').textContent = 'Session Not Found';
+                        document.getElementById('full-session-meta').textContent = `Could not find session ${{datetime}} for ${{athlete}}`;
+                        this.retryCount = 0;
+                        return;
+                    }}
+                }}
+
+                // Reset retry count on success
+                this.retryCount = 0;
+
+                // Update header
+                document.getElementById('full-session-name').textContent = session.name || 'Activity';
+                const dateStr = this.formatDate(datetime);
+                document.getElementById('full-session-meta').innerHTML =
+                    `${{dateStr}} &bull; ${{session.type || 'Activity'}} &bull; ${{athlete}}`;
+
+                // Update share button with error handling and visual feedback
+                const shareBtn = document.getElementById('full-session-share');
+                shareBtn.onclick = async () => {{
+                    const url = location.origin + location.pathname + '#/session/' + athlete + '/' + datetime;
+                    try {{
+                        await navigator.clipboard.writeText(url);
+                        // Visual feedback - green checkmark
+                        shareBtn.classList.add('copied');
+                        shareBtn.title = 'Link copied!';
+                        setTimeout(() => {{
+                            shareBtn.classList.remove('copied');
+                            shareBtn.title = 'Copy permalink';
+                        }}, 2000);
+                    }} catch (err) {{
+                        // Fallback for browsers without clipboard API or insecure contexts
+                        console.warn('Clipboard API failed, using fallback:', err);
+                        // Create temporary input for copying
+                        const input = document.createElement('input');
+                        input.value = url;
+                        document.body.appendChild(input);
+                        input.select();
+                        try {{
+                            document.execCommand('copy');
+                            shareBtn.classList.add('copied');
+                            shareBtn.title = 'Link copied!';
+                            setTimeout(() => {{
+                                shareBtn.classList.remove('copied');
+                                shareBtn.title = 'Copy permalink';
+                            }}, 2000);
+                        }} catch (e) {{
+                            // Show URL in alert as last resort
+                            alert('Copy this link:\\n' + url);
+                        }}
+                        document.body.removeChild(input);
+                    }}
+                }};
+
+                // Update "View on Map" button
+                const mapBtn = document.getElementById('full-session-map-btn');
+                mapBtn.onclick = () => {{
+                    // Navigate to map view centered on this session
+                    const lat = parseFloat(session.center_lat);
+                    const lng = parseFloat(session.center_lng);
+                    if (!isNaN(lat) && !isNaN(lng)) {{
+                        location.hash = `#/map?z=14&lat=${{lat}}&lng=${{lng}}`;
+                    }} else {{
+                        location.hash = '#/map';
+                    }}
+                }};
+
+                // Render stats
+                this.renderStats(session);
+
+                // Load map
+                this.loadMap(athlete, datetime);
+
+                // Load streams (placeholder for Phase 8)
+                this.loadStreams(athlete, datetime);
+
+                // Load photos
+                this.loadPhotos(athlete, datetime, session);
+
+                // Load social
+                this.loadSocial(athlete, datetime);
+
+                // Load shared runs
+                this.loadSharedRuns(athlete, datetime);
+            }},
+
+            formatDate(datetime) {{
+                if (!datetime || datetime.length < 8) return '';
+                const y = datetime.substring(0, 4);
+                const m = datetime.substring(4, 6);
+                const d = datetime.substring(6, 8);
+                return `${{y}}-${{m}}-${{d}}`;
+            }},
+
+            formatDuration(seconds) {{
+                if (!seconds) return '-';
+                const h = Math.floor(seconds / 3600);
+                const m = Math.floor((seconds % 3600) / 60);
+                if (h > 0) return `${{h}}h ${{m}}m`;
+                return `${{m}}m`;
+            }},
+
+            renderStats(session) {{
+                const distance = parseFloat(session.distance_m) || 0;
+                const duration = parseInt(session.moving_time_s) || 0;
+                const elevation = parseFloat(session.elevation_gain_m) || 0;
+                const avgHr = parseFloat(session.average_heartrate) || 0;
+                const avgCadence = parseFloat(session.average_cadence) || 0;
+
+                let html = `
+                    <div class="stat-card">
+                        <div class="stat-value">${{(distance / 1000).toFixed(2)}}</div>
+                        <div class="stat-label">km</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${{this.formatDuration(duration)}}</div>
+                        <div class="stat-label">Duration</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${{elevation.toFixed(0)}}</div>
+                        <div class="stat-label">m elevation</div>
+                    </div>
+                `;
+
+                if (avgHr > 0) {{
+                    html += `
+                        <div class="stat-card">
+                            <div class="stat-value">${{avgHr.toFixed(0)}}</div>
+                            <div class="stat-label">avg HR</div>
+                        </div>
+                    `;
+                }}
+
+                if (avgCadence > 0) {{
+                    html += `
+                        <div class="stat-card">
+                            <div class="stat-value">${{avgCadence.toFixed(0)}}</div>
+                            <div class="stat-label">avg cadence</div>
+                        </div>
+                    `;
+                }}
+
+                document.getElementById('full-session-stats').innerHTML = html;
+            }},
+
+            async loadMap(athlete, datetime) {{
+                const container = document.getElementById('full-session-map-container');
+                container.innerHTML = '';
+
+                // Clean up previous map
+                if (this.map) {{
+                    this.map.remove();
+                    this.map = null;
+                }}
+
+                // Create map
+                this.map = L.map(container).setView([40, 0], 3);
+                L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+                    maxZoom: 19,
+                    attribution: '&copy; OpenStreetMap'
+                }}).addTo(this.map);
+
+                // Load track
+                try {{
+                    const response = await fetch(`athl=${{athlete}}/ses=${{datetime}}/tracking.parquet`);
+                    if (!response.ok) return;
+                    const buffer = await response.arrayBuffer();
+                    const data = await parquetReadObjects({{ file: buffer }});
+
+                    const coords = data
+                        .filter(row => row.lat && row.lng)
+                        .map(row => [row.lat, row.lng]);
+
+                    if (coords.length > 0) {{
+                        const polyline = L.polyline(coords, {{
+                            color: MapView.typeColors[this.currentSession?.type] || '#fc4c02',
+                            weight: 3
+                        }}).addTo(this.map);
+                        this.map.fitBounds(polyline.getBounds(), {{ padding: [20, 20] }});
+                    }}
+                }} catch (e) {{
+                    console.warn('Could not load track:', e);
+                }}
+            }},
+
+            async loadStreams(athlete, datetime) {{
+                const container = document.getElementById('full-session-streams');
+                // Phase 8: Data streams visualization will be added here
+                // For now, show a placeholder if streams exist
+                try {{
+                    const response = await fetch(`athl=${{athlete}}/ses=${{datetime}}/tracking.parquet`);
+                    if (!response.ok) {{
+                        container.innerHTML = '';
+                        return;
+                    }}
+                    const buffer = await response.arrayBuffer();
+                    const data = await parquetReadObjects({{ file: buffer }});
+
+                    // Check what streams are available
+                    const hasHr = data.some(r => r.heartrate);
+                    const hasCadence = data.some(r => r.cadence);
+                    const hasElevation = data.some(r => r.altitude);
+
+                    if (hasHr || hasCadence || hasElevation) {{
+                        const streams = [];
+                        if (hasHr) streams.push('Heart Rate');
+                        if (hasCadence) streams.push('Cadence');
+                        if (hasElevation) streams.push('Elevation');
+                        container.innerHTML = `
+                            <h3 class="full-session-section-title">Data Streams</h3>
+                            <p style="color:#666;font-size:14px;">Available: ${{streams.join(', ')}}</p>
+                            <p style="color:#999;font-size:12px;margin-top:8px;">
+                                <em>Detailed stream visualization coming in Phase 8</em>
+                            </p>
+                        `;
+                    }} else {{
+                        container.innerHTML = '';
+                    }}
+                }} catch (e) {{
+                    container.innerHTML = '';
+                }}
+            }},
+
+            loadPhotos(athlete, datetime, session) {{
+                const container = document.getElementById('full-session-photos');
+                const photoCount = parseInt(session?.photo_count) || 0;
+
+                if (photoCount === 0) {{
+                    container.innerHTML = '';
+                    return;
+                }}
+
+                container.innerHTML = `
+                    <h3 class="full-session-section-title">Photos (${{photoCount}})</h3>
+                    <div class="photo-grid" id="full-session-photo-grid"></div>
+                `;
+
+                // Load photos from directory
+                fetch(`athl=${{athlete}}/ses=${{datetime}}/photos/`)
+                    .then(response => response.text())
+                    .then(html => {{
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        const links = [...doc.querySelectorAll('a')];
+                        const photoFiles = links
+                            .map(a => a.getAttribute('href'))
+                            .filter(href => href && /\\.(jpg|jpeg|png|gif)$/i.test(href));
+
+                        const grid = document.getElementById('full-session-photo-grid');
+                        grid.innerHTML = photoFiles.map(file => `
+                            <div class="photo-item">
+                                <img src="athl=${{athlete}}/ses=${{datetime}}/photos/${{file}}"
+                                     onclick="window.open(this.src, '_blank')"
+                                     alt="Activity photo">
+                            </div>
+                        `).join('');
+                    }})
+                    .catch(() => {{ container.innerHTML = ''; }});
+            }},
+
+            loadSocial(athlete, datetime) {{
+                const container = document.getElementById('full-session-social');
+
+                fetch(`athl=${{athlete}}/ses=${{datetime}}/info.json`)
+                    .then(response => response.json())
+                    .then(info => {{
+                        const kudos = info.kudos || [];
+                        const comments = info.comments || [];
+
+                        if (kudos.length === 0 && comments.length === 0) {{
+                            container.innerHTML = '';
+                            return;
+                        }}
+
+                        let html = '<h3 class="full-session-section-title">Social</h3>';
+
+                        if (kudos.length > 0) {{
+                            html += `<div style="margin-bottom:16px;">
+                                <strong>👍 ${{kudos.length}} kudos</strong>
+                                <span style="color:#666;font-size:13px;margin-left:8px;">
+                                    ${{kudos.slice(0, 5).map(k => k.firstname || 'Someone').join(', ')}}
+                                    ${{kudos.length > 5 ? ` and ${{kudos.length - 5}} more` : ''}}
+                                </span>
+                            </div>`;
+                        }}
+
+                        if (comments.length > 0) {{
+                            html += `<div>
+                                <strong>💬 ${{comments.length}} comments</strong>
+                                ${{comments.map(c => `
+                                    <div style="margin-top:8px;padding:8px;background:#f5f5f5;border-radius:6px;">
+                                        <strong style="font-size:13px;">${{c.athlete_firstname || 'Someone'}}</strong>
+                                        <p style="margin:4px 0 0 0;font-size:14px;">${{c.text || ''}}</p>
+                                    </div>
+                                `).join('')}}
+                            </div>`;
+                        }}
+
+                        container.innerHTML = html;
+                    }})
+                    .catch(() => {{ container.innerHTML = ''; }});
+            }},
+
+            loadSharedRuns(athlete, datetime) {{
+                const container = document.getElementById('full-session-shared');
+                container.innerHTML = '';
+
+                const sharedWith = [];
+                for (const [athleteUsername, sessions] of Object.entries(MapView.sessionsByAthlete || {{}})) {{
+                    if (athleteUsername === athlete) continue;
+                    const match = sessions.find(s => s.datetime === datetime);
+                    if (match) {{
+                        sharedWith.push({{ username: athleteUsername, session: match }});
+                    }}
+                }}
+
+                if (sharedWith.length === 0) return;
+
+                container.innerHTML = `
+                    <h3 class="full-session-section-title">Shared Activity</h3>
+                    <p style="color:#666;">
+                        Also recorded by:
+                        ${{sharedWith.map(s => `
+                            <a href="#/session/${{s.username}}/${{datetime}}"
+                               style="color:#fc4c02;font-weight:600;">${{s.username}}</a>
+                        `).join(', ')}}
+                    </p>
+                `;
+            }}
+        }};
+
         // ===== Stats View Module =====
         const StatsView = {{
             sessions: [],
             typeColors: {json.dumps(type_colors)},
             filters: {{ year: '', type: '' }},
+            monthlyBars: [],  // Store bar positions for click detection
+            typeBars: [],     // Store bar positions for click detection
 
             init() {{
                 document.getElementById('year-filter').addEventListener('change', (e) => {{
@@ -3115,6 +4196,65 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 document.getElementById('athlete-selector').addEventListener('change', () => {{
                     this.calculate();
                 }});
+
+                // Add chart click handlers
+                document.getElementById('monthly-chart').addEventListener('click', (e) => {{
+                    const rect = e.target.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    this.handleMonthlyChartClick(x, y);
+                }});
+
+                document.getElementById('type-chart').addEventListener('click', (e) => {{
+                    const rect = e.target.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    this.handleTypeChartClick(x, y);
+                }});
+
+                // Add cursor pointer on hover
+                const monthlyCanvas = document.getElementById('monthly-chart');
+                const typeCanvas = document.getElementById('type-chart');
+                monthlyCanvas.style.cursor = 'pointer';
+                typeCanvas.style.cursor = 'pointer';
+            }},
+
+            handleMonthlyChartClick(x, y) {{
+                for (const bar of this.monthlyBars) {{
+                    if (x >= bar.x && x <= bar.x + bar.width && y >= bar.y && y <= bar.y + bar.height) {{
+                        // Navigate to sessions view with month filter
+                        const [year, month] = [bar.month.substring(0, 4), bar.month.substring(4, 6)];
+                        // Set date filters and navigate
+                        const dateFrom = `${{year}}-${{month}}-01`;
+                        const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+                        const dateTo = `${{year}}-${{month}}-${{String(lastDay).padStart(2, '0')}}`;
+
+                        location.hash = `#/sessions`;
+                        setTimeout(() => {{
+                            document.getElementById('date-from').value = dateFrom;
+                            document.getElementById('date-to').value = dateTo;
+                            SessionsView.filters.dateFrom = dateFrom;
+                            SessionsView.filters.dateTo = dateTo;
+                            SessionsView.applyFilters();
+                        }}, 100);
+                        return;
+                    }}
+                }}
+            }},
+
+            handleTypeChartClick(x, y) {{
+                for (const bar of this.typeBars) {{
+                    if (x >= bar.x && x <= bar.x + bar.width && y >= bar.y && y <= bar.y + bar.height) {{
+                        // Navigate to sessions view with type filter
+                        location.hash = `#/sessions`;
+                        setTimeout(() => {{
+                            document.getElementById('type-filter').value = bar.type;
+                            SessionsView.filters.type = bar.type;
+                            SessionsView.applyFilters();
+                        }}, 100);
+                        return;
+                    }}
+                }}
             }},
 
             setSessions(sessions) {{
@@ -3234,6 +4374,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 const chartHeight = canvas.height - padding.top - padding.bottom;
                 const barWidth = Math.min(30, (chartWidth / months.length) - 4);
 
+                // Clear bar positions
+                this.monthlyBars = [];
+
                 // Draw axes
                 ctx.strokeStyle = '#ddd';
                 ctx.beginPath();
@@ -3248,6 +4391,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     const barHeight = (data.count / maxCount) * chartHeight;
                     const x = padding.left + (i * (chartWidth / months.length)) + ((chartWidth / months.length) - barWidth) / 2;
                     const y = canvas.height - padding.bottom - barHeight;
+
+                    // Store bar position for click detection
+                    this.monthlyBars.push({{ month, x, y, width: barWidth, height: barHeight }});
 
                     ctx.fillStyle = '#fc4c02';
                     ctx.fillRect(x, y, barWidth, barHeight);
@@ -3305,10 +4451,16 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 const chartHeight = canvas.height - padding.top - padding.bottom;
                 const barHeight = Math.min(25, (chartHeight / types.length) - 4);
 
+                // Clear bar positions
+                this.typeBars = [];
+
                 types.forEach((type, i) => {{
                     const data = byType[type];
                     const barWidth = (data.count / maxCount) * chartWidth;
                     const y = padding.top + (i * (chartHeight / types.length)) + ((chartHeight / types.length) - barHeight) / 2;
+
+                    // Store bar position for click detection
+                    this.typeBars.push({{ type, x: padding.left, y, width: barWidth, height: barHeight }});
 
                     // Bar
                     ctx.fillStyle = this.typeColors[type] || '#607D8B';
@@ -3337,6 +4489,13 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             // Pass full session data to views
             SessionsView.setSessions(this.allSessions);
             StatsView.setSessions(this.allSessions);
+            // Hide loading overlay
+            const overlay = document.getElementById('loading-overlay');
+            if (overlay) {{
+                overlay.classList.add('hidden');
+                // Remove from DOM after animation
+                setTimeout(() => overlay.remove(), 300);
+            }}
         }};
 
         Router.init();

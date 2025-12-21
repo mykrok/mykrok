@@ -68,6 +68,8 @@ Thumbs.db
 
 # Project specific
 data/
+demo-data/
+tests/e2e/fixtures/data/
 *.log
 .env
 .env.*
