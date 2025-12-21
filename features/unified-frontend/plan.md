@@ -754,3 +754,142 @@ Evaluate and adopt a lightweight charting library that provides:
 
 ### Priority: Medium-High
 Should be addressed before Phase 8 data streams to establish the charting foundation.
+
+---
+
+## TODO: Automated Walkthrough and README Screenshots (Priority: High)
+
+**Goal**: Create a scripted walkthrough that captures screenshots of the unified frontend using the demo dataset, automatically updating README.md with current UI visuals.
+
+### Background
+
+We already have:
+- **Demo data generation**: `tests/e2e/fixtures/generate_fixtures.py` creates synthetic multi-athlete data
+- **E2E test infrastructure**: Playwright browser automation via `pytest-playwright`
+- **Demo server fixture**: `tests/e2e/conftest.py` starts HTTP server with generated data
+
+### Requirements
+
+1. **Screenshot Capture Script**
+   - Use Playwright (already installed for e2e tests) to automate browser interactions
+   - Capture high-quality screenshots at key points in the walkthrough
+   - Save screenshots to `docs/screenshots/` or similar tracked location
+   - Support both light mode (and dark mode if implemented later)
+
+2. **Walkthrough Scenario**
+   The script should demonstrate the full user journey:
+   ```
+   1. App launch - world map view with session markers
+   2. Zoom to activity cluster - shows markers with different types
+   3. Click marker - popup with activity details
+   4. Switch to Sessions view - table with filters
+   5. Apply type filter (e.g., "Run") - filtered results
+   6. Click session row - detail panel opens
+   7. Expand to full-screen view - session detail page
+   8. Navigate to Stats view - dashboard with charts
+   9. Filter by athlete - personalized stats
+   ```
+
+3. **README.md Integration**
+   - Add "Screenshots" or "Features" section with captured images
+   - Use relative paths to screenshots in repo
+   - Include brief captions explaining each screenshot
+
+4. **Automation Command**
+   Add CLI command or script:
+   ```bash
+   # Option A: Standalone script
+   python scripts/generate_screenshots.py
+
+   # Option B: Tox environment
+   tox -e screenshots
+
+   # Option C: Make target
+   make screenshots
+   ```
+
+### Technical Approach
+
+**Option 1: Extend E2E Test Infrastructure**
+```python
+# tests/e2e/test_screenshots.py
+import pytest
+from playwright.sync_api import Page
+
+@pytest.fixture
+def screenshot_dir(tmp_path_factory):
+    return Path("docs/screenshots")
+
+class TestScreenshotWalkthrough:
+    def test_capture_walkthrough(self, demo_server: str, page: Page, screenshot_dir):
+        page.set_viewport_size({"width": 1280, "height": 800})
+
+        # 1. Map view
+        page.goto(f"{demo_server}/strava-backup.html#/map")
+        page.wait_for_selector(".leaflet-marker-icon", timeout=10000)
+        page.screenshot(path=screenshot_dir / "01-map-view.png")
+
+        # 2. Click marker for popup
+        page.locator(".leaflet-marker-icon").first.click()
+        page.wait_for_selector(".leaflet-popup")
+        page.screenshot(path=screenshot_dir / "02-marker-popup.png")
+
+        # ... continue walkthrough
+```
+
+**Option 2: Standalone Playwright Script**
+```python
+# scripts/generate_screenshots.py
+from playwright.sync_api import sync_playwright
+from tests.e2e.fixtures.generate_fixtures import generate_fixtures
+
+def main():
+    # Generate demo data
+    demo_dir = Path("demo_data")
+    generate_fixtures(demo_dir)
+
+    # Start server and capture screenshots
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page(viewport={"width": 1280, "height": 800})
+        # ... capture walkthrough
+```
+
+### README.md Update Format
+
+```markdown
+## Screenshots
+
+The unified web frontend provides a complete activity browsing experience:
+
+### Map View
+![Map View](docs/screenshots/01-map-view.png)
+*World map with activity markers color-coded by type*
+
+### Session Details
+![Session Detail](docs/screenshots/04-session-detail.png)
+*Detailed view with stats, map, photos, and social data*
+
+### Statistics Dashboard
+![Stats Dashboard](docs/screenshots/08-stats-view.png)
+*Aggregate statistics with interactive charts*
+```
+
+### Implementation Steps
+
+1. Create `scripts/generate_screenshots.py` with Playwright walkthrough
+2. Add `docs/screenshots/` directory (gitignored except for committed screenshots)
+3. Add tox environment or Makefile target for easy execution
+4. Update README.md with screenshot section
+5. Add CI job to verify screenshots are up-to-date (optional)
+
+### Considerations
+
+- **Deterministic output**: Use fixed viewport size, wait for animations to complete
+- **Demo data consistency**: Use seeded random for reproducible fixtures
+- **Image optimization**: Consider PNG optimization or WebP for smaller file sizes
+- **Cross-platform**: Ensure script works on Linux/macOS/Windows
+- **CI integration**: Could auto-generate on release tags
+
+### Priority: High
+This provides immediate documentation value and demonstrates the frontend capabilities to users evaluating the project.
