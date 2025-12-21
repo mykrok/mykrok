@@ -315,3 +315,54 @@ The system follows an **MVC (Model-View-Controller)** pattern with clear separat
 4. **Stay single-athlete**: Keep current design, document manual aggregation via filesystem
 
 **Decision**: TBD
+
+---
+
+### CLI Refactoring - Deprecate Duplicate Functionality
+
+**Status**: TODO
+
+**Context**: The codebase has accumulated multiple ways to achieve similar functionality. With the unified web UI (lightweight SPA), some commands are now redundant.
+
+**Items to consolidate/remove**:
+
+1. **Remove `browse` command**: The lightweight web UI (`view map --lightweight`) now provides comprehensive browsing with sessions list, stats dashboard, and map view. The separate `browse` command duplicates this functionality.
+
+2. **Rename/consolidate map commands**:
+   - `view map --lightweight` should become a standalone command like `create-frontend` or `generate-webapp`
+   - The non-lightweight `view map` (which embeds all data in HTML) may be deprecated or kept as `--embedded` variant
+   - Consider: `strava-backup frontend generate` / `strava-backup frontend serve`
+
+3. **Review `view stats`**: Stats are now in the web UI - decide if CLI stats output is still valuable (likely yes for scripting/quick checks)
+
+**Action items**:
+- Audit all CLI commands for overlap
+- Mark deprecated commands with warnings before removal
+- Update documentation and README
+- Bump major version for breaking changes
+
+---
+
+### Release Automation with intuit-auto
+
+**Status**: TODO
+
+**Context**: Manual releases are error-prone. Automate using intuit-auto like other projects.
+
+**References**:
+- [duct release workflow](https://github.com/con/duct/blob/main/.github/workflows/release.yml)
+- [duct labels workflow](https://github.com/con/duct/blob/main/.github/workflows/labels.yaml)
+- [duct .autorc](https://github.com/con/duct/blob/main/.autorc)
+- [dandi-cli release workflow](https://github.com/dandi/dandi-cli/blob/master/.github/workflows/release.yml) - includes `workflow_dispatch` handling
+
+**Action items**:
+1. Add `.autorc` configuration
+2. Add `labels.yaml` GitHub Action for PR labeling
+3. Add `release.yml` GitHub Action with:
+   - Automatic changelog generation
+   - Version bumping based on PR labels
+   - PyPI publishing
+   - GitHub release creation
+   - `workflow_dispatch` trigger for manual releases
+4. Set up required GitHub secrets (PyPI token, etc.)
+5. Document release process in CONTRIBUTING.md
