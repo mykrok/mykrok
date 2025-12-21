@@ -11,6 +11,46 @@ CLI tool to backup Strava activities with incremental sync, map visualization, a
 - **Offline Browsing**: Browse your backed-up activities locally without internet
 - **FitTrackee Export**: Export activities to self-hosted FitTrackee instances
 
+## Screenshots
+
+The unified web frontend provides a complete activity browsing experience.
+Screenshots are auto-generated from the demo dataset (`tox -e screenshots`).
+
+### Map View
+
+![Map view with activity markers](docs/screenshots/01-map-overview.jpg)
+*Map view with activity markers*
+
+![Activities zoomed to fit](docs/screenshots/02-map-zoomed.jpg)
+*Activities zoomed to fit*
+
+![Activity popup with details](docs/screenshots/03-map-popup.jpg)
+*Activity popup with details*
+
+### Sessions View
+
+![Sessions list with filters](docs/screenshots/04-sessions-list.jpg)
+*Sessions list with filters*
+
+![Sessions filtered by type](docs/screenshots/05-sessions-filtered.jpg)
+*Sessions filtered by type*
+
+![Session detail panel](docs/screenshots/06-session-detail.jpg)
+*Session detail panel*
+
+### Session Detail
+
+![Full-screen session view](docs/screenshots/07-session-full.jpg)
+*Full-screen session view*
+
+### Statistics
+
+![Statistics dashboard](docs/screenshots/08-stats-dashboard.jpg)
+*Statistics dashboard*
+
+![Statistics by athlete](docs/screenshots/09-stats-filtered.jpg)
+*Statistics by athlete*
+
 ## Installation
 
 ```bash
