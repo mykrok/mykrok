@@ -301,6 +301,8 @@
 | has_gps | boolean | Has GPS data |
 | has_photos | boolean | Has photos |
 | photo_count | integer | Photo count |
+| start_lat | float | Starting point latitude (first GPS coordinate) |
+| start_lng | float | Starting point longitude (first GPS coordinate) |
 
 ---
 

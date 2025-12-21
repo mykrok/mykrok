@@ -217,7 +217,7 @@ data/
 - heartrate, cadence, watts, temp, velocity_smooth, grade_smooth
 
 **`sessions.tsv` columns**:
-datetime, type, sport, name, distance_m, moving_time_s, elapsed_time_s, elevation_gain_m, calories, avg_hr, max_hr, avg_watts, gear_id, athletes, kudos_count, comment_count, has_gps, has_photos, photo_count
+datetime, type, sport, name, distance_m, moving_time_s, elapsed_time_s, elevation_gain_m, calories, avg_hr, max_hr, avg_watts, gear_id, athletes, kudos_count, comment_count, has_gps, has_photos, photo_count, start_lat, start_lng
 
 **Example DuckDB queries**:
 ```sql

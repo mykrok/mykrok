@@ -149,20 +149,19 @@ def generate_athletes_tsv(data_dir: Path) -> Path:
     return athletes_path
 
 
-def add_center_coords_to_sessions(data_dir: Path, force: bool = False) -> int:
-    """Add start point GPS coordinates to sessions.tsv files.
+def migrate_center_to_start_coords(data_dir: Path) -> int:
+    """Migrate center_lat/center_lng columns to start_lat/start_lng.
 
-    Adds center_lat and center_lng columns using the track's starting point.
-    Column names kept as center_* for backward compatibility.
+    Renames the legacy center_* columns to start_* and computes any
+    missing coordinate values from the track data.
 
     Args:
         data_dir: Base data directory.
-        force: If True, recalculate even if columns already exist.
 
     Returns:
-        Number of sessions updated.
+        Number of files migrated.
     """
-    updated_count = 0
+    migrated_count = 0
 
     for _username, athlete_dir in iter_athlete_dirs(data_dir):
         sessions_path = get_sessions_tsv_path(athlete_dir)
@@ -175,56 +174,60 @@ def add_center_coords_to_sessions(data_dir: Path, force: bool = False) -> int:
             fieldnames = list(reader.fieldnames or [])
             rows = list(reader)
 
-        # Check if center coords already exist
-        has_columns = "center_lat" in fieldnames and "center_lng" in fieldnames
-        if has_columns and not force:
+        # Check if migration is needed
+        has_old = "center_lat" in fieldnames or "center_lng" in fieldnames
+        has_new = "start_lat" in fieldnames and "start_lng" in fieldnames
+
+        if has_new and not has_old:
+            # Already migrated, nothing to do
             continue
 
-        # Add new columns if not present
-        if "center_lat" not in fieldnames:
-            fieldnames.append("center_lat")
-        if "center_lng" not in fieldnames:
-            fieldnames.append("center_lng")
+        modified = False
 
-        # Get starting point coords for each session
-        for row in rows:
-            session_key = row.get("datetime", "")
-            if not session_key:
-                row["center_lat"] = ""
-                row["center_lng"] = ""
-                continue
+        # Rename columns in fieldnames if old columns exist
+        if has_old:
+            new_fieldnames = []
+            for col in fieldnames:
+                if col == "center_lat":
+                    new_fieldnames.append("start_lat")
+                    modified = True
+                elif col == "center_lng":
+                    new_fieldnames.append("start_lng")
+                    modified = True
+                else:
+                    new_fieldnames.append(col)
+            fieldnames = new_fieldnames
 
-            session_dir = athlete_dir / f"ses={session_key}"
-            if not session_dir.exists():
-                row["center_lat"] = ""
-                row["center_lng"] = ""
-                continue
+            # Rename keys in rows and compute missing values
+            for row in rows:
+                if "center_lat" in row:
+                    row["start_lat"] = row.pop("center_lat")
+                if "center_lng" in row:
+                    row["start_lng"] = row.pop("center_lng")
 
-            # Check if has GPS
-            manifest = load_tracking_manifest(session_dir)
-            if not manifest or not manifest.has_gps:
-                row["center_lat"] = ""
-                row["center_lng"] = ""
-                continue
+                # Compute missing values from track data
+                session_key = row.get("datetime", "")
+                if session_key and (not row.get("start_lat") or not row.get("start_lng")):
+                    session_dir = athlete_dir / f"ses={session_key}"
+                    if session_dir.exists():
+                        manifest = load_tracking_manifest(session_dir)
+                        if manifest and manifest.has_gps:
+                            coords = get_coordinates(session_dir)
+                            if coords:
+                                start_lat, start_lng = coords[0]
+                                row["start_lat"] = str(round(start_lat, 6))
+                                row["start_lng"] = str(round(start_lng, 6))
 
-            # Get coordinates and use starting point (first coordinate)
-            coords = get_coordinates(session_dir)
-            if coords:
-                start_lat, start_lng = coords[0]
-                row["center_lat"] = str(round(start_lat, 6))
-                row["center_lng"] = str(round(start_lng, 6))
-                updated_count += 1
-            else:
-                row["center_lat"] = ""
-                row["center_lng"] = ""
+        if modified:
+            # Write updated sessions.tsv
+            with open(sessions_path, "w", encoding="utf-8", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter="\t")
+                writer.writeheader()
+                writer.writerows(rows)
 
-        # Write updated sessions.tsv
-        with open(sessions_path, "w", encoding="utf-8", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter="\t")
-            writer.writeheader()
-            writer.writerows(rows)
+            migrated_count += 1
 
-    return updated_count
+    return migrated_count
 
 
 def update_dataset_files(dataset_dir: Path, dry_run: bool = False) -> list[str]:
@@ -307,8 +310,11 @@ def run_full_migration(
     1. Rename sub= directories to athl=
     2. Update Makefile and README.md to use athl=
     3. Add .gitattributes rule for log files (route to git-annex)
-    4. Generate athletes.tsv
-    5. Add center coords to sessions.tsv
+    4. Migrate center_lat/center_lng columns to start_lat/start_lng
+    5. Generate athletes.tsv
+
+    Note: start_lat/start_lng columns are now included by default when
+    sessions.tsv is regenerated via update_sessions_tsv().
 
     Args:
         data_dir: Base data directory.
@@ -321,8 +327,8 @@ def run_full_migration(
         "prefix_renames": [],
         "dataset_files_updated": [],
         "log_gitattributes_added": False,
+        "coords_columns_migrated": 0,
         "athletes_tsv": None,
-        "sessions_updated": 0,
     }
 
     # 1. Migrate prefixes
@@ -343,11 +349,11 @@ def run_full_migration(
     results["log_gitattributes_added"] = add_log_gitattributes_rule(dataset_dir, dry_run=dry_run)
 
     if not dry_run:
-        # 4. Generate athletes.tsv
+        # 4. Migrate center_* columns to start_* columns
+        results["coords_columns_migrated"] = migrate_center_to_start_coords(data_dir)
+
+        # 5. Generate athletes.tsv
         athletes_path = generate_athletes_tsv(data_dir)
         results["athletes_tsv"] = str(athletes_path)
-
-        # 5. Add center coords
-        results["sessions_updated"] = add_center_coords_to_sessions(data_dir)
 
     return results

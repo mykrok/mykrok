@@ -20,6 +20,7 @@ from strava_backup.lib.paths import (
     get_sessions_tsv_path,
     iter_session_dirs,
 )
+from strava_backup.models.tracking import get_coordinates, load_tracking_manifest
 
 
 def _duration_to_seconds(duration: Any) -> int:
@@ -398,6 +399,8 @@ SESSIONS_TSV_COLUMNS = [
     "has_gps",
     "photos_path",  # Path to photos folder if photos exist, empty otherwise
     "photo_count",
+    "start_lat",  # Starting point latitude (first GPS coordinate)
+    "start_lng",  # Starting point longitude (first GPS coordinate)
 ]
 
 
@@ -432,6 +435,18 @@ def update_sessions_tsv(data_dir: Path, username: str) -> Path:
             session_key = activity.start_date.strftime("%Y%m%dT%H%M%S")
             photos_path = f"ses={session_key}/photos/" if activity.has_photos else ""
 
+            # Get start coordinates from tracking data
+            start_lat = ""
+            start_lng = ""
+            if activity.has_gps:
+                session_dir = athlete_dir / f"ses={session_key}"
+                manifest = load_tracking_manifest(session_dir)
+                if manifest and manifest.has_gps:
+                    coords = get_coordinates(session_dir)
+                    if coords:
+                        start_lat = str(round(coords[0][0], 6))
+                        start_lng = str(round(coords[0][1], 6))
+
             writer.writerow({
                 "datetime": session_key,
                 "type": activity.type,
@@ -452,6 +467,8 @@ def update_sessions_tsv(data_dir: Path, username: str) -> Path:
                 "has_gps": "true" if activity.has_gps else "false",
                 "photos_path": photos_path,
                 "photo_count": activity.photo_count,
+                "start_lat": start_lat,
+                "start_lng": start_lng,
             })
 
     return sessions_path

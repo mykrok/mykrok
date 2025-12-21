@@ -2974,8 +2974,8 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                             const sessions = this.parseTSV(sessionsText);
 
                             for (const session of sessions) {{
-                                const lat = parseFloat(session.center_lat);
-                                const lng = parseFloat(session.center_lng);
+                                const lat = parseFloat(session.start_lat);
+                                const lng = parseFloat(session.start_lng);
                                 const distance = parseFloat(session.distance_m || 0);
 
                                 // Track athlete stats
@@ -2994,8 +2994,8 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                                     elevation_gain_m: session.elevation_gain_m || '0',
                                     photo_count: session.photo_count || '0',
                                     has_gps: session.has_gps,
-                                    center_lat: session.center_lat,
-                                    center_lng: session.center_lng
+                                    start_lat: session.start_lat,
+                                    start_lng: session.start_lng
                                 }};
                                 this.allSessions.push(sessionData);
                                 this.sessionsByAthlete[username].push(sessionData);
@@ -3900,8 +3900,8 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 const mapBtn = document.getElementById('full-session-map-btn');
                 mapBtn.onclick = () => {{
                     // Navigate to map view centered on this session
-                    const lat = parseFloat(session.center_lat);
-                    const lng = parseFloat(session.center_lng);
+                    const lat = parseFloat(session.start_lat);
+                    const lng = parseFloat(session.start_lng);
                     if (!isNaN(lat) && !isNaN(lng)) {{
                         location.hash = `#/map?z=14&lat=${{lat}}&lng=${{lng}}`;
                     }} else {{

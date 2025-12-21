@@ -686,7 +686,7 @@ class BackupService:
             except StravaRateLimitError as e:
                 # Rate limit hit - stop processing to avoid data loss
                 logger.warning("Rate limit exceeded, stopping refresh: %s", e)
-                log(f"Rate limit exceeded - stopping to preserve data", 0)
+                log("Rate limit exceeded - stopping to preserve data", 0)
                 errors.append({
                     "session": session_key,
                     "activity_id": activity.id,

@@ -940,13 +940,22 @@ def migrate(ctx: Context, dry_run: bool) -> None:
                 action = "Would update" if dry_run else "Updated"
                 ctx.log(f"  {action}: {filepath}")
 
+        # Report gitattributes update
+        if results["log_gitattributes_added"]:
+            action = "Would add" if dry_run else "Added"
+            ctx.log(f"{action} log file gitattributes rule")
+
         if not dry_run:
+            # Report coordinate column migrations
+            if results["coords_columns_migrated"]:
+                ctx.log(
+                    f"Migrated center_lat/lng -> start_lat/lng in "
+                    f"{results['coords_columns_migrated']} file(s)"
+                )
+
             # Report athletes.tsv
             if results["athletes_tsv"]:
                 ctx.log(f"Generated: {results['athletes_tsv']}")
-
-            # Report sessions updates
-            ctx.log(f"Sessions with center coords added: {results['sessions_updated']}")
 
             ctx.log("Migration complete")
         else:
@@ -958,30 +967,18 @@ def migrate(ctx: Context, dry_run: bool) -> None:
 
 
 @main.command()
-@click.option(
-    "--add-center-coords/--no-center-coords",
-    default=True,
-    help="Add start point GPS coordinates to sessions.tsv (default: True)",
-)
-@click.option(
-    "--force-coords",
-    is_flag=True,
-    help="Force recalculation of coordinates even if they already exist",
-)
 @pass_context
-def rebuild_sessions(ctx: Context, add_center_coords: bool, force_coords: bool) -> None:
+def rebuild_sessions(ctx: Context) -> None:
     """Rebuild sessions.tsv files from activity data.
 
     Scans all session directories and regenerates sessions.tsv for each athlete
     from their info.json files. Use this if sessions.tsv is missing entries
     or needs to be recreated.
 
-    By default, also adds start point GPS coordinates for map visualization
-    (stored in center_lat/center_lng columns for backward compatibility).
+    Includes start_lat/start_lng columns for map visualization.
     """
     from strava_backup.lib.paths import iter_athlete_dirs
     from strava_backup.models.activity import update_sessions_tsv
-    from strava_backup.services.migrate import add_center_coords_to_sessions
 
     config = ctx.config
     if config is None:
@@ -1009,13 +1006,6 @@ def rebuild_sessions(ctx: Context, add_center_coords: bool, force_coords: bool) 
             total_sessions += session_count
 
         ctx.log(f"Total: {total_sessions} sessions across {len(athletes)} athlete(s)")
-
-        # Add start point coordinates if requested
-        if add_center_coords:
-            ctx.log("Adding start point GPS coordinates...")
-            updated = add_center_coords_to_sessions(data_dir, force=force_coords)
-            ctx.log(f"  Updated {updated} sessions with coordinates")
-
         ctx.log("Done")
 
     except Exception as e:
