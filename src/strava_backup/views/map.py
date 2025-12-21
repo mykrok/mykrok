@@ -2236,8 +2236,8 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             }},
 
             init() {{
-                // Initialize map
-                this.map = L.map('map', {{ preferCanvas: true }}).setView([40, -100], 4);
+                // Initialize map - start zoomed out to world view
+                this.map = L.map('map', {{ preferCanvas: true }}).setView([20, 0], 3);
                 window.mapInstance = this.map;
 
                 L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
