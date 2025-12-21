@@ -51,6 +51,34 @@ Screenshots are auto-generated from the demo dataset (`tox -e screenshots`).
 ![Statistics by athlete](docs/screenshots/09-stats-filtered.jpg)
 *Statistics by athlete*
 
+### No Backend Required
+
+The web UI loads data **directly from the file tree** — no database, no server-side processing, no custom data structures. Just standard formats (TSV, JSON, Parquet) served as static files:
+
+```
+data/
+├── athletes.tsv                    # List of athletes
+├── athl=alice/
+│   ├── sessions.tsv                # Activity index (dates, distances, stats)
+│   └── ses=20241218T063000/
+│       ├── info.json               # Activity metadata
+│       ├── tracking.parquet        # GPS + sensor streams (lat, lng, hr, cadence...)
+│       └── photos/
+│           └── photo_1.jpg
+└── athl=bob/
+    ├── sessions.tsv
+    └── ses=20241218T063000/        # Shared run (same datetime)
+        ├── info.json
+        └── tracking.parquet
+```
+
+The browser fetches `athletes.tsv` → discovers athletes → loads each `sessions.tsv` → renders the map/table. Clicking an activity fetches its `tracking.parquet` directly. This means you can:
+
+- **Host anywhere**: Any static file server (nginx, GitHub Pages, S3, local `python -m http.server`)
+- **Query with standard tools**: DuckDB, pandas, or any Parquet-compatible tool
+- **Version with git/DataLad**: Text files diff cleanly, binary files handled by git-annex
+- **Browse offline**: Open `strava-backup.html` directly from disk
+
 ## Installation
 
 ```bash
