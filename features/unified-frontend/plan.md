@@ -649,3 +649,57 @@ const Router = {
 
 ### Priority: Medium (Phase 7)
 Should be implemented after permalinks/deep linking (shares URL infrastructure).
+
+---
+
+## Future Enhancement: Data Streams Visualization (Phase 8)
+
+**Goal**: Rich visualization of activity data streams (heart rate, cadence, power, elevation, speed) with time-series charts and analytical scatter plots.
+
+### TODO: UX Design Required
+
+**Action**: Engage UX designer to create comprehensive design for data streams visualization, including:
+
+1. **Time-Series Charts**
+   - Primary X-axis: time (or distance)
+   - Elevation profile as grey background fill (standard cycling/running convention)
+   - Heart rate, cadence, power as colored line overlays
+   - Synchronized hover/crosshair showing values at cursor position
+   - Zoom/pan capabilities for detailed inspection
+
+2. **Multi-Stream Overlay Options**
+   - Toggle individual streams on/off
+   - Dual Y-axis support (e.g., HR on left, power on right)
+   - Color coding consistent with activity type colors
+
+3. **Analytical Scatter Plots**
+   - Heart rate vs. power (cycling power zones)
+   - Heart rate vs. speed/pace
+   - Cadence vs. speed
+   - Elevation vs. heart rate
+   - User-selectable X/Y axes
+
+4. **Basic Analytics**
+   - Zone distribution (HR zones, power zones)
+   - Time-in-zone pie/bar charts
+   - Moving averages (30s, 60s rolling)
+   - Lap/split markers on timeline
+
+5. **Integration Points**
+   - Session detail panel (compact view)
+   - Full-screen session view (expanded charts)
+   - Map synchronization (click on chart → highlight position on map)
+
+6. **Mobile Considerations**
+   - Touch-friendly zoom/pan
+   - Swipe between different chart views
+   - Landscape orientation for better chart viewing
+
+### Technical Considerations
+- Canvas-based rendering for performance (large datasets)
+- Lazy loading of stream data (only when chart visible)
+- Downsampling for overview, full resolution on zoom
+- Consider lightweight charting library (Chart.js, uPlot) vs. custom Canvas
+
+### Priority: Low (Phase 8)
+Depends on full-screen session view (Phase 7) for optimal presentation.
