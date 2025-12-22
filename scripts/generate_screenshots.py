@@ -94,12 +94,26 @@ def capture_screenshots(
         browser = p.chromium.launch(headless=headless, args=["--no-sandbox"])
         page = browser.new_page(viewport={"width": VIEWPORT_WIDTH, "height": VIEWPORT_HEIGHT})
 
+        # Capture console errors for debugging
+        page.on(
+            "console",
+            lambda msg: print(f"  [CONSOLE {msg.type}] {msg.text}")
+            if msg.type in ("error", "warning")
+            else None,
+        )
+        page.on("pageerror", lambda exc: print(f"  [PAGE ERROR] {exc}"))
+
         print("\nCapturing screenshots...")
 
         # 1. Map View - Initial view with markers
         print("  1/9: Map view (overview)")
-        page.goto(f"{base_url}/strava-backup.html#/map")
-        page.wait_for_selector(".leaflet-marker-icon", timeout=15000)
+        page.goto(f"{base_url}/strava-backup.html#/map", wait_until="networkidle")
+        # Wait for the page to fully load
+        page.wait_for_timeout(2000)
+        # Check if map container exists
+        if page.locator("#map").count() == 0:
+            print("  ERROR: #map not found in page")
+        page.wait_for_selector(".leaflet-marker-icon", timeout=30000)
         # Wait for all markers to load and let map settle
         page.wait_for_timeout(3000)
         screenshots.append(
@@ -190,7 +204,7 @@ def capture_screenshots(
         )
 
         # 7. Full-screen Session View
-        print("  7/9: Full-screen session view")
+        print("  7/10: Full-screen session view")
         expand_btn = page.locator("#expand-detail")
         if expand_btn.count() > 0:
             expand_btn.click()
@@ -202,21 +216,48 @@ def capture_screenshots(
         else:
             print("    (skipped - expand button not found)")
 
-        # 8. Stats View
-        print("  8/9: Stats view")
+        # 8. Full-screen Session View - Data Streams
+        print("  8/10: Data streams visualization")
+        # Wait for streams to load (they load async)
+        page.wait_for_selector(".stream-header", timeout=10000)
+        page.wait_for_timeout(500)  # Let charts render
+        # Scroll the container (not window) to show data streams section
+        page.evaluate("""() => {
+            const container = document.querySelector('.full-session-container');
+            const header = document.querySelector('.stream-header');
+            if (container && header) {
+                // Scroll container to put header at top with some padding
+                const headerTop = header.offsetTop;
+                container.scrollTo({ top: headerTop - 80, behavior: 'instant' });
+            }
+        }""")
+        page.wait_for_timeout(500)  # Wait for scroll to complete
+        # Check if charts exist
+        if (
+            page.locator("#elevation-chart").count() > 0
+            or page.locator("#activity-chart").count() > 0
+        ):
+            screenshots.append(
+                take_screenshot(page, output_dir / "08-data-streams", "Activity data streams")
+            )
+        else:
+            print("    (no stream data available)")
+
+        # 9. Stats View
+        print("  9/10: Stats view")
         page.locator(".nav-tab[data-view='stats']").click()
         page.wait_for_selector("#view-stats.active", timeout=5000)
         page.wait_for_timeout(1000)  # Wait for charts to render
         screenshots.append(
-            take_screenshot(page, output_dir / "08-stats-dashboard", "Statistics dashboard")
+            take_screenshot(page, output_dir / "09-stats-dashboard", "Statistics dashboard")
         )
 
-        # 9. Stats View - Filtered by athlete
-        print("  9/9: Stats view (filtered)")
+        # 10. Stats View - Filtered by athlete
+        print("  10/10: Stats view (filtered)")
         page.select_option("#athlete-selector", "alice")
         page.wait_for_timeout(500)
         screenshots.append(
-            take_screenshot(page, output_dir / "09-stats-filtered", "Statistics by athlete")
+            take_screenshot(page, output_dir / "10-stats-filtered", "Statistics by athlete")
         )
 
         browser.close()
@@ -264,8 +305,8 @@ def generate_readme_section(screenshots: list[tuple[str, str]]) -> str:
     views = {
         "Map View": ["01-", "02-", "03-"],
         "Sessions View": ["04-", "05-", "06-"],
-        "Session Detail": ["07-"],
-        "Statistics": ["08-", "09-"],
+        "Session Detail": ["07-", "08-"],
+        "Statistics": ["09-", "10-"],
     }
 
     for view_name, prefixes in views.items():

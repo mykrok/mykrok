@@ -1241,6 +1241,92 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             text-decoration: underline;
         }}
 
+        /* Map info panel with integrated session list */
+        .map-info-panel {{
+            min-width: 160px;
+            max-width: 280px;
+        }}
+
+        .info-header {{
+            margin-bottom: 4px;
+        }}
+
+        .info-stats {{
+            font-size: 13px;
+            margin-bottom: 4px;
+        }}
+
+        .info-sessions-toggle {{
+            color: #fc4c02;
+            cursor: pointer;
+            font-weight: 500;
+        }}
+
+        .info-sessions-toggle:hover {{
+            text-decoration: underline;
+        }}
+
+        .info-session-list {{
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 8px;
+            border-top: 1px solid #e0e0e0;
+            padding-top: 8px;
+        }}
+
+        .info-session-item {{
+            padding: 6px 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 4px;
+            border: 1px solid transparent;
+        }}
+
+        .info-session-item:hover {{
+            background: #f5f5f5;
+            border-color: #fc4c02;
+        }}
+
+        .info-session-date {{
+            font-size: 11px;
+            color: #666;
+        }}
+
+        .info-session-type {{
+            font-size: 10px;
+            background: #e8e8e8;
+            padding: 1px 4px;
+            border-radius: 3px;
+            margin-left: 4px;
+        }}
+
+        .info-session-name {{
+            font-size: 12px;
+            font-weight: 500;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }}
+
+        .info-session-more {{
+            text-align: center;
+            padding: 8px;
+            font-size: 12px;
+        }}
+
+        .info-session-more a {{
+            color: #fc4c02;
+        }}
+
+        .info-hint {{
+            font-size: 11px;
+            color: #888;
+            margin-top: 6px;
+            border-top: 1px solid #e0e0e0;
+            padding-top: 6px;
+        }}
+
         .legend {{
             line-height: 18px;
             color: #555;
@@ -2064,6 +2150,94 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             color: #333;
         }}
 
+        /* Data Stream Charts */
+        .stream-charts {{
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }}
+
+        .stream-chart-container {{
+            position: relative;
+            height: 150px;
+            background: #fafafa;
+            border-radius: 8px;
+            padding: 12px;
+        }}
+
+        .stream-chart-container.elevation-chart {{
+            height: 120px;
+        }}
+
+        .stream-chart-label {{
+            position: absolute;
+            top: 8px;
+            left: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            z-index: 1;
+        }}
+
+        .stream-chart-canvas {{
+            width: 100% !important;
+            height: 100% !important;
+        }}
+
+        .stream-legend {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #666;
+        }}
+
+        .stream-legend-item {{
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            opacity: 1;
+            transition: opacity 0.2s;
+        }}
+
+        .stream-legend-item.disabled {{
+            opacity: 0.4;
+        }}
+
+        .stream-legend-color {{
+            width: 12px;
+            height: 3px;
+            border-radius: 2px;
+        }}
+
+        .stream-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }}
+
+        .stream-header .full-session-section-title {{
+            margin: 0;
+        }}
+
+        .xaxis-select {{
+            padding: 4px 8px;
+            font-size: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+        }}
+
+        .xaxis-select:hover {{
+            border-color: #bbb;
+        }}
+
         .full-session-photos .photo-grid {{
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -2126,6 +2300,217 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             display: flex;
             gap: 12px;
             margin-bottom: 16px;
+        }}
+
+        /* ===== Map Filter Bar (overlay) ===== */
+        .map-filter-container {{
+            position: absolute;
+            top: 8px;
+            left: 60px;
+            right: 60px;
+            z-index: 1000;
+            display: flex;
+            gap: 8px;
+            pointer-events: none;
+        }}
+
+        .map-filter-container > * {{
+            pointer-events: auto;
+        }}
+
+        .map-filter-bar {{
+            display: flex;
+            gap: 6px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            flex-wrap: wrap;
+            align-items: center;
+        }}
+
+        .map-filter-bar .filter-input,
+        .map-filter-bar .filter-select {{
+            padding: 6px 10px;
+            font-size: 13px;
+        }}
+
+        .map-filter-bar .filter-search {{
+            width: 140px;
+        }}
+
+        .map-filter-bar .filter-date {{
+            width: 115px;
+        }}
+
+        .map-filter-bar .filter-btn {{
+            padding: 6px 12px;
+            font-size: 13px;
+        }}
+
+        .map-filter-bar .filter-count {{
+            font-size: 12px;
+            color: #666;
+            padding: 0 8px;
+        }}
+
+        /* ===== Session List Panel ===== */
+        .session-list-panel {{
+            position: absolute;
+            top: 60px;
+            right: 8px;
+            width: 280px;
+            max-height: calc(100% - 80px);
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }}
+
+        .session-list-panel.collapsed .session-list-content {{
+            display: none;
+        }}
+
+        .session-list-header {{
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            border-bottom: 1px solid #e0e0e0;
+            background: #f8f8f8;
+        }}
+
+        .session-list-title {{
+            font-weight: 600;
+            font-size: 14px;
+            flex: 1;
+        }}
+
+        .session-list-count {{
+            font-size: 12px;
+            color: #666;
+            background: #e0e0e0;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-right: 8px;
+        }}
+
+        .session-list-toggle {{
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px 8px;
+            font-size: 12px;
+            color: #666;
+        }}
+
+        .session-list-content {{
+            flex: 1;
+            overflow-y: auto;
+            max-height: 400px;
+        }}
+
+        .session-list-items {{
+            padding: 4px;
+        }}
+
+        .session-list-item {{
+            padding: 10px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 4px;
+            background: #fff;
+            border: 1px solid #e8e8e8;
+        }}
+
+        .session-list-item:hover {{
+            background: #f5f5f5;
+            border-color: #fc4c02;
+        }}
+
+        .session-list-item-header {{
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+        }}
+
+        .session-list-item-type {{
+            font-size: 11px;
+            background: #e8e8e8;
+            padding: 1px 6px;
+            border-radius: 3px;
+        }}
+
+        .session-list-item-name {{
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }}
+
+        .session-list-item-stats {{
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }}
+
+        .session-list-more {{
+            width: 100%;
+            padding: 8px;
+            background: #f5f5f5;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            color: #fc4c02;
+        }}
+
+        .session-list-more:hover {{
+            background: #eee;
+        }}
+
+        /* Stats view session list */
+        .stats-session-panel {{
+            margin-top: 24px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }}
+
+        .stats-session-panel .session-list-content {{
+            max-height: 300px;
+        }}
+
+        @media (max-width: 768px) {{
+            .map-filter-container {{
+                left: 8px;
+                right: 8px;
+                top: 4px;
+            }}
+
+            .map-filter-bar {{
+                width: 100%;
+            }}
+
+            .map-filter-bar .filter-search {{
+                width: 100%;
+                min-width: 0;
+            }}
+
+            .session-list-panel {{
+                top: auto;
+                bottom: 60px;
+                left: 8px;
+                right: 8px;
+                width: auto;
+                max-height: 50vh;
+            }}
         }}
 
         .summary-cards {{
@@ -2287,6 +2672,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
         <!-- Map View -->
         <div id="view-map" class="view active">
             <div id="map"></div>
+            <div class="map-filter-container">
+                <div id="map-filter-bar" class="filter-bar map-filter-bar"></div>
+            </div>
             <div id="loading" class="loading">Loading sessions...</div>
         </div>
 
@@ -2341,14 +2729,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
         <!-- Stats View -->
         <div id="view-stats" class="view">
             <div class="stats-container">
-                <div class="stats-filters">
-                    <select id="year-filter" class="filter-select">
-                        <option value="">All Years</option>
-                    </select>
-                    <select id="stats-type-filter" class="filter-select">
-                        <option value="">All Types</option>
-                    </select>
-                </div>
+                <div id="stats-filter-bar" class="filter-bar stats-filters"></div>
                 <div class="summary-cards" id="summary-cards">
                     <div class="summary-card">
                         <div class="summary-value" id="total-sessions">-</div>
@@ -2377,6 +2758,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                         <canvas id="type-chart"></canvas>
                     </div>
                 </div>
+                <div id="stats-session-list" class="stats-session-panel"></div>
             </div>
         </div>
 
@@ -2435,6 +2817,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
     </nav>
 
     <script src="assets/leaflet/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script type="module">
         import {{ parquetReadObjects }} from './assets/hyparquet/index.js';
 
@@ -2450,6 +2833,8 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 if (state.session) params.set('s', state.session);
                 if (state.search) params.set('q', state.search);
                 if (state.type) params.set('t', state.type);
+                if (state.dateFrom) params.set('from', state.dateFrom);
+                if (state.dateTo) params.set('to', state.dateTo);
                 const queryStr = params.toString();
                 return '#/' + state.view + (queryStr ? '?' + queryStr : '');
             }},
@@ -2467,7 +2852,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     lng: params.get('lng') ? parseFloat(params.get('lng')) : null,
                     session: params.get('s') || '',
                     search: params.get('q') || '',
-                    type: params.get('t') || ''
+                    type: params.get('t') || '',
+                    dateFrom: params.get('from') || '',
+                    dateTo: params.get('to') || ''
                 }};
             }},
 
@@ -2485,6 +2872,378 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 const newHash = this.encode(newState);
                 // Use replaceState to avoid cluttering browser history
                 history.replaceState(null, '', newHash);
+            }}
+        }};
+
+        // ===== Shared Filter State =====
+        const FilterState = {{
+            state: {{
+                search: '',
+                type: '',
+                dateFrom: '',
+                dateTo: ''
+            }},
+            listeners: [],
+
+            get() {{
+                return {{ ...this.state }};
+            }},
+
+            set(newState, skipNotify = false) {{
+                const changed = Object.keys(newState).some(k => this.state[k] !== newState[k]);
+                if (changed) {{
+                    this.state = {{ ...this.state, ...newState }};
+                    if (!skipNotify) this.notify();
+                }}
+            }},
+
+            clear() {{
+                this.set({{ search: '', type: '', dateFrom: '', dateTo: '' }});
+            }},
+
+            onChange(callback) {{
+                this.listeners.push(callback);
+                return () => {{ this.listeners = this.listeners.filter(l => l !== callback); }};
+            }},
+
+            notify() {{
+                for (const listener of this.listeners) {{
+                    try {{ listener(this.state); }} catch (e) {{ console.error('FilterState listener error:', e); }}
+                }}
+            }},
+
+            // Sync with URL
+            syncToURL() {{
+                URLState.update({{
+                    search: this.state.search,
+                    type: this.state.type,
+                    dateFrom: this.state.dateFrom,
+                    dateTo: this.state.dateTo
+                }});
+            }},
+
+            syncFromURL() {{
+                const urlState = URLState.decode();
+                this.set({{
+                    search: urlState.search || '',
+                    type: urlState.type || '',
+                    dateFrom: urlState.dateFrom || '',
+                    dateTo: urlState.dateTo || ''
+                }}, true);  // Skip notify - caller will handle
+            }},
+
+            hasActiveFilters() {{
+                return this.state.search || this.state.type || this.state.dateFrom || this.state.dateTo;
+            }}
+        }};
+
+        // ===== Shared Filter Function =====
+        function applyFilters(sessions, filters, athlete = '') {{
+            return sessions.filter(s => {{
+                // Athlete filter (global, from header selector)
+                if (athlete && s.athlete !== athlete) return false;
+                // Search filter
+                if (filters.search && !s.name.toLowerCase().includes(filters.search.toLowerCase())) return false;
+                // Type filter
+                if (filters.type && s.type !== filters.type) return false;
+                // Date filters
+                if (filters.dateFrom) {{
+                    const fromDate = filters.dateFrom.replace(/-/g, '');
+                    if (s.datetime < fromDate) return false;
+                }}
+                if (filters.dateTo) {{
+                    const toDate = filters.dateTo.replace(/-/g, '');
+                    if (s.datetime.substring(0, 8) > toDate) return false;
+                }}
+                return true;
+            }});
+        }}
+
+        // ===== Shared FilterBar Component =====
+        const FilterBar = {{
+            containerId: null,
+            types: [],
+
+            render(containerId, options = {{}}) {{
+                this.containerId = containerId;
+                const container = document.getElementById(containerId);
+                if (!container) return;
+
+                const showSearch = options.showSearch !== false;
+                const showType = options.showType !== false;
+                const showDates = options.showDates !== false;
+                const showDatePresets = options.showDatePresets !== false;
+
+                const state = FilterState.get();
+
+                let html = '';
+                if (showSearch) {{
+                    html += `<input type="search" class="filter-input filter-search" placeholder="Search activities..." value="${{state.search}}">`;
+                }}
+                if (showType) {{
+                    html += `<select class="filter-select filter-type"><option value="">All Types</option></select>`;
+                }}
+                if (showDatePresets) {{
+                    html += `<select class="filter-select filter-date-preset">
+                        <option value="">Date Range</option>
+                        <option value="thisYear">This Year</option>
+                        <option value="last12m">Last 12 Months</option>
+                        <option value="last30d">Last 30 Days</option>
+                        <option value="thisMonth">This Month</option>
+                    </select>`;
+                }}
+                if (showDates) {{
+                    html += `<input type="date" class="filter-input filter-date filter-date-from" title="From date" value="${{state.dateFrom}}">`;
+                    html += `<input type="date" class="filter-input filter-date filter-date-to" title="To date" value="${{state.dateTo}}">`;
+                }}
+                html += `<button class="filter-btn filter-clear">Clear</button>`;
+                html += `<span class="filter-count"></span>`;
+
+                container.innerHTML = html;
+            }},
+
+            init(containerId) {{
+                const container = document.getElementById(containerId);
+                if (!container) return;
+
+                // Search input
+                const searchInput = container.querySelector('.filter-search');
+                if (searchInput) {{
+                    let debounceTimer;
+                    searchInput.addEventListener('input', (e) => {{
+                        clearTimeout(debounceTimer);
+                        debounceTimer = setTimeout(() => {{
+                            FilterState.set({{ search: e.target.value }});
+                            FilterState.syncToURL();
+                        }}, 300);
+                    }});
+                }}
+
+                // Type filter
+                const typeSelect = container.querySelector('.filter-type');
+                if (typeSelect) {{
+                    typeSelect.addEventListener('change', (e) => {{
+                        FilterState.set({{ type: e.target.value }});
+                        FilterState.syncToURL();
+                    }});
+                }}
+
+                // Date preset
+                const presetSelect = container.querySelector('.filter-date-preset');
+                if (presetSelect) {{
+                    presetSelect.addEventListener('change', (e) => {{
+                        const today = new Date();
+                        let dateFrom = '', dateTo = '';
+                        switch (e.target.value) {{
+                            case 'thisYear':
+                                dateFrom = `${{today.getFullYear()}}-01-01`;
+                                dateTo = today.toISOString().split('T')[0];
+                                break;
+                            case 'last12m':
+                                const last12m = new Date(today);
+                                last12m.setMonth(last12m.getMonth() - 12);
+                                dateFrom = last12m.toISOString().split('T')[0];
+                                dateTo = today.toISOString().split('T')[0];
+                                break;
+                            case 'last30d':
+                                const last30d = new Date(today);
+                                last30d.setDate(last30d.getDate() - 30);
+                                dateFrom = last30d.toISOString().split('T')[0];
+                                dateTo = today.toISOString().split('T')[0];
+                                break;
+                            case 'thisMonth':
+                                dateFrom = `${{today.getFullYear()}}-${{String(today.getMonth() + 1).padStart(2, '0')}}-01`;
+                                dateTo = today.toISOString().split('T')[0];
+                                break;
+                        }}
+                        FilterState.set({{ dateFrom, dateTo }});
+                        FilterState.syncToURL();
+                        // Update date inputs
+                        const fromInput = container.querySelector('.filter-date-from');
+                        const toInput = container.querySelector('.filter-date-to');
+                        if (fromInput) fromInput.value = dateFrom;
+                        if (toInput) toInput.value = dateTo;
+                    }});
+                }}
+
+                // Date from
+                const dateFromInput = container.querySelector('.filter-date-from');
+                if (dateFromInput) {{
+                    dateFromInput.addEventListener('change', (e) => {{
+                        FilterState.set({{ dateFrom: e.target.value }});
+                        FilterState.syncToURL();
+                        // Reset preset
+                        const preset = container.querySelector('.filter-date-preset');
+                        if (preset) preset.value = '';
+                    }});
+                }}
+
+                // Date to
+                const dateToInput = container.querySelector('.filter-date-to');
+                if (dateToInput) {{
+                    dateToInput.addEventListener('change', (e) => {{
+                        FilterState.set({{ dateTo: e.target.value }});
+                        FilterState.syncToURL();
+                        // Reset preset
+                        const preset = container.querySelector('.filter-date-preset');
+                        if (preset) preset.value = '';
+                    }});
+                }}
+
+                // Clear button
+                const clearBtn = container.querySelector('.filter-clear');
+                if (clearBtn) {{
+                    clearBtn.addEventListener('click', () => {{
+                        FilterState.clear();
+                        FilterState.syncToURL();
+                        this.syncFromState(containerId);
+                    }});
+                }}
+            }},
+
+            populateTypes(containerId, sessions) {{
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                const typeSelect = container.querySelector('.filter-type');
+                if (!typeSelect) return;
+
+                const types = [...new Set(sessions.map(s => s.type).filter(Boolean))].sort();
+                const currentValue = typeSelect.value;
+                typeSelect.innerHTML = '<option value="">All Types</option>';
+                for (const type of types) {{
+                    const option = document.createElement('option');
+                    option.value = type;
+                    option.textContent = type;
+                    typeSelect.appendChild(option);
+                }}
+                typeSelect.value = currentValue;
+            }},
+
+            syncFromState(containerId) {{
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                const state = FilterState.get();
+
+                const searchInput = container.querySelector('.filter-search');
+                if (searchInput) searchInput.value = state.search;
+
+                const typeSelect = container.querySelector('.filter-type');
+                if (typeSelect) typeSelect.value = state.type;
+
+                const dateFromInput = container.querySelector('.filter-date-from');
+                if (dateFromInput) dateFromInput.value = state.dateFrom;
+
+                const dateToInput = container.querySelector('.filter-date-to');
+                if (dateToInput) dateToInput.value = state.dateTo;
+            }},
+
+            updateCount(containerId, filteredCount, totalCount) {{
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                const countEl = container.querySelector('.filter-count');
+                if (countEl) {{
+                    if (FilterState.hasActiveFilters()) {{
+                        countEl.textContent = `${{filteredCount}} of ${{totalCount}}`;
+                        countEl.style.display = 'inline';
+                    }} else {{
+                        countEl.textContent = '';
+                        countEl.style.display = 'none';
+                    }}
+                }}
+            }}
+        }};
+
+        // ===== Session List Panel Component =====
+        const SessionListPanel = {{
+            containerId: null,
+            sessions: [],
+            onSessionClick: null,
+            displayLimit: 50,
+
+            render(containerId, options = {{}}) {{
+                this.containerId = containerId;
+                this.onSessionClick = options.onSessionClick || null;
+                const container = document.getElementById(containerId);
+                if (!container) return;
+
+                container.innerHTML = `
+                    <div class="session-list-header">
+                        <span class="session-list-title">Sessions</span>
+                        <span class="session-list-count">0</span>
+                        <button class="session-list-toggle" title="Toggle panel">▼</button>
+                    </div>
+                    <div class="session-list-content">
+                        <div class="session-list-items"></div>
+                        <button class="session-list-more" style="display: none;">Load more...</button>
+                    </div>
+                `;
+
+                // Toggle button
+                const toggle = container.querySelector('.session-list-toggle');
+                const content = container.querySelector('.session-list-content');
+                toggle.addEventListener('click', () => {{
+                    container.classList.toggle('collapsed');
+                    toggle.textContent = container.classList.contains('collapsed') ? '▲' : '▼';
+                }});
+
+                // Load more button
+                const moreBtn = container.querySelector('.session-list-more');
+                moreBtn.addEventListener('click', () => {{
+                    this.displayLimit += 50;
+                    this.updateList();
+                }});
+            }},
+
+            setSessions(sessions) {{
+                this.sessions = sessions;
+                this.displayLimit = 50;
+                this.updateList();
+            }},
+
+            updateList() {{
+                const container = document.getElementById(this.containerId);
+                if (!container) return;
+
+                const countEl = container.querySelector('.session-list-count');
+                if (countEl) countEl.textContent = this.sessions.length;
+
+                const itemsEl = container.querySelector('.session-list-items');
+                if (!itemsEl) return;
+
+                const toShow = this.sessions.slice(0, this.displayLimit);
+                itemsEl.innerHTML = toShow.map(s => {{
+                    const dateStr = s.datetime ? `${{s.datetime.substring(0,4)}}-${{s.datetime.substring(4,6)}}-${{s.datetime.substring(6,8)}}` : '';
+                    const distance = s.distance_m > 0 ? `${{(parseFloat(s.distance_m) / 1000).toFixed(1)}} km` : '';
+                    return `
+                        <div class="session-list-item" data-athlete="${{s.athlete}}" data-datetime="${{s.datetime}}">
+                            <div class="session-list-item-header">
+                                <span class="session-list-item-date">${{dateStr}}</span>
+                                <span class="session-list-item-type">${{s.type || ''}}</span>
+                            </div>
+                            <div class="session-list-item-name">${{s.name || 'Untitled'}}</div>
+                            <div class="session-list-item-stats">${{distance}}</div>
+                        </div>
+                    `;
+                }}).join('');
+
+                // Show/hide load more button
+                const moreBtn = container.querySelector('.session-list-more');
+                if (moreBtn) {{
+                    moreBtn.style.display = this.sessions.length > this.displayLimit ? 'block' : 'none';
+                }}
+
+                // Add click handlers
+                itemsEl.querySelectorAll('.session-list-item').forEach(item => {{
+                    item.addEventListener('click', () => {{
+                        const athlete = item.dataset.athlete;
+                        const datetime = item.dataset.datetime;
+                        if (this.onSessionClick) {{
+                            this.onSessionClick(athlete, datetime);
+                        }} else {{
+                            location.hash = `#/session/${{athlete}}/${{datetime}}`;
+                        }}
+                    }});
+                }});
             }}
         }};
 
@@ -2543,7 +3302,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     const selector = document.getElementById('athlete-selector');
                     if (selector) {{
                         selector.value = state.athlete;
-                        selector.dispatchEvent(new Event('change'));
+                        // Don't dispatch change event - we'll handle filtering below
                     }}
                 }}
 
@@ -2554,30 +3313,25 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     }}
                 }}
 
-                // Apply session filters
-                if (state.view === 'sessions') {{
-                    if (state.search) {{
-                        const searchInput = document.getElementById('session-search');
-                        if (searchInput) {{
-                            searchInput.value = state.search;
-                            SessionsView.filters.search = state.search.toLowerCase();
-                        }}
-                    }}
-                    if (state.type) {{
-                        const typeFilter = document.getElementById('type-filter');
-                        if (typeFilter) {{
-                            typeFilter.value = state.type;
-                            SessionsView.filters.type = state.type;
-                        }}
-                    }}
-                    // Trigger re-render after applying filters
-                    if (state.search || state.type) {{
-                        SessionsView.applyFiltersAndRender();
-                    }}
+                // Sync shared FilterState from URL (applies to all views)
+                FilterState.syncFromURL();
+
+                // Sync all filter bars from shared state
+                FilterBar.syncFromState('map-filter-bar');
+                FilterBar.syncFromState('stats-filter-bar');
+                SessionsView.syncFiltersFromState();
+
+                // Trigger re-render for current view
+                if (state.view === 'map') {{
+                    MapView.applyFiltersAndUpdateUI();
+                }} else if (state.view === 'sessions') {{
+                    SessionsView.applyFiltersAndRender();
+                }} else if (state.view === 'stats') {{
+                    StatsView.calculate();
                 }}
 
                 // Open session detail if specified
-                if (state.session && state.athlete) {{
+                if (state.session && state.athlete && state.view === 'sessions') {{
                     setTimeout(() => {{
                         SessionsView.showDetail(state.athlete, state.session);
                     }}, 500);
@@ -2585,13 +3339,17 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             }},
 
             navigate(view) {{
-                // Preserve athlete when navigating
+                // Preserve athlete and filter state when navigating between views
                 const currentAthlete = document.getElementById('athlete-selector')?.value || '';
+                const filters = FilterState.get();
 
-                // Build new hash - don't preserve zoom/lat/lng when changing views
-                // as they are view-specific (map position shouldn't carry to stats/sessions)
+                // Build new hash with preserved filter state
                 const params = new URLSearchParams();
                 if (currentAthlete) params.set('a', currentAthlete);
+                if (filters.search) params.set('q', filters.search);
+                if (filters.type) params.set('t', filters.type);
+                if (filters.dateFrom) params.set('from', filters.dateFrom);
+                if (filters.dateTo) params.set('to', filters.dateTo);
                 const queryStr = params.toString();
                 const newHash = '#/' + view + (queryStr ? '?' + queryStr : '');
 
@@ -2641,8 +3399,11 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             loadedTracks: new Set(),
             loadingTracks: new Set(),
             loadedPhotos: new Set(),
+            tracksBySession: {{}},  // Map of "athlete|session" -> polyline layer
+            photosBySession: {{}},  // Map of "athlete|session" -> array of photo markers
             allMarkers: [],
             allSessions: [],
+            filteredSessions: [],  // Sessions after applying filters
             sessionsByAthlete: {{}},
             athleteStats: {{}},
             currentAthlete: '',
@@ -2650,6 +3411,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             loadedTrackCount: 0,
             totalPhotos: 0,
             infoControl: null,
+            sessionListExpanded: false,
             AUTO_LOAD_ZOOM: 11,
             restoringFromURL: false,
 
@@ -2721,10 +3483,83 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 document.getElementById('athlete-selector').addEventListener('change', (e) => {{
                     this.filterByAthlete(e.target.value);
                     URLState.update({{ athlete: e.target.value }});
+                    this.applyFiltersAndUpdateUI();
                 }});
+
+                // Initialize filter bar for map
+                FilterBar.render('map-filter-bar', {{
+                    showSearch: true,
+                    showType: true,
+                    showDatePresets: true,
+                    showDates: true
+                }});
+                FilterBar.init('map-filter-bar');
+
+                // Subscribe to filter changes
+                FilterState.onChange(() => this.applyFiltersAndUpdateUI());
 
                 // Start loading sessions
                 this.loadSessions();
+            }},
+
+            // Apply filters and update UI (markers, info panel)
+            applyFiltersAndUpdateUI() {{
+                if (!this.allSessions.length) return;
+
+                const athlete = this.currentAthlete;
+                const filters = FilterState.get();
+                const filtered = applyFilters(this.allSessions, filters, athlete);
+
+                // Store filtered sessions sorted by date desc
+                this.filteredSessions = [...filtered].sort((a, b) => (b.datetime || '').localeCompare(a.datetime || ''));
+
+                // Build a set of visible session keys for quick lookup
+                const visibleKeys = new Set(filtered.map(s => `${{s.athlete}}|${{s.datetime}}`));
+
+                // Update marker visibility by adding/removing from layer
+                // This is the proper Leaflet way to show/hide markers
+                for (const data of this.allMarkers) {{
+                    const key = `${{data.athlete}}|${{data.session}}`;
+                    const visible = visibleKeys.has(key);
+                    data.visible = visible;
+
+                    if (visible) {{
+                        if (!this.sessionsLayer.hasLayer(data.marker)) {{
+                            data.marker.addTo(this.sessionsLayer);
+                        }}
+                    }} else {{
+                        this.sessionsLayer.removeLayer(data.marker);
+                    }}
+                }}
+
+                // Update track visibility - show/hide loaded tracks based on filter
+                for (const [sessionKey, polyline] of Object.entries(this.tracksBySession)) {{
+                    if (visibleKeys.has(sessionKey)) {{
+                        if (!this.tracksLayer.hasLayer(polyline)) {{
+                            polyline.addTo(this.tracksLayer);
+                        }}
+                    }} else {{
+                        this.tracksLayer.removeLayer(polyline);
+                    }}
+                }}
+
+                // Update photo visibility - show/hide loaded photos based on filter
+                for (const [sessionKey, markers] of Object.entries(this.photosBySession)) {{
+                    const visible = visibleKeys.has(sessionKey);
+                    for (const marker of markers) {{
+                        if (visible) {{
+                            if (!this.photosLayer.hasLayer(marker)) {{
+                                marker.addTo(this.photosLayer);
+                            }}
+                        }} else {{
+                            this.photosLayer.removeLayer(marker);
+                        }}
+                    }}
+                }}
+
+                // Update info panel (which now includes session count and list)
+                FilterBar.updateCount('map-filter-bar', filtered.length, this.allSessions.length);
+                this.updateInfo();
             }},
 
             parseTSV(text) {{
@@ -2739,33 +3574,19 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
             filterByAthlete(username) {{
                 this.currentAthlete = username;
+                // Apply filters (includes athlete filter) and update markers
+                this.applyFiltersAndUpdateUI();
 
-                // Update marker visibility
-                for (const data of this.allMarkers) {{
-                    const visible = !username || data.athlete === username;
-                    if (visible) {{
-                        if (!this.sessionsLayer.hasLayer(data.marker)) {{
-                            data.marker.addTo(this.sessionsLayer);
-                        }}
-                    }} else {{
-                        this.sessionsLayer.removeLayer(data.marker);
-                    }}
-                }}
-
-                // Recalculate bounds for visible markers
+                // Recalculate bounds for visible markers and fit
                 this.bounds = L.latLngBounds();
                 for (const data of this.allMarkers) {{
-                    if (!username || data.athlete === username) {{
+                    if (data.visible) {{
                         this.bounds.extend(data.marker.getLatLng());
                     }}
                 }}
-
-                // Fit to new bounds if valid
                 if (this.bounds.isValid()) {{
                     this.map.fitBounds(this.bounds, {{ padding: [20, 20] }});
                 }}
-
-                this.updateInfo();
             }},
 
             populateAthleteSelector() {{
@@ -2820,11 +3641,16 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                             }}
                         }}
                         if (coords.length > 0) {{
-                            L.polyline(coords, {{
+                            const polyline = L.polyline(coords, {{
                                 color: color,
                                 weight: 3,
                                 opacity: 0.7
                             }}).addTo(this.tracksLayer);
+
+                            // Store reference for filtering
+                            const sessionKey = `${{athlete}}|${{session}}`;
+                            this.tracksBySession[sessionKey] = polyline;
+
                             this.loadedTracks.add(trackKey);
                             this.loadedTrackCount++;
                             this.updateInfo();
@@ -2872,6 +3698,10 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     const info = await response.json();
                     const photos = info.photos || [];
 
+                    // Initialize array for this session's photos
+                    const sessionKey = `${{athlete}}|${{session}}`;
+                    this.photosBySession[sessionKey] = [];
+
                     for (const photo of photos) {{
                         const locationRaw = photo.location;
                         if (!locationRaw || !locationRaw[0] || !locationRaw[0][1]) continue;
@@ -2915,6 +3745,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                         `, {{ maxWidth: 350 }});
 
                         marker.addTo(this.photosLayer);
+                        this.photosBySession[sessionKey].push(marker);
                         this.totalPhotos++;
                     }}
 
@@ -3100,35 +3931,80 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 this.infoControl = L.control({{ position: 'topright' }});
                 const self = this;
                 this.infoControl.onAdd = function() {{
-                    const div = L.DomUtil.create('div', 'info');
+                    const div = L.DomUtil.create('div', 'info map-info-panel');
 
-                    // Calculate visible stats
-                    let visibleSessions = 0;
-                    for (const data of self.allMarkers) {{
-                        if (!self.currentAthlete || data.athlete === self.currentAthlete) {{
-                            visibleSessions++;
-                        }}
-                    }}
+                    // Use filtered sessions count
+                    const filteredCount = self.filteredSessions.length;
+                    const totalCount = self.allSessions.length;
+                    const hasFilter = FilterState.hasActiveFilters() || self.currentAthlete;
 
-                    let html = '<b>Activities</b>';
+                    let html = '<div class="info-header"><b>Activities</b>';
                     if (self.currentAthlete) {{
                         const color = self.athleteColors[self.currentAthlete] || '#333';
-                        html += `<br><span style="color:${{color}}">${{self.currentAthlete}}</span>`;
+                        html += ` <span style="color:${{color}}">${{self.currentAthlete}}</span>`;
                     }}
-                    html += `<br><a href="#/sessions" class="info-link">${{visibleSessions}} sessions</a>`;
+                    html += '</div>';
+
+                    // Session count with filter indicator
+                    const countText = hasFilter ? `${{filteredCount}} of ${{totalCount}}` : `${{filteredCount}}`;
+                    html += `<div class="info-stats">`;
+                    html += `<span class="info-sessions-toggle" title="Click to ${{self.sessionListExpanded ? 'collapse' : 'expand'}} session list">${{countText}} sessions ${{self.sessionListExpanded ? '▲' : '▼'}}</span>`;
                     if (self.loadedTrackCount > 0) {{
-                        html += `<br>${{self.loadedTrackCount}} tracks loaded`;
+                        html += `<br>${{self.loadedTrackCount}} tracks`;
                     }}
                     if (self.totalPhotos > 0) {{
-                        html += `<br>${{self.totalPhotos}} photos`;
+                        html += ` · ${{self.totalPhotos}} photos`;
                     }}
+                    html += `</div>`;
+
+                    // Collapsible session list
+                    if (self.sessionListExpanded && self.filteredSessions.length > 0) {{
+                        html += `<div class="info-session-list">`;
+                        const toShow = self.filteredSessions.slice(0, 20);
+                        for (const s of toShow) {{
+                            const dateStr = s.datetime ? `${{s.datetime.substring(0,4)}}-${{s.datetime.substring(4,6)}}-${{s.datetime.substring(6,8)}}` : '';
+                            const dist = s.distance_m > 0 ? ` · ${{(parseFloat(s.distance_m) / 1000).toFixed(1)}}km` : '';
+                            html += `<div class="info-session-item" data-athlete="${{s.athlete}}" data-datetime="${{s.datetime}}">`;
+                            html += `<span class="info-session-date">${{dateStr}}</span>`;
+                            html += `<span class="info-session-type">${{s.type || ''}}</span>`;
+                            html += `<div class="info-session-name">${{s.name || 'Untitled'}}${{dist}}</div>`;
+                            html += `</div>`;
+                        }}
+                        if (self.filteredSessions.length > 20) {{
+                            html += `<div class="info-session-more"><a href="#/sessions">View all ${{self.filteredSessions.length}} sessions</a></div>`;
+                        }}
+                        html += `</div>`;
+                    }}
+
+                    // Zoom hint
                     const zoom = self.map.getZoom();
                     if (zoom < self.AUTO_LOAD_ZOOM) {{
-                        html += `<br><small>Zoom in to auto-load<br>(current: ${{zoom}}, need: ${{self.AUTO_LOAD_ZOOM}})</small>`;
-                    }} else {{
-                        html += `<br><small>Click marker or pan to load</small>`;
+                        html += `<div class="info-hint">Zoom in to auto-load tracks</div>`;
                     }}
+
                     div.innerHTML = html;
+
+                    // Set up event listeners after DOM is ready
+                    setTimeout(() => {{
+                        // Toggle session list
+                        const toggle = div.querySelector('.info-sessions-toggle');
+                        if (toggle) {{
+                            toggle.addEventListener('click', (e) => {{
+                                e.preventDefault();
+                                self.sessionListExpanded = !self.sessionListExpanded;
+                                self.updateInfo();
+                            }});
+                        }}
+                        // Session item clicks
+                        div.querySelectorAll('.info-session-item').forEach(item => {{
+                            item.addEventListener('click', () => {{
+                                const athlete = item.dataset.athlete;
+                                const datetime = item.dataset.datetime;
+                                location.hash = `#/session/${{athlete}}/${{datetime}}`;
+                            }});
+                        }});
+                    }}, 0);
+
                     return div;
                 }};
                 this.infoControl.addTo(this.map);
@@ -3164,41 +4040,47 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             selectedSession: null,
 
             init() {{
-                // Set up filter event listeners with URL state updates
+                // Set up filter event listeners that update shared FilterState
                 let searchTimeout = null;
                 document.getElementById('session-search').addEventListener('input', (e) => {{
-                    this.filters.search = e.target.value.toLowerCase();
                     this.page = 1;
-                    this.applyFiltersAndRender();
-                    // Debounce URL update for search
+                    // Debounce search
                     clearTimeout(searchTimeout);
                     searchTimeout = setTimeout(() => {{
-                        URLState.update({{ search: e.target.value }});
-                    }}, 500);
+                        FilterState.set({{ search: e.target.value }});
+                        FilterState.syncToURL();
+                    }}, 300);
                 }});
 
                 document.getElementById('type-filter').addEventListener('change', (e) => {{
-                    this.filters.type = e.target.value;
                     this.page = 1;
-                    this.applyFiltersAndRender();
-                    URLState.update({{ type: e.target.value }});
+                    FilterState.set({{ type: e.target.value }});
+                    FilterState.syncToURL();
                 }});
 
                 document.getElementById('date-from').addEventListener('change', (e) => {{
-                    this.filters.dateFrom = e.target.value;
                     this.page = 1;
-                    this.applyFiltersAndRender();
+                    FilterState.set({{ dateFrom: e.target.value }});
+                    FilterState.syncToURL();
                 }});
 
                 document.getElementById('date-to').addEventListener('change', (e) => {{
-                    this.filters.dateTo = e.target.value;
                     this.page = 1;
-                    this.applyFiltersAndRender();
+                    FilterState.set({{ dateTo: e.target.value }});
+                    FilterState.syncToURL();
                 }});
 
                 document.getElementById('clear-filters').addEventListener('click', () => {{
-                    this.clearFilters();
-                    URLState.update({{ search: '', type: '', session: '' }});
+                    this.page = 1;
+                    FilterState.clear();
+                    FilterState.syncToURL();
+                    this.syncFiltersFromState();
+                }});
+
+                // Subscribe to FilterState changes
+                FilterState.onChange(() => {{
+                    this.syncFiltersFromState();
+                    this.applyFiltersAndRender();
                 }});
 
                 // Set up sortable headers
@@ -3249,6 +4131,8 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             setSessions(sessions) {{
                 this.sessions = sessions;
                 this.populateTypeFilter();
+                // Sync filter UI from shared state (loaded from URL)
+                this.syncFiltersFromState();
                 this.applyFiltersAndRender();
             }},
 
@@ -3266,6 +4150,17 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 }}
             }},
 
+            // Sync filter UI inputs from shared FilterState
+            syncFiltersFromState() {{
+                const state = FilterState.get();
+                document.getElementById('session-search').value = state.search;
+                document.getElementById('type-filter').value = state.type;
+                document.getElementById('date-from').value = state.dateFrom;
+                document.getElementById('date-to').value = state.dateTo;
+                // Also update internal filters object
+                this.filters = {{ ...state }};
+            }},
+
             clearFilters() {{
                 this.filters = {{ search: '', type: '', dateFrom: '', dateTo: '' }};
                 document.getElementById('session-search').value = '';
@@ -3278,19 +4173,10 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
             applyFiltersAndRender() {{
                 const currentAthlete = document.getElementById('athlete-selector').value;
+                const filters = FilterState.get();
 
-                this.filtered = this.sessions.filter(s => {{
-                    // Athlete filter
-                    if (currentAthlete && s.athlete !== currentAthlete) return false;
-                    // Search filter
-                    if (this.filters.search && !s.name.toLowerCase().includes(this.filters.search)) return false;
-                    // Type filter
-                    if (this.filters.type && s.type !== this.filters.type) return false;
-                    // Date filters
-                    if (this.filters.dateFrom && s.datetime < this.filters.dateFrom.replace(/-/g, '')) return false;
-                    if (this.filters.dateTo && s.datetime.substring(0, 8) > this.filters.dateTo.replace(/-/g, '')) return false;
-                    return true;
-                }});
+                // Use shared applyFilters function
+                this.filtered = applyFilters(this.sessions, filters, currentAthlete);
 
                 this.sort();
                 this.render();
@@ -4036,10 +4922,22 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 }}
             }},
 
+            streamCharts: [],  // Track Chart.js instances for cleanup
+
+            // Downsample data for performance (max 500 points for display)
+            downsampleData(data, maxPoints = 500) {{
+                if (data.length <= maxPoints) return data;
+                const step = Math.ceil(data.length / maxPoints);
+                return data.filter((_, i) => i % step === 0);
+            }},
+
             async loadStreams(athlete, datetime) {{
                 const container = document.getElementById('full-session-streams');
-                // Phase 8: Data streams visualization will be added here
-                // For now, show a placeholder if streams exist
+
+                // Destroy existing charts
+                this.streamCharts.forEach(chart => chart.destroy());
+                this.streamCharts = [];
+
                 try {{
                     const response = await fetch(`athl=${{athlete}}/ses=${{datetime}}/tracking.parquet`);
                     if (!response.ok) {{
@@ -4049,29 +4947,285 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     const buffer = await response.arrayBuffer();
                     const data = await parquetReadObjects({{ file: buffer }});
 
+                    if (!data || data.length === 0) {{
+                        container.innerHTML = '';
+                        return;
+                    }}
+
                     // Check what streams are available
                     const hasHr = data.some(r => r.heartrate);
                     const hasCadence = data.some(r => r.cadence);
+                    const hasWatts = data.some(r => r.watts);
                     const hasElevation = data.some(r => r.altitude);
+                    const hasSpeed = data.some(r => r.velocity_smooth);
 
-                    if (hasHr || hasCadence || hasElevation) {{
-                        const streams = [];
-                        if (hasHr) streams.push('Heart Rate');
-                        if (hasCadence) streams.push('Cadence');
-                        if (hasElevation) streams.push('Elevation');
-                        container.innerHTML = `
-                            <h3 class="full-session-section-title">Data Streams</h3>
-                            <p style="color:#666;font-size:14px;">Available: ${{streams.join(', ')}}</p>
-                            <p style="color:#999;font-size:12px;margin-top:8px;">
-                                <em>Detailed stream visualization coming in Phase 8</em>
-                            </p>
-                        `;
-                    }} else {{
+                    if (!hasHr && !hasCadence && !hasWatts && !hasElevation) {{
                         container.innerHTML = '';
+                        return;
                     }}
+
+                    // Downsample for performance
+                    const sampled = this.downsampleData(data);
+
+                    // Check what X-axis options are available
+                    const hasDistance = sampled.some(r => r.distance);
+                    const hasTime = sampled.some(r => r.time !== undefined);
+
+                    // Store data for re-rendering when X-axis changes
+                    this.streamData = {{ sampled, hasElevation, hasHr, hasCadence, hasWatts, hasDistance, hasTime }};
+
+                    // Build HTML with X-axis selector
+                    let html = '<div class="stream-header">';
+                    html += '<h3 class="full-session-section-title">Data Streams</h3>';
+                    if (hasDistance && hasTime) {{
+                        html += `<select id="xaxis-selector" class="xaxis-select">
+                            <option value="distance">Distance (km)</option>
+                            <option value="time">Time (min)</option>
+                        </select>`;
+                    }}
+                    html += '</div>';
+                    html += '<div class="stream-charts">';
+
+                    // Elevation chart (area fill, always first if available)
+                    if (hasElevation) {{
+                        html += `
+                            <div class="stream-chart-container elevation-chart">
+                                <span class="stream-chart-label">Elevation</span>
+                                <canvas id="elevation-chart" class="stream-chart-canvas"></canvas>
+                            </div>
+                        `;
+                    }}
+
+                    // Combined HR/Cadence/Power chart
+                    if (hasHr || hasCadence || hasWatts) {{
+                        html += `
+                            <div class="stream-chart-container">
+                                <span class="stream-chart-label">Activity Data</span>
+                                <canvas id="activity-chart" class="stream-chart-canvas"></canvas>
+                            </div>
+                        `;
+                    }}
+
+                    html += '</div>';
+                    container.innerHTML = html;
+
+                    // Set up X-axis selector change handler
+                    const xaxisSelector = document.getElementById('xaxis-selector');
+                    if (xaxisSelector) {{
+                        xaxisSelector.addEventListener('change', () => this.renderStreamCharts());
+                    }}
+
+                    // Render charts
+                    this.renderStreamCharts();
+
                 }} catch (e) {{
+                    console.warn('Could not load streams:', e);
                     container.innerHTML = '';
                 }}
+            }},
+
+            xAxisMode: 'distance',  // Default mode
+
+            renderStreamCharts() {{
+                if (!this.streamData) return;
+                const {{ sampled, hasElevation, hasHr, hasCadence, hasWatts, hasDistance, hasTime }} = this.streamData;
+
+                // Destroy existing charts
+                this.streamCharts.forEach(chart => chart.destroy());
+                this.streamCharts = [];
+
+                // Determine X-axis mode
+                const selector = document.getElementById('xaxis-selector');
+                const useDistance = selector ? selector.value === 'distance' : hasDistance;
+
+                // Calculate X-axis data
+                const xData = sampled.map(r => {{
+                    if (useDistance && r.distance) return Math.round(r.distance / 100) / 10;  // km, 1 decimal
+                    return Math.round((r.time || 0) / 60);  // minutes, whole numbers
+                }});
+                const xLabel = useDistance ? 'Distance (km)' : 'Time (min)';
+
+                // Create elevation chart
+                if (hasElevation) {{
+                        const elevData = sampled.map(r => r.altitude);
+                        const minElev = Math.min(...elevData.filter(e => e != null));
+                        const maxElev = Math.max(...elevData.filter(e => e != null));
+
+                        const elevChart = new Chart(document.getElementById('elevation-chart'), {{
+                            type: 'line',
+                            data: {{
+                                labels: xData,
+                                datasets: [{{
+                                    label: 'Elevation',
+                                    data: elevData,
+                                    borderColor: '#888',
+                                    backgroundColor: 'rgba(100, 100, 100, 0.2)',
+                                    fill: true,
+                                    tension: 0.3,
+                                    borderWidth: 1,
+                                    pointRadius: 0,
+                                }}]
+                            }},
+                            options: {{
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                interaction: {{
+                                    mode: 'index',
+                                    intersect: false
+                                }},
+                                plugins: {{
+                                    legend: {{ display: false }},
+                                    tooltip: {{
+                                        callbacks: {{
+                                            title: (items) => `${{items[0].parsed.x.toFixed(1)}} ${{useDistance ? 'km' : 'min'}}`,
+                                            label: (item) => `${{item.parsed.y.toFixed(0)}} m`
+                                        }}
+                                    }}
+                                }},
+                                scales: {{
+                                    x: {{
+                                        display: true,
+                                        title: {{ display: false }},
+                                        ticks: {{ font: {{ size: 10 }}, maxTicksLimit: 8 }}
+                                    }},
+                                    y: {{
+                                        display: true,
+                                        min: Math.floor(minElev * 0.95),
+                                        max: Math.ceil(maxElev * 1.05),
+                                        ticks: {{ font: {{ size: 10 }} }},
+                                        title: {{ display: true, text: 'm', font: {{ size: 10 }} }}
+                                    }}
+                                }}
+                            }}
+                        }});
+                        this.streamCharts.push(elevChart);
+                    }}
+
+                    // Create combined activity data chart
+                    if (hasHr || hasCadence || hasWatts) {{
+                        const datasets = [];
+
+                        if (hasHr) {{
+                            // Filter out initial 0 HR readings (common sensor artifact)
+                            const hrData = sampled.map((r, i) => {{
+                                // Skip first point if HR is 0 or very low (sensor warming up)
+                                if (i === 0 && (!r.heartrate || r.heartrate < 30)) return null;
+                                return r.heartrate || null;
+                            }});
+                            datasets.push({{
+                                label: 'Heart Rate',
+                                data: hrData,
+                                borderColor: '#e63946',
+                                backgroundColor: 'rgba(230, 57, 70, 0.1)',
+                                fill: false,
+                                tension: 0.3,
+                                borderWidth: 2,
+                                pointRadius: 0,
+                                yAxisID: 'yHr',
+                                spanGaps: true  // Connect line across null gaps
+                            }});
+                        }}
+
+                        if (hasCadence) {{
+                            datasets.push({{
+                                label: 'Cadence',
+                                data: sampled.map(r => r.cadence),
+                                borderColor: '#457b9d',
+                                backgroundColor: 'rgba(69, 123, 157, 0.1)',
+                                fill: false,
+                                tension: 0.3,
+                                borderWidth: 2,
+                                pointRadius: 0,
+                                yAxisID: 'yCadence'
+                            }});
+                        }}
+
+                        if (hasWatts) {{
+                            datasets.push({{
+                                label: 'Power',
+                                data: sampled.map(r => r.watts),
+                                borderColor: '#f4a261',
+                                backgroundColor: 'rgba(244, 162, 97, 0.1)',
+                                fill: false,
+                                tension: 0.3,
+                                borderWidth: 2,
+                                pointRadius: 0,
+                                yAxisID: 'yPower'
+                            }});
+                        }}
+
+                        // Configure scales based on available data
+                        const scales = {{
+                            x: {{
+                                display: true,
+                                title: {{ display: true, text: xLabel, font: {{ size: 10 }} }},
+                                ticks: {{ font: {{ size: 10 }}, maxTicksLimit: 8 }}
+                            }}
+                        }};
+
+                        if (hasHr) {{
+                            scales.yHr = {{
+                                type: 'linear',
+                                position: 'left',
+                                display: true,
+                                title: {{ display: true, text: 'BPM', font: {{ size: 10 }}, color: '#e63946' }},
+                                ticks: {{ font: {{ size: 10 }}, color: '#e63946' }},
+                                grid: {{ display: hasHr && !hasCadence && !hasWatts }}
+                            }};
+                        }}
+
+                        if (hasCadence) {{
+                            scales.yCadence = {{
+                                type: 'linear',
+                                position: hasHr ? 'right' : 'left',
+                                display: true,
+                                title: {{ display: true, text: 'RPM', font: {{ size: 10 }}, color: '#457b9d' }},
+                                ticks: {{ font: {{ size: 10 }}, color: '#457b9d' }},
+                                grid: {{ display: !hasHr }}
+                            }};
+                        }}
+
+                        if (hasWatts) {{
+                            scales.yPower = {{
+                                type: 'linear',
+                                position: 'right',
+                                display: true,
+                                title: {{ display: true, text: 'W', font: {{ size: 10 }}, color: '#f4a261' }},
+                                ticks: {{ font: {{ size: 10 }}, color: '#f4a261' }},
+                                grid: {{ display: false }}
+                            }};
+                        }}
+
+                        const activityChart = new Chart(document.getElementById('activity-chart'), {{
+                            type: 'line',
+                            data: {{
+                                labels: xData,
+                                datasets: datasets
+                            }},
+                            options: {{
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                interaction: {{
+                                    mode: 'index',
+                                    intersect: false
+                                }},
+                                plugins: {{
+                                    legend: {{
+                                        display: true,
+                                        position: 'top',
+                                        labels: {{ font: {{ size: 11 }}, usePointStyle: true, boxWidth: 6 }}
+                                    }},
+                                    tooltip: {{
+                                        callbacks: {{
+                                            title: (items) => `${{items[0].parsed.x.toFixed(1)}} ${{useDistance ? 'km' : 'min'}}`
+                                        }}
+                                    }}
+                                }},
+                                scales: scales
+                            }}
+                        }});
+                        this.streamCharts.push(activityChart);
+                    }}
             }},
 
             loadPhotos(athlete, datetime, session) {{
@@ -4185,130 +5339,84 @@ def generate_lightweight_map(_data_dir: Path) -> str:
         // ===== Stats View Module =====
         const StatsView = {{
             sessions: [],
+            filtered: [],
             typeColors: {json.dumps(type_colors)},
-            filters: {{ year: '', type: '' }},
-            monthlyBars: [],  // Store bar positions for click detection
-            typeBars: [],     // Store bar positions for click detection
+            monthlyChart: null,  // Chart.js instance
+            typeChart: null,     // Chart.js instance
 
             init() {{
-                document.getElementById('year-filter').addEventListener('change', (e) => {{
-                    this.filters.year = e.target.value;
-                    this.calculate();
+                // Initialize filter bar for stats
+                FilterBar.render('stats-filter-bar', {{
+                    showSearch: true,
+                    showType: true,
+                    showDatePresets: true,
+                    showDates: true
+                }});
+                FilterBar.init('stats-filter-bar');
+
+                // Initialize session list panel for stats
+                SessionListPanel.render('stats-session-list', {{
+                    onSessionClick: (athlete, datetime) => {{
+                        location.hash = `#/session/${{athlete}}/${{datetime}}`;
+                    }}
                 }});
 
-                document.getElementById('stats-type-filter').addEventListener('change', (e) => {{
-                    this.filters.type = e.target.value;
-                    this.calculate();
-                }});
+                // Subscribe to filter changes
+                FilterState.onChange(() => this.calculate());
 
                 // Listen for athlete changes
                 document.getElementById('athlete-selector').addEventListener('change', () => {{
                     this.calculate();
                 }});
-
-                // Add chart click handlers
-                document.getElementById('monthly-chart').addEventListener('click', (e) => {{
-                    const rect = e.target.getBoundingClientRect();
-                    const x = e.clientX - rect.left;
-                    const y = e.clientY - rect.top;
-                    this.handleMonthlyChartClick(x, y);
-                }});
-
-                document.getElementById('type-chart').addEventListener('click', (e) => {{
-                    const rect = e.target.getBoundingClientRect();
-                    const x = e.clientX - rect.left;
-                    const y = e.clientY - rect.top;
-                    this.handleTypeChartClick(x, y);
-                }});
-
-                // Add cursor pointer on hover
-                const monthlyCanvas = document.getElementById('monthly-chart');
-                const typeCanvas = document.getElementById('type-chart');
-                monthlyCanvas.style.cursor = 'pointer';
-                typeCanvas.style.cursor = 'pointer';
+                // Chart click handlers are set up in renderMonthlyChart/renderTypeChart
             }},
 
-            handleMonthlyChartClick(x, y) {{
-                for (const bar of this.monthlyBars) {{
-                    if (x >= bar.x && x <= bar.x + bar.width && y >= bar.y && y <= bar.y + bar.height) {{
-                        // Navigate to sessions view with month filter
-                        const [year, month] = [bar.month.substring(0, 4), bar.month.substring(4, 6)];
-                        // Set date filters and navigate
-                        const dateFrom = `${{year}}-${{month}}-01`;
-                        const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
-                        const dateTo = `${{year}}-${{month}}-${{String(lastDay).padStart(2, '0')}}`;
+            handleMonthlyChartClick(month) {{
+                // Navigate to sessions view with month filter via URL
+                const [year, monthNum] = [month.substring(0, 4), month.substring(4, 6)];
+                const dateFrom = `${{year}}-${{monthNum}}-01`;
+                const lastDay = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
+                const dateTo = `${{year}}-${{monthNum}}-${{String(lastDay).padStart(2, '0')}}`;
 
-                        location.hash = `#/sessions`;
-                        setTimeout(() => {{
-                            document.getElementById('date-from').value = dateFrom;
-                            document.getElementById('date-to').value = dateTo;
-                            SessionsView.filters.dateFrom = dateFrom;
-                            SessionsView.filters.dateTo = dateTo;
-                            SessionsView.applyFilters();
-                        }}, 100);
-                        return;
-                    }}
-                }}
+                // Build URL with date filter params
+                const params = new URLSearchParams();
+                params.set('from', dateFrom);
+                params.set('to', dateTo);
+                // Preserve current athlete
+                const athlete = document.getElementById('athlete-selector')?.value;
+                if (athlete) params.set('a', athlete);
+
+                location.hash = `#/sessions?${{params.toString()}}`;
             }},
 
-            handleTypeChartClick(x, y) {{
-                for (const bar of this.typeBars) {{
-                    if (x >= bar.x && x <= bar.x + bar.width && y >= bar.y && y <= bar.y + bar.height) {{
-                        // Navigate to sessions view with type filter
-                        location.hash = `#/sessions`;
-                        setTimeout(() => {{
-                            document.getElementById('type-filter').value = bar.type;
-                            SessionsView.filters.type = bar.type;
-                            SessionsView.applyFilters();
-                        }}, 100);
-                        return;
-                    }}
-                }}
+            handleTypeChartClick(type) {{
+                // Navigate to sessions view with type filter via URL
+                const params = new URLSearchParams();
+                params.set('t', type);
+                // Preserve current athlete
+                const athlete = document.getElementById('athlete-selector')?.value;
+                if (athlete) params.set('a', athlete);
+
+                location.hash = `#/sessions?${{params.toString()}}`;
             }},
 
             setSessions(sessions) {{
                 this.sessions = sessions;
-                this.populateFilters();
                 this.calculate();
-            }},
-
-            populateFilters() {{
-                const years = new Set();
-                const types = new Set();
-
-                for (const s of this.sessions) {{
-                    if (s.datetime && s.datetime.length >= 4) {{
-                        years.add(s.datetime.substring(0, 4));
-                    }}
-                    if (s.type) types.add(s.type);
-                }}
-
-                const yearSelect = document.getElementById('year-filter');
-                for (const year of [...years].sort().reverse()) {{
-                    const option = document.createElement('option');
-                    option.value = year;
-                    option.textContent = year;
-                    yearSelect.appendChild(option);
-                }}
-
-                const typeSelect = document.getElementById('stats-type-filter');
-                for (const type of [...types].sort()) {{
-                    const option = document.createElement('option');
-                    option.value = type;
-                    option.textContent = type;
-                    typeSelect.appendChild(option);
-                }}
             }},
 
             calculate() {{
                 const currentAthlete = document.getElementById('athlete-selector').value;
+                const filters = FilterState.get();
 
-                const filtered = this.sessions.filter(s => {{
-                    if (currentAthlete && s.athlete !== currentAthlete) return false;
-                    if (this.filters.year && (!s.datetime || !s.datetime.startsWith(this.filters.year))) return false;
-                    if (this.filters.type && s.type !== this.filters.type) return false;
-                    return true;
-                }});
+                // Use shared applyFilters function
+                const filtered = applyFilters(this.sessions, filters, currentAthlete);
+                this.filtered = filtered;
+
+                // Update session list panel
+                const sortedFiltered = [...filtered].sort((a, b) => (b.datetime || '').localeCompare(a.datetime || ''));
+                SessionListPanel.setSessions(sortedFiltered);
+                FilterBar.updateCount('stats-filter-bar', filtered.length, this.sessions.length);
 
                 // Calculate totals
                 const totals = {{
@@ -4361,131 +5469,157 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
             renderMonthlyChart(byMonth) {{
                 const canvas = document.getElementById('monthly-chart');
-                const ctx = canvas.getContext('2d');
-                const rect = canvas.parentElement.getBoundingClientRect();
-                canvas.width = rect.width - 32;
-                canvas.height = 250;
-
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-
                 const months = Object.keys(byMonth).sort();
+
+                // Destroy existing chart if any
+                if (this.monthlyChart) {{
+                    this.monthlyChart.destroy();
+                    this.monthlyChart = null;
+                }}
+
                 if (months.length === 0) {{
-                    ctx.fillStyle = '#999';
-                    ctx.font = '14px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('No data available', canvas.width / 2, canvas.height / 2);
+                    canvas.style.display = 'none';
+                    canvas.parentElement.innerHTML = '<div style="text-align:center;padding:100px 0;color:#999;">No data available</div>';
                     return;
                 }}
 
-                const maxCount = Math.max(...months.map(m => byMonth[m].count));
-                const padding = {{ top: 20, right: 20, bottom: 60, left: 50 }};
-                const chartWidth = canvas.width - padding.left - padding.right;
-                const chartHeight = canvas.height - padding.top - padding.bottom;
-                const barWidth = Math.min(30, (chartWidth / months.length) - 4);
+                const labels = months.map(m => m.substring(0, 4) + '-' + m.substring(4, 6));
+                const data = months.map(m => byMonth[m].count);
+                const monthKeys = months; // Store for click handler
 
-                // Clear bar positions
-                this.monthlyBars = [];
-
-                // Draw axes
-                ctx.strokeStyle = '#ddd';
-                ctx.beginPath();
-                ctx.moveTo(padding.left, padding.top);
-                ctx.lineTo(padding.left, canvas.height - padding.bottom);
-                ctx.lineTo(canvas.width - padding.right, canvas.height - padding.bottom);
-                ctx.stroke();
-
-                // Draw bars
-                months.forEach((month, i) => {{
-                    const data = byMonth[month];
-                    const barHeight = (data.count / maxCount) * chartHeight;
-                    const x = padding.left + (i * (chartWidth / months.length)) + ((chartWidth / months.length) - barWidth) / 2;
-                    const y = canvas.height - padding.bottom - barHeight;
-
-                    // Store bar position for click detection
-                    this.monthlyBars.push({{ month, x, y, width: barWidth, height: barHeight }});
-
-                    ctx.fillStyle = '#fc4c02';
-                    ctx.fillRect(x, y, barWidth, barHeight);
-
-                    // Draw count on top
-                    ctx.fillStyle = '#333';
-                    ctx.font = '11px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(data.count.toString(), x + barWidth / 2, y - 4);
-
-                    // Draw month label
-                    ctx.save();
-                    ctx.translate(x + barWidth / 2, canvas.height - padding.bottom + 8);
-                    ctx.rotate(-45 * Math.PI / 180);
-                    ctx.fillStyle = '#666';
-                    ctx.font = '10px sans-serif';
-                    ctx.textAlign = 'right';
-                    const label = month.substring(0, 4) + '-' + month.substring(4, 6);
-                    ctx.fillText(label, 0, 0);
-                    ctx.restore();
+                this.monthlyChart = new Chart(canvas, {{
+                    type: 'bar',
+                    data: {{
+                        labels: labels,
+                        datasets: [{{
+                            label: 'Sessions',
+                            data: data,
+                            backgroundColor: '#fc4c02',
+                            borderRadius: 4,
+                            borderSkipped: false
+                        }}]
+                    }},
+                    options: {{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {{
+                            legend: {{ display: false }},
+                            tooltip: {{
+                                backgroundColor: 'rgba(0,0,0,0.8)',
+                                titleFont: {{ size: 13 }},
+                                bodyFont: {{ size: 12 }},
+                                padding: 10,
+                                cornerRadius: 6,
+                                callbacks: {{
+                                    title: (items) => items[0].label,
+                                    label: (item) => `${{item.raw}} sessions`
+                                }}
+                            }}
+                        }},
+                        scales: {{
+                            x: {{
+                                grid: {{ display: false }},
+                                ticks: {{
+                                    maxRotation: 45,
+                                    minRotation: 45,
+                                    font: {{ size: 10 }}
+                                }}
+                            }},
+                            y: {{
+                                beginAtZero: true,
+                                grid: {{ color: '#eee' }},
+                                ticks: {{ stepSize: 1 }},
+                                title: {{
+                                    display: true,
+                                    text: 'Sessions',
+                                    font: {{ size: 12 }}
+                                }}
+                            }}
+                        }},
+                        onClick: (event, elements) => {{
+                            if (elements.length > 0) {{
+                                const index = elements[0].index;
+                                this.handleMonthlyChartClick(monthKeys[index]);
+                            }}
+                        }},
+                        onHover: (event, elements) => {{
+                            canvas.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+                        }}
+                    }}
                 }});
-
-                // Y-axis label
-                ctx.save();
-                ctx.translate(14, canvas.height / 2);
-                ctx.rotate(-90 * Math.PI / 180);
-                ctx.fillStyle = '#666';
-                ctx.font = '12px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('Sessions', 0, 0);
-                ctx.restore();
             }},
 
             renderTypeChart(byType) {{
                 const canvas = document.getElementById('type-chart');
-                const ctx = canvas.getContext('2d');
-                const rect = canvas.parentElement.getBoundingClientRect();
-                canvas.width = rect.width - 32;
-                canvas.height = 250;
-
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-
                 const types = Object.keys(byType).sort((a, b) => byType[b].count - byType[a].count);
+
+                // Destroy existing chart if any
+                if (this.typeChart) {{
+                    this.typeChart.destroy();
+                    this.typeChart = null;
+                }}
+
                 if (types.length === 0) {{
-                    ctx.fillStyle = '#999';
-                    ctx.font = '14px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('No data available', canvas.width / 2, canvas.height / 2);
+                    canvas.style.display = 'none';
+                    canvas.parentElement.innerHTML = '<div style="text-align:center;padding:100px 0;color:#999;">No data available</div>';
                     return;
                 }}
 
-                const maxCount = Math.max(...types.map(t => byType[t].count));
-                const padding = {{ top: 20, right: 60, bottom: 20, left: 80 }};
-                const chartWidth = canvas.width - padding.left - padding.right;
-                const chartHeight = canvas.height - padding.top - padding.bottom;
-                const barHeight = Math.min(25, (chartHeight / types.length) - 4);
+                const data = types.map(t => byType[t].count);
+                const colors = types.map(t => this.typeColors[t] || '#607D8B');
+                const typeKeys = types; // Store for click handler
 
-                // Clear bar positions
-                this.typeBars = [];
-
-                types.forEach((type, i) => {{
-                    const data = byType[type];
-                    const barWidth = (data.count / maxCount) * chartWidth;
-                    const y = padding.top + (i * (chartHeight / types.length)) + ((chartHeight / types.length) - barHeight) / 2;
-
-                    // Store bar position for click detection
-                    this.typeBars.push({{ type, x: padding.left, y, width: barWidth, height: barHeight }});
-
-                    // Bar
-                    ctx.fillStyle = this.typeColors[type] || '#607D8B';
-                    ctx.fillRect(padding.left, y, barWidth, barHeight);
-
-                    // Type label
-                    ctx.fillStyle = '#333';
-                    ctx.font = '12px sans-serif';
-                    ctx.textAlign = 'right';
-                    ctx.fillText(type, padding.left - 8, y + barHeight / 2 + 4);
-
-                    // Count label
-                    ctx.fillStyle = '#666';
-                    ctx.font = '11px sans-serif';
-                    ctx.textAlign = 'left';
-                    ctx.fillText(data.count.toString(), padding.left + barWidth + 6, y + barHeight / 2 + 4);
+                this.typeChart = new Chart(canvas, {{
+                    type: 'bar',
+                    data: {{
+                        labels: types,
+                        datasets: [{{
+                            label: 'Sessions',
+                            data: data,
+                            backgroundColor: colors,
+                            borderRadius: 4,
+                            borderSkipped: false
+                        }}]
+                    }},
+                    options: {{
+                        indexAxis: 'y',  // Horizontal bar chart
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {{
+                            legend: {{ display: false }},
+                            tooltip: {{
+                                backgroundColor: 'rgba(0,0,0,0.8)',
+                                titleFont: {{ size: 13 }},
+                                bodyFont: {{ size: 12 }},
+                                padding: 10,
+                                cornerRadius: 6,
+                                callbacks: {{
+                                    title: (items) => items[0].label,
+                                    label: (item) => `${{item.raw}} sessions`
+                                }}
+                            }}
+                        }},
+                        scales: {{
+                            x: {{
+                                beginAtZero: true,
+                                grid: {{ color: '#eee' }},
+                                ticks: {{ stepSize: 1 }}
+                            }},
+                            y: {{
+                                grid: {{ display: false }},
+                                ticks: {{ font: {{ size: 12 }} }}
+                            }}
+                        }},
+                        onClick: (event, elements) => {{
+                            if (elements.length > 0) {{
+                                const index = elements[0].index;
+                                this.handleTypeChartClick(typeKeys[index]);
+                            }}
+                        }},
+                        onHover: (event, elements) => {{
+                            canvas.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+                        }}
+                    }}
                 }});
             }}
         }};
@@ -4498,6 +5632,19 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             // Pass full session data to views
             SessionsView.setSessions(this.allSessions);
             StatsView.setSessions(this.allSessions);
+
+            // Populate filter bar types for all views
+            FilterBar.populateTypes('map-filter-bar', this.allSessions);
+            FilterBar.populateTypes('stats-filter-bar', this.allSessions);
+
+            // Sync initial filter state from URL
+            FilterState.syncFromURL();
+            FilterBar.syncFromState('map-filter-bar');
+            FilterBar.syncFromState('stats-filter-bar');
+
+            // Apply initial filters
+            MapView.applyFiltersAndUpdateUI();
+
             // Hide loading overlay
             const overlay = document.getElementById('loading-overlay');
             if (overlay) {{
