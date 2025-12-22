@@ -3391,6 +3391,8 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             loadedTracks: new Set(),
             loadingTracks: new Set(),
             loadedPhotos: new Set(),
+            tracksBySession: {{}},  // Map of "athlete|session" -> polyline layer
+            photosBySession: {{}},  // Map of "athlete|session" -> array of photo markers
             allMarkers: [],
             allSessions: [],
             filteredSessions: [],  // Sessions after applying filters
@@ -3506,17 +3508,44 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 // Build a set of visible session keys for quick lookup
                 const visibleKeys = new Set(filtered.map(s => `${{s.athlete}}|${{s.datetime}}`));
 
-                // Update marker visibility
+                // Update marker visibility by adding/removing from layer
+                // This is the proper Leaflet way to show/hide markers
                 for (const data of this.allMarkers) {{
                     const key = `${{data.athlete}}|${{data.session}}`;
                     const visible = visibleKeys.has(key);
-                    // Store visibility on the data object for later reference
                     data.visible = visible;
-                    if (data.marker._icon) {{
-                        data.marker._icon.style.display = visible ? '' : 'none';
+
+                    if (visible) {{
+                        if (!this.sessionsLayer.hasLayer(data.marker)) {{
+                            data.marker.addTo(this.sessionsLayer);
+                        }}
+                    }} else {{
+                        this.sessionsLayer.removeLayer(data.marker);
                     }}
-                    if (data.marker._shadow) {{
-                        data.marker._shadow.style.display = visible ? '' : 'none';
+                }}
+
+                // Update track visibility - show/hide loaded tracks based on filter
+                for (const [sessionKey, polyline] of Object.entries(this.tracksBySession)) {{
+                    if (visibleKeys.has(sessionKey)) {{
+                        if (!this.tracksLayer.hasLayer(polyline)) {{
+                            polyline.addTo(this.tracksLayer);
+                        }}
+                    }} else {{
+                        this.tracksLayer.removeLayer(polyline);
+                    }}
+                }}
+
+                // Update photo visibility - show/hide loaded photos based on filter
+                for (const [sessionKey, markers] of Object.entries(this.photosBySession)) {{
+                    const visible = visibleKeys.has(sessionKey);
+                    for (const marker of markers) {{
+                        if (visible) {{
+                            if (!this.photosLayer.hasLayer(marker)) {{
+                                marker.addTo(this.photosLayer);
+                            }}
+                        }} else {{
+                            this.photosLayer.removeLayer(marker);
+                        }}
                     }}
                 }}
 
@@ -3537,33 +3566,19 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
             filterByAthlete(username) {{
                 this.currentAthlete = username;
+                // Apply filters (includes athlete filter) and update markers
+                this.applyFiltersAndUpdateUI();
 
-                // Update marker visibility
-                for (const data of this.allMarkers) {{
-                    const visible = !username || data.athlete === username;
-                    if (visible) {{
-                        if (!this.sessionsLayer.hasLayer(data.marker)) {{
-                            data.marker.addTo(this.sessionsLayer);
-                        }}
-                    }} else {{
-                        this.sessionsLayer.removeLayer(data.marker);
-                    }}
-                }}
-
-                // Recalculate bounds for visible markers
+                // Recalculate bounds for visible markers and fit
                 this.bounds = L.latLngBounds();
                 for (const data of this.allMarkers) {{
-                    if (!username || data.athlete === username) {{
+                    if (data.visible) {{
                         this.bounds.extend(data.marker.getLatLng());
                     }}
                 }}
-
-                // Fit to new bounds if valid
                 if (this.bounds.isValid()) {{
                     this.map.fitBounds(this.bounds, {{ padding: [20, 20] }});
                 }}
-
-                this.updateInfo();
             }},
 
             populateAthleteSelector() {{
@@ -3618,11 +3633,16 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                             }}
                         }}
                         if (coords.length > 0) {{
-                            L.polyline(coords, {{
+                            const polyline = L.polyline(coords, {{
                                 color: color,
                                 weight: 3,
                                 opacity: 0.7
                             }}).addTo(this.tracksLayer);
+
+                            // Store reference for filtering
+                            const sessionKey = `${{athlete}}|${{session}}`;
+                            this.tracksBySession[sessionKey] = polyline;
+
                             this.loadedTracks.add(trackKey);
                             this.loadedTrackCount++;
                             this.updateInfo();
@@ -3670,6 +3690,10 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     const info = await response.json();
                     const photos = info.photos || [];
 
+                    // Initialize array for this session's photos
+                    const sessionKey = `${{athlete}}|${{session}}`;
+                    this.photosBySession[sessionKey] = [];
+
                     for (const photo of photos) {{
                         const locationRaw = photo.location;
                         if (!locationRaw || !locationRaw[0] || !locationRaw[0][1]) continue;
@@ -3713,6 +3737,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                         `, {{ maxWidth: 350 }});
 
                         marker.addTo(this.photosLayer);
+                        this.photosBySession[sessionKey].push(marker);
                         this.totalPhotos++;
                     }}
 
