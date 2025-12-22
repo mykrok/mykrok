@@ -134,6 +134,8 @@ class Activity:
     laps: list[dict[str, Any]] = field(default_factory=list)
     segment_efforts: list[dict[str, Any]] = field(default_factory=list)
     photos: list[dict[str, Any]] = field(default_factory=list)
+    # Related sessions (same activity from different devices)
+    related_sessions: list[str] = field(default_factory=list)
 
     @classmethod
     def from_strava_activity(cls, strava_activity: Any) -> Activity:
@@ -234,6 +236,7 @@ class Activity:
             "laps": self.laps,
             "segment_efforts": self.segment_efforts,
             "photos": self.photos,
+            "related_sessions": self.related_sessions,
         }
 
     @classmethod
@@ -302,6 +305,7 @@ class Activity:
             laps=data.get("laps", []),
             segment_efforts=data.get("segment_efforts", []),
             photos=data.get("photos", []),
+            related_sessions=data.get("related_sessions", []),
         )
 
 

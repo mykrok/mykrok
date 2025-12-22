@@ -929,6 +929,144 @@ class BackupService:
             "errors": errors,
         }
 
+    def _find_related_sessions(
+        self,
+        activity: Activity,
+        athlete_dir: Path,
+        current_session_key: str,
+        time_window_minutes: int = 10,
+    ) -> list[tuple[str, Path, Activity]]:
+        """Find related sessions (same activity from different devices).
+
+        Sessions are considered related if they:
+        - Start within time_window_minutes of each other
+        - Are from the same activity type
+        - Have similar duration (within 50%)
+
+        Args:
+            activity: The activity to find relatives for.
+            athlete_dir: The athlete's data directory.
+            current_session_key: Current session key to exclude from results.
+            time_window_minutes: Maximum time difference in minutes.
+
+        Returns:
+            List of (session_key, session_dir, activity) tuples for related sessions.
+        """
+        from datetime import timedelta
+
+        from strava_backup.lib.paths import iter_session_dirs
+        from strava_backup.models.activity import load_activity
+
+        related: list[tuple[str, Path, Activity]] = []
+        time_window = timedelta(minutes=time_window_minutes)
+
+        for session_key, session_dir in iter_session_dirs(athlete_dir):
+            if session_key == current_session_key:
+                continue
+
+            other = load_activity(session_dir)
+            if other is None:
+                continue
+
+            # Check if same activity type
+            if other.type != activity.type:
+                continue
+
+            # Check time proximity
+            time_diff = abs(other.start_date - activity.start_date)
+            if time_diff > time_window:
+                continue
+
+            # Check similar duration (within 50%)
+            if activity.elapsed_time > 0 and other.elapsed_time > 0:
+                duration_ratio = other.elapsed_time / activity.elapsed_time
+                if duration_ratio < 0.5 or duration_ratio > 2.0:
+                    continue
+
+            related.append((session_key, session_dir, other))
+
+        return related
+
+    def _recover_photos_from_related(
+        self,
+        activity: Activity,
+        athlete_dir: Path,
+        current_session_key: str,
+        current_session_dir: Path,
+        log: Callable[[str, int], None],
+    ) -> int:
+        """Try to recover photos from related sessions.
+
+        If the current session has missing photos but a related session
+        (same activity from different device) has them, symlink them.
+
+        Args:
+            activity: The activity with missing photos.
+            athlete_dir: The athlete's data directory.
+            current_session_key: Current session key.
+            current_session_dir: Current session directory.
+            log: Logging callback.
+
+        Returns:
+            Number of photos linked.
+        """
+        import os
+
+        log("    Checking for related sessions with photos...", 0)
+        related = self._find_related_sessions(
+            activity, athlete_dir, current_session_key
+        )
+
+        if not related:
+            log("    No related sessions found", 0)
+            return 0
+
+        linked = 0
+        photos_dir = current_session_dir / "photos"
+        photos_dir.mkdir(exist_ok=True)
+
+        for rel_key, rel_dir, rel_activity in related:
+            rel_photos_dir = rel_dir / "photos"
+            if not rel_photos_dir.exists():
+                continue
+
+            photo_files = list(rel_photos_dir.glob("*.jpg")) + list(
+                rel_photos_dir.glob("*.png")
+            )
+            if not photo_files:
+                continue
+
+            log(f"    Found related session {rel_key} with {len(photo_files)} photos", 0)
+
+            # Update related_sessions in both activities
+            if rel_key not in activity.related_sessions:
+                activity.related_sessions.append(rel_key)
+            if current_session_key not in rel_activity.related_sessions:
+                rel_activity.related_sessions.append(current_session_key)
+                # Save updated related_sessions
+                from strava_backup.models.activity import save_activity as _save_activity
+                _save_activity(self.data_dir, athlete_dir.name.split("=")[1], rel_activity)
+
+            # Symlink photos that don't exist in current session
+            for photo_file in photo_files:
+                dest = photos_dir / photo_file.name
+                if dest.exists():
+                    continue
+
+                # Create relative symlink
+                try:
+                    rel_path = os.path.relpath(photo_file, photos_dir)
+                    dest.symlink_to(rel_path)
+                    linked += 1
+                    logger.debug("Linked photo: %s -> %s", dest, rel_path)
+                except OSError as e:
+                    logger.warning("Failed to symlink %s: %s", photo_file, e)
+
+        if linked > 0:
+            log(f"    Linked {linked} photos from related session(s)", 0)
+
+        return linked
+
     def check_and_fix(
         self,
         dry_run: bool = False,
@@ -1101,6 +1239,14 @@ class BackupService:
                                         parts.append(f"{dl_result['failed']} failed")
                                     if parts:
                                         log(f"    Cannot recover: {', '.join(parts)}", 0)
+
+                                        # Try to recover from related sessions
+                                        if dl_result["placeholder"] > 0:
+                                            linked = self._recover_photos_from_related(
+                                                activity, athlete_dir, session_key, session_dir, log
+                                            )
+                                            if linked > 0:
+                                                fixed_issues.append(f"photos_linked({linked})")
                                     else:
                                         log("    No photos to download", 0)
                             else:
