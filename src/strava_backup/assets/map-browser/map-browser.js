@@ -730,6 +730,7 @@ const MapView = {
     sessionListHeight: 300,  // Default height, updated when user resizes
     AUTO_LOAD_ZOOM: 11,
     restoringFromURL: false,
+    selectedTrackKey: null,  // Currently selected track key for bold styling
 
     // Color palette for athletes
     ATHLETE_PALETTE: ['#2196F3', '#4CAF50', '#9C27B0', '#FF9800', '#00BCD4', '#E91E63', '#795548', '#607D8B'],
@@ -933,14 +934,27 @@ const MapView = {
             // Get the track bounds if available, otherwise use marker location
             const sessionKey = `${athlete}|${session}`;
             const track = this.tracksBySession[sessionKey];
+
+            // Reset previous selected track to normal weight
+            if (this.selectedTrackKey && this.selectedTrackKey !== sessionKey) {
+                const prevTrack = this.tracksBySession[this.selectedTrackKey];
+                if (prevTrack) {
+                    prevTrack.setStyle({ weight: 3 });
+                }
+            }
+
+            // Bold the new selected track
             if (track) {
+                track.setStyle({ weight: 6 });
+                this.selectedTrackKey = sessionKey;
                 // Smooth animated zoom to track bounds
                 this.map.flyToBounds(track.getBounds(), { padding: [50, 50], maxZoom: 14, duration: 0.8 });
             } else {
                 // Smooth animated zoom to marker
                 this.map.flyTo(markerData.marker.getLatLng(), 13, { duration: 0.8 });
-                // Load the track for better view
+                // Load the track for better view (will be bolded when loaded)
                 this.loadTrack(athlete, session, markerData.color);
+                this.selectedTrackKey = sessionKey;
             }
         }
     },
@@ -1046,14 +1060,18 @@ const MapView = {
                     }
                 }
                 if (coords.length > 0) {
+                    // Store reference for filtering
+                    const sessionKey = `${athlete}|${session}`;
+
+                    // Use bold weight if this is the selected track
+                    const weight = this.selectedTrackKey === sessionKey ? 6 : 3;
+
                     const polyline = L.polyline(coords, {
                         color: color,
-                        weight: 3,
+                        weight: weight,
                         opacity: 0.7
                     }).addTo(this.tracksLayer);
 
-                    // Store reference for filtering
-                    const sessionKey = `${athlete}|${session}`;
                     this.tracksBySession[sessionKey] = polyline;
 
                     // Add points to heatmap data
@@ -1400,10 +1418,11 @@ const MapView = {
                 for (const s of toShow) {
                     const dateStr = s.datetime ? `${s.datetime.substring(0,4)}-${s.datetime.substring(4,6)}-${s.datetime.substring(6,8)}` : '';
                     const dist = s.distance_m > 0 ? ` · ${(parseFloat(s.distance_m) / 1000).toFixed(1)}km` : '';
+                    const typeColor = self.typeColors[s.type] || self.typeColors.Other;
                     html += `<div class="info-session-item" data-athlete="${s.athlete}" data-datetime="${s.datetime}">`;
                     html += '<div class="info-session-main">';
                     html += `<span class="info-session-date" data-date="${dateStr}" title="Click to filter to this date">${dateStr}</span>`;
-                    html += `<span class="info-session-type">${s.type || ''}</span>`;
+                    html += `<span class="info-session-type" style="color:${typeColor}">${s.type || ''}</span>`;
                     html += `<div class="info-session-name">${s.name || 'Untitled'}${dist}</div>`;
                     html += '</div>';
                     html += `<a href="#/session/${s.athlete}/${s.datetime}" class="info-session-link" title="View Activity">→</a>`;
