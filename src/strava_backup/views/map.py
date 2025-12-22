@@ -319,6 +319,17 @@ def generate_browser(_data_dir: Path) -> str:
             border-color: #fc4c02;
         }}
 
+        .info-session-item.focused {{
+            background: #fff3e0;
+            border-color: #fc4c02;
+            animation: focus-pulse 0.5s ease-out;
+        }}
+
+        @keyframes focus-pulse {{
+            0% {{ box-shadow: 0 0 0 0 rgba(252, 76, 2, 0.4); }}
+            100% {{ box-shadow: 0 0 0 6px rgba(252, 76, 2, 0); }}
+        }}
+
         .info-session-main {{
             flex: 1;
             min-width: 0;
@@ -2956,6 +2967,26 @@ def generate_browser(_data_dir: Path) -> str:
                 }}
             }},
 
+            focusSessionInList(athlete, session) {{
+                // Find the session item in the Activities list and scroll to it
+                const list = document.querySelector('.info-session-list');
+                if (!list) return;
+
+                const item = list.querySelector(`.info-session-item[data-athlete="${{athlete}}"][data-datetime="${{session}}"]`);
+                if (!item) return;
+
+                // Remove highlight from any previously highlighted item
+                list.querySelectorAll('.info-session-item.focused').forEach(el => {{
+                    el.classList.remove('focused');
+                }});
+
+                // Add highlight to this item
+                item.classList.add('focused');
+
+                // Scroll the item into view
+                item.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
+            }},
+
             populateAthleteSelector() {{
                 const selector = document.getElementById('athlete-selector');
                 // Clear existing options except "All Athletes"
@@ -3271,6 +3302,8 @@ def generate_browser(_data_dir: Path) -> str:
                                     if (hasPhotos) {{
                                         this.loadPhotos(username, session.datetime, session.name || 'Activity');
                                     }}
+                                    // Focus this activity in the Activities list
+                                    this.focusSessionInList(username, session.datetime);
                                 }});
 
                                 marker.addTo(this.sessionsLayer);
@@ -3457,6 +3490,8 @@ def generate_browser(_data_dir: Path) -> str:
                                 if (date) {{
                                     FilterState.set({{ dateFrom: date, dateTo: date }});
                                     FilterState.syncToURL();
+                                    // Update filter bar inputs so date navigation works
+                                    FilterBar.syncFromState('map-filter-bar');
                                 }}
                             }});
                         }});
