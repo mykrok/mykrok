@@ -671,11 +671,15 @@ class TestActivitiesInfoPanel:
 
                 # Should have main area for clicking to zoom
                 main_area = first_item.locator(".info-session-main")
-                assert main_area.count() == 1, "Session item should have .info-session-main for zoom"
+                assert (
+                    main_area.count() == 1
+                ), "Session item should have .info-session-main for zoom"
 
                 # Should have arrow link for navigation
                 arrow_link = first_item.locator(".info-session-link")
-                assert arrow_link.count() == 1, "Session item should have .info-session-link for navigation"
+                assert (
+                    arrow_link.count() == 1
+                ), "Session item should have .info-session-link for navigation"
                 assert arrow_link.get_attribute("href") is not None, "Arrow link should have href"
 
                 # Test that clicking main area zooms (doesn't navigate)
