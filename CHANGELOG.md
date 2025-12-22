@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.7.1 (2025-12-22)
+
+#### 🐛 Bug Fixes
+
+- Fix photo display for git-annex symlinks (strip @ suffix from directory listing)
+- Fix photo path regex: use `\+` not `\\+` to match timezone in created_at
+
+#### 🔧 Improvements
+
+- Fix gh-pages workflow: fetch remote branch if local doesn't exist
+- Fix CI workflow: add Node.js setup for JavaScript linting/testing
+
+#### Authors: 1
+
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 ## v0.7.0 (2025-12-22)
 
 #### 🚀 Features
