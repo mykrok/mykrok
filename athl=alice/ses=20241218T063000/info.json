@@ -1,0 +1,62 @@
+{
+  "id": 1000,
+  "name": "Run with friends",
+  "description": null,
+  "type": "Run",
+  "sport_type": "Run",
+  "start_date": "2024-12-18T06:30:00Z",
+  "start_date_local": "2024-12-18T06:30:00",
+  "timezone": "(GMT-05:00) America/New_York",
+  "distance": 10673.1,
+  "moving_time": 2921,
+  "elapsed_time": 3061,
+  "total_elevation_gain": 64.1,
+  "calories": 438,
+  "average_speed": 3.65,
+  "max_speed": 4.75,
+  "average_heartrate": null,
+  "max_heartrate": null,
+  "average_watts": null,
+  "max_watts": null,
+  "average_cadence": null,
+  "gear_id": null,
+  "device_name": "Garmin Forerunner 945",
+  "trainer": false,
+  "commute": false,
+  "private": false,
+  "kudos_count": 2,
+  "comment_count": 2,
+  "athlete_count": 2,
+  "achievement_count": 0,
+  "pr_count": 0,
+  "has_gps": true,
+  "has_photos": true,
+  "photo_count": 2,
+  "comments": [
+    {
+      "text": "Great run today!",
+      "firstname": "Bob",
+      "lastname": "Cyclist"
+    },
+    {
+      "text": "Love this route",
+      "firstname": "Charlie",
+      "lastname": "Walker"
+    }
+  ],
+  "kudos": [
+    {
+      "firstname": "Bob",
+      "lastname": "Cyclist",
+      "username": "bobcyclist"
+    },
+    {
+      "firstname": "Charlie",
+      "lastname": "Walker",
+      "username": "charliewalker"
+    }
+  ],
+  "laps": [],
+  "segment_efforts": [],
+  "photos": []
+}

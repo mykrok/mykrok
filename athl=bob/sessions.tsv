@@ -1,0 +1,6 @@
+datetime	type	sport	name	distance_m	moving_time_s	elapsed_time_s	elevation_gain_m	calories	avg_hr	max_hr	avg_watts	gear_id	athletes	kudos_count	comment_count	has_gps	photos_path	photo_count	start_lat	start_lng
+20241125T090000	Run	Run	Long run	11299.7	4260	4314	98.8		177.7	195			1	6	2	true		0	34.052209	-118.243661
+20241205T173000	Ride	Ride	Ride with friends	21330.8	2331	2434	818.5		117.4	129	105.5		1	9	1	true		0	47.606476	-122.332283
+20241214T080000	Ride	Ride	Ride workout	35881.2	5354	5529	366.2	803	135.5	149	283.7		1	7	3	true	ses=20241214T080000/photos/	4	34.052262	-118.243809
+20241216T070000	Ride	Ride	Morning Ride	28004.1	3474	3759	532.9		111.3	122	234.7		1	4	2	true		0	47.606119	-122.332762
+20241218T063000	Run	Run	Long run	3195.1	878	1056	115.3	131	145.7	160			2	1	1	true		0	47.606244	-122.332116

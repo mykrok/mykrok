@@ -1,0 +1,52 @@
+{
+  "id": 2000,
+  "name": "Long run",
+  "description": "A great run session!",
+  "type": "Run",
+  "sport_type": "Run",
+  "start_date": "2024-12-18T06:30:00Z",
+  "start_date_local": "2024-12-18T06:30:00",
+  "timezone": "(GMT-05:00) America/New_York",
+  "distance": 3195.1,
+  "moving_time": 878,
+  "elapsed_time": 1056,
+  "total_elevation_gain": 115.3,
+  "calories": 131,
+  "average_speed": 3.64,
+  "max_speed": 4.73,
+  "average_heartrate": 145.7,
+  "max_heartrate": 160,
+  "average_watts": null,
+  "max_watts": null,
+  "average_cadence": 166.4,
+  "gear_id": null,
+  "device_name": "Apple Watch",
+  "trainer": false,
+  "commute": false,
+  "private": false,
+  "kudos_count": 1,
+  "comment_count": 1,
+  "athlete_count": 2,
+  "achievement_count": 0,
+  "pr_count": 2,
+  "has_gps": true,
+  "has_photos": false,
+  "photo_count": 0,
+  "comments": [
+    {
+      "text": "Thanks for the company!",
+      "firstname": "Alice",
+      "lastname": "Runner"
+    }
+  ],
+  "kudos": [
+    {
+      "firstname": "Alice",
+      "lastname": "Runner",
+      "username": "alicerunner"
+    }
+  ],
+  "laps": [],
+  "segment_efforts": [],
+  "photos": []
+}

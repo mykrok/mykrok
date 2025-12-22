@@ -1,0 +1,6 @@
+Leaflet v1.9.4
+Source: https://github.com/Leaflet/Leaflet
+License: BSD-2-Clause
+Downloaded: 2025-12-19 from https://unpkg.com/leaflet@1.9.4/dist/
+
+Using leaflet-src.js (unminified) for auditability.
