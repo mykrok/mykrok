@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.8.0 (2025-12-22)
+
+#### 🚀 Features
+
+- Add photo indicators to sessions and activities lists
+
+#### 🐛 Bug Fixes
+
+- Fix map tracks not respecting date/type/search filters
+
+#### Authors: 1
+
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 ## v0.7.1 (2025-12-22)
 
 #### 🐛 Bug Fixes
