@@ -683,7 +683,6 @@ class TestActivitiesInfoPanel:
                 assert arrow_link.get_attribute("href") is not None, "Arrow link should have href"
 
                 # Test that clicking main area zooms (doesn't navigate)
-                initial_url = page.url
                 main_area.click()
                 page.wait_for_timeout(500)
                 assert "#/session" not in page.url, "Clicking main area should zoom, not navigate"

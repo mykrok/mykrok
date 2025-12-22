@@ -15,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from strava_backup import __version__
 from strava_backup.lib.paths import (
     ATHLETE_PREFIX,
     get_photos_dir,
@@ -1157,6 +1158,18 @@ def generate_lightweight_map(_data_dir: Path) -> str:
         .app-logo img {{
             height: 32px;
             width: auto;
+        }}
+
+        .app-logo-text {{
+            display: flex;
+            flex-direction: column;
+            line-height: 1.1;
+        }}
+
+        .app-version {{
+            font-size: 10px;
+            font-weight: 400;
+            color: #888;
         }}
 
         .app-nav {{
@@ -2890,7 +2903,10 @@ def generate_lightweight_map(_data_dir: Path) -> str:
     <header class="app-header">
         <a href="https://github.com/yarikoptic/strava-backup" class="app-logo" target="_blank">
             <img src="assets/strava-backup-icon.svg" alt="Logo">
-            Strava Backup
+            <span class="app-logo-text">
+                Strava Backup
+                <span class="app-version">v{__version__}</span>
+            </span>
         </a>
         <nav class="app-nav">
             <button class="nav-tab active" data-view="map">Map</button>
