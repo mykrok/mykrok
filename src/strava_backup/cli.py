@@ -682,6 +682,16 @@ def create_browser_cmd(ctx: Context, serve: bool, port: int) -> None:
         ctx.error("Configuration not loaded")
         sys.exit(1)
 
+    # Validate that data directory looks like a strava-backup dataset
+    athletes_tsv = config.data.directory / "athletes.tsv"
+    if not athletes_tsv.exists():
+        ctx.error(
+            f"Data directory {config.data.directory} does not appear to be a "
+            "strava-backup dataset (missing athletes.tsv). "
+            "Run 'strava-backup sync' first to populate data, or check your configuration."
+        )
+        sys.exit(1)
+
     try:
         # Generate the SPA HTML
         html = generate_browser(config.data.directory)
