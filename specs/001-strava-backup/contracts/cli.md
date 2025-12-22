@@ -153,30 +153,6 @@ Options:
 
 ---
 
-### `strava-backup view map`
-
-Generate interactive map visualization.
-
-```
-strava-backup view map [OPTIONS]
-
-Options:
-  --output PATH        Output HTML file (default: stdout or ./map.html)
-  --after DATE         Only include activities after this date
-  --before DATE        Only include activities before this date
-  --type TYPE          Filter by activity type (Run, Ride, Hike, etc.)
-  --heatmap            Generate heatmap instead of individual routes
-  --serve              Start local HTTP server to view map
-  --port PORT          Server port (default: 8080)
-```
-
-**Exit Codes**:
-- 0: Success
-- 1: No activities with GPS data
-- 2: Output write error
-
----
-
 ### `strava-backup view stats`
 
 Display activity statistics.
@@ -226,25 +202,6 @@ Statistics for 2025:
   }
 }
 ```
-
----
-
-### `strava-backup browse`
-
-Start local web server to browse backed-up activities.
-
-```
-strava-backup browse [OPTIONS]
-
-Options:
-  --port PORT          Server port (default: 8080)
-  --host HOST          Server host (default: 127.0.0.1)
-  --no-open            Don't automatically open browser
-```
-
-**Exit Codes**:
-- 0: Server stopped normally
-- 1: Port already in use
 
 ---
 

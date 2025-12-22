@@ -209,13 +209,13 @@
 - [X] T066 [P] Implement --json output format for all commands in src/strava_backup/cli.py
 - [X] T067 [P] Implement --quiet mode for cron usage
 - [X] T068 [P] Implement --verbose levels for debugging
-- [ ] T069 Run quickstart.md validation (verify all documented commands work)
+- [X] T069 Run quickstart.md validation (verify all documented commands work)
 - [X] T070 [P] Add type hints and docstrings to all public functions
 - [X] T071 [P] Create integration tests for Strava API (mocked) in tests/integration/test_strava_api.py
 - [X] T072 [P] Create integration tests for FitTrackee (Docker) in tests/integration/test_fittrackee.py
 - [X] T073 [P] Create unit tests for models in tests/unit/test_models.py
 - [X] T074 [P] Create unit tests for GPX generation in tests/unit/test_gpx.py
-- [ ] T075 [P] Create unit tests for backup logic in tests/unit/test_backup.py
+- [X] T075 [P] Create unit tests for backup logic in tests/unit/test_backup.py
 - [X] T076 Final code review and cleanup
 
 ---

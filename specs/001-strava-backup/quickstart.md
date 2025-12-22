@@ -67,14 +67,17 @@ strava-backup view stats --year 2025
 strava-backup view stats --by-month
 ```
 
-### Generate Map
+### Generate Interactive Browser
 
 ```bash
-# Create HTML map of all activities
-strava-backup view map --output my-activities.html
+# Generate HTML browser (writes strava-backup.html to data directory)
+strava-backup create-browser
 
-# Create heatmap and serve locally
-strava-backup view map --heatmap --serve
+# Generate and serve locally
+strava-backup create-browser --serve
+
+# Serve on custom port
+strava-backup create-browser --serve --port 9000
 ```
 
 ### Export to FitTrackee
@@ -92,10 +95,11 @@ strava-backup export fittrackee --dry-run
 ### Browse Offline
 
 ```bash
-# Start local browser
-strava-backup browse
+# Generate browser and start local server
+strava-backup create-browser --serve
 
 # Opens http://127.0.0.1:8080 with your activities
+# The generated strava-backup.html works offline - just open it directly
 ```
 
 ## Directory Structure After Sync

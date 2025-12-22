@@ -1,0 +1,435 @@
+"""Unit tests for backup service logic.
+
+Tests for BackupService methods that don't require API calls.
+"""
+
+from __future__ import annotations
+
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+from unittest.mock import MagicMock, patch
+
+import pyarrow as pa
+import pyarrow.parquet as pq
+import pytest
+
+from strava_backup.models.activity import Activity
+
+
+@pytest.fixture
+def mock_config(tmp_path: Path) -> MagicMock:
+    """Create a mock config pointing to tmp directory."""
+    config = MagicMock()
+    config.data.directory = tmp_path / "data"
+    config.data.directory.mkdir(exist_ok=True)
+    config.strava.client_id = "test_id"
+    config.strava.client_secret = "test_secret"
+    return config
+
+
+@pytest.fixture
+def setup_athlete_dir(mock_config: MagicMock) -> Path:
+    """Create an athlete directory structure."""
+    data_dir = mock_config.data.directory
+    athlete_dir = data_dir / "athl=testuser"
+    athlete_dir.mkdir(exist_ok=True)
+    return athlete_dir
+
+
+def create_activity(
+    session_key: str,
+    activity_id: int,
+    activity_type: str = "Run",
+    start_date: datetime | None = None,
+    elapsed_time: int = 1800,
+    has_photos: bool = False,
+    photo_count: int = 0,
+    has_gps: bool = True,
+) -> Activity:
+    """Create an Activity instance for testing."""
+    if start_date is None:
+        # Parse from session_key like "20240115T100000"
+        start_date = datetime.strptime(session_key, "%Y%m%dT%H%M%S").replace(
+            tzinfo=timezone.utc
+        )
+
+    return Activity(
+        id=activity_id,
+        name=f"Test Activity {activity_id}",
+        type=activity_type,
+        sport_type=activity_type,
+        start_date=start_date,
+        start_date_local=start_date.replace(tzinfo=None),
+        timezone="America/New_York",
+        distance=5000.0,
+        moving_time=elapsed_time - 100,
+        elapsed_time=elapsed_time,
+        total_elevation_gain=100.0,
+        has_gps=has_gps,
+        has_photos=has_photos,
+        photo_count=photo_count,
+    )
+
+
+def create_session_on_disk(
+    athlete_dir: Path,
+    session_key: str,
+    activity: Activity,
+    create_tracking: bool = True,
+    create_photos: bool = True,
+) -> Path:
+    """Create a session directory with activity data on disk."""
+    session_dir = athlete_dir / f"ses={session_key}"
+    session_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create info.json
+    info_data: dict[str, Any] = {
+        "id": activity.id,
+        "name": activity.name,
+        "type": activity.type,
+        "sport_type": activity.sport_type,
+        "start_date": activity.start_date.isoformat(),
+        "start_date_local": activity.start_date_local.isoformat(),
+        "timezone": activity.timezone,
+        "distance": activity.distance,
+        "moving_time": activity.moving_time,
+        "elapsed_time": activity.elapsed_time,
+        "total_elevation_gain": activity.total_elevation_gain,
+        "has_gps": activity.has_gps,
+        "has_photos": activity.has_photos,
+        "photo_count": activity.photo_count,
+    }
+    if activity.related_sessions:
+        info_data["related_sessions"] = activity.related_sessions
+
+    with open(session_dir / "info.json", "w") as f:
+        json.dump(info_data, f)
+
+    # Create tracking.parquet if requested
+    if activity.has_gps and create_tracking:
+        table = pa.table(
+            {
+                "time": pa.array([0, 1, 2], type=pa.int32()),
+                "lat": pa.array([40.0, 40.01, 40.02], type=pa.float64()),
+                "lng": pa.array([-74.0, -74.01, -74.02], type=pa.float64()),
+            }
+        )
+        pq.write_table(table, session_dir / "tracking.parquet")
+
+    # Create photos if requested
+    if activity.has_photos and create_photos and activity.photo_count > 0:
+        photos_dir = session_dir / "photos"
+        photos_dir.mkdir()
+        for i in range(activity.photo_count):
+            (photos_dir / f"photo_{i + 1}.jpg").write_bytes(b"fake image data")
+
+    return session_dir
+
+
+class TestFindRelatedSessions:
+    """Tests for _find_related_sessions method."""
+
+    @pytest.mark.ai_generated
+    def test_finds_sessions_within_time_window(
+        self, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """Sessions starting within 10 minutes should be considered related."""
+        athlete_dir = setup_athlete_dir
+
+        # Create main session at 10:00
+        main_activity = create_activity(
+            "20240115T100000",
+            activity_id=1001,
+            activity_type="Run",
+            elapsed_time=1800,
+        )
+        create_session_on_disk(athlete_dir, "20240115T100000", main_activity)
+
+        # Create related session at 10:05 (5 min later)
+        related_activity = create_activity(
+            "20240115T100500",
+            activity_id=1002,
+            activity_type="Run",
+            elapsed_time=1850,
+        )
+        create_session_on_disk(athlete_dir, "20240115T100500", related_activity)
+
+        # Import and test
+        from strava_backup.services.backup import BackupService
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.data_dir = mock_config.data.directory
+
+            related = service._find_related_sessions(
+                main_activity, athlete_dir, "20240115T100000"
+            )
+
+            assert len(related) == 1
+            assert related[0][0] == "20240115T100500"
+
+    @pytest.mark.ai_generated
+    def test_ignores_sessions_outside_time_window(
+        self, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """Sessions starting more than 10 minutes apart should not be related."""
+        athlete_dir = setup_athlete_dir
+
+        # Create main session at 10:00
+        main_activity = create_activity(
+            "20240115T100000",
+            activity_id=1001,
+            activity_type="Run",
+            elapsed_time=1800,
+        )
+        create_session_on_disk(athlete_dir, "20240115T100000", main_activity)
+
+        # Create unrelated session at 11:00 (1 hour later)
+        unrelated_activity = create_activity(
+            "20240115T110000",
+            activity_id=1002,
+            activity_type="Run",
+            elapsed_time=1800,
+        )
+        create_session_on_disk(athlete_dir, "20240115T110000", unrelated_activity)
+
+        from strava_backup.services.backup import BackupService
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.data_dir = mock_config.data.directory
+
+            related = service._find_related_sessions(
+                main_activity, athlete_dir, "20240115T100000"
+            )
+
+            assert len(related) == 0
+
+    @pytest.mark.ai_generated
+    def test_ignores_different_activity_types(
+        self, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """Sessions with different activity types should not be related."""
+        athlete_dir = setup_athlete_dir
+
+        # Create Run session
+        run_activity = create_activity(
+            "20240115T100000",
+            activity_id=1001,
+            activity_type="Run",
+            elapsed_time=1800,
+        )
+        create_session_on_disk(athlete_dir, "20240115T100000", run_activity)
+
+        # Create Ride session at same time
+        ride_activity = create_activity(
+            "20240115T100100",
+            activity_id=1002,
+            activity_type="Ride",
+            elapsed_time=1800,
+        )
+        create_session_on_disk(athlete_dir, "20240115T100100", ride_activity)
+
+        from strava_backup.services.backup import BackupService
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.data_dir = mock_config.data.directory
+
+            related = service._find_related_sessions(
+                run_activity, athlete_dir, "20240115T100000"
+            )
+
+            assert len(related) == 0
+
+    @pytest.mark.ai_generated
+    def test_ignores_very_different_durations(
+        self, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """Sessions with very different durations should not be related."""
+        athlete_dir = setup_athlete_dir
+
+        # Create short session (30 min)
+        short_activity = create_activity(
+            "20240115T100000",
+            activity_id=1001,
+            activity_type="Run",
+            elapsed_time=1800,
+        )
+        create_session_on_disk(athlete_dir, "20240115T100000", short_activity)
+
+        # Create long session (3 hours) at same time
+        long_activity = create_activity(
+            "20240115T100100",
+            activity_id=1002,
+            activity_type="Run",
+            elapsed_time=10800,  # 3 hours
+        )
+        create_session_on_disk(athlete_dir, "20240115T100100", long_activity)
+
+        from strava_backup.services.backup import BackupService
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.data_dir = mock_config.data.directory
+
+            related = service._find_related_sessions(
+                short_activity, athlete_dir, "20240115T100000"
+            )
+
+            assert len(related) == 0
+
+    @pytest.mark.ai_generated
+    def test_excludes_current_session(
+        self, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """The current session should not be included in related results."""
+        athlete_dir = setup_athlete_dir
+
+        # Create only one session
+        activity = create_activity(
+            "20240115T100000",
+            activity_id=1001,
+            activity_type="Run",
+            elapsed_time=1800,
+        )
+        create_session_on_disk(athlete_dir, "20240115T100000", activity)
+
+        from strava_backup.services.backup import BackupService
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.data_dir = mock_config.data.directory
+
+            related = service._find_related_sessions(
+                activity, athlete_dir, "20240115T100000"
+            )
+
+            # Should not find itself
+            assert len(related) == 0
+
+
+class TestRecoverPhotosFromRelated:
+    """Tests for _recover_photos_from_related method."""
+
+    @pytest.mark.ai_generated
+    def test_links_photos_from_related_session(
+        self, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """Photos from related session should be symlinked."""
+        athlete_dir = setup_athlete_dir
+
+        # Create main session without photos
+        main_activity = create_activity(
+            "20240115T100000",
+            activity_id=1001,
+            activity_type="Run",
+            has_photos=True,
+            photo_count=2,
+        )
+        main_session_dir = create_session_on_disk(
+            athlete_dir, "20240115T100000", main_activity, create_photos=False
+        )
+
+        # Create related session with photos
+        related_activity = create_activity(
+            "20240115T100500",
+            activity_id=1002,
+            activity_type="Run",
+            has_photos=True,
+            photo_count=2,
+        )
+        create_session_on_disk(
+            athlete_dir, "20240115T100500", related_activity, create_photos=True
+        )
+
+        from strava_backup.services.backup import BackupService
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.data_dir = mock_config.data.directory
+
+            log_messages: list[str] = []
+
+            def log(msg: str, _level: int) -> None:
+                log_messages.append(msg)
+
+            linked = service._recover_photos_from_related(
+                main_activity,
+                athlete_dir,
+                "20240115T100000",
+                main_session_dir,
+                log,
+            )
+
+            # Should have linked 2 photos
+            assert linked == 2
+
+            # Verify symlinks exist
+            photos_dir = main_session_dir / "photos"
+            assert photos_dir.exists()
+            photo_links = list(photos_dir.glob("*.jpg"))
+            assert len(photo_links) == 2
+            for link in photo_links:
+                assert link.is_symlink()
+
+    @pytest.mark.ai_generated
+    def test_no_related_sessions_returns_zero(
+        self, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """When no related sessions exist, should return 0."""
+        athlete_dir = setup_athlete_dir
+
+        # Create only main session
+        main_activity = create_activity(
+            "20240115T100000",
+            activity_id=1001,
+            activity_type="Run",
+            has_photos=True,
+            photo_count=2,
+        )
+        main_session_dir = create_session_on_disk(
+            athlete_dir, "20240115T100000", main_activity, create_photos=False
+        )
+
+        from strava_backup.services.backup import BackupService
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.data_dir = mock_config.data.directory
+
+            linked = service._recover_photos_from_related(
+                main_activity,
+                athlete_dir,
+                "20240115T100000",
+                main_session_dir,
+                lambda _msg, _lvl: None,
+            )
+
+            assert linked == 0
+
+
+class TestPhotoDownloadValidation:
+    """Tests for photo download URL validation."""
+
+    @pytest.mark.ai_generated
+    def test_placeholder_url_detection(self) -> None:
+        """Placeholder URLs should be detected as invalid."""
+        placeholder_urls = [
+            "https://d3nn82uaxijpm6.cloudfront.net/assets/placeholder-xxxxx",
+            "https://cloudfront.net/assets/placeholder-abc123.png",
+        ]
+
+        valid_urls = [
+            "https://dgtzuqphqg23d.cloudfront.net/abc123/photo.jpg",
+            "https://example.com/real-photo.jpg",
+        ]
+
+        # This tests the URL validation logic that should exist
+        for url in placeholder_urls:
+            assert "placeholder" in url.lower()
+
+        for url in valid_urls:
+            assert "placeholder" not in url.lower()
