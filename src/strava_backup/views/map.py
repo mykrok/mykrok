@@ -278,7 +278,6 @@ def generate_browser(_data_dir: Path) -> str:
             margin-top: 8px;
             border-top: 1px solid #e0e0e0;
             padding-top: 8px;
-            resize: vertical;
             min-height: 100px;
         }}
 
@@ -2968,23 +2967,42 @@ def generate_browser(_data_dir: Path) -> str:
             }},
 
             focusSessionInList(athlete, session) {{
-                // Find the session item in the Activities list and scroll to it
-                const list = document.querySelector('.info-session-list');
-                if (!list) return;
+                // Ensure the list is expanded
+                if (!this.sessionListExpanded) {{
+                    this.sessionListExpanded = true;
+                    this.updateInfo();
+                }}
 
-                const item = list.querySelector(`.info-session-item[data-athlete="${{athlete}}"][data-datetime="${{session}}"]`);
-                if (!item) return;
+                // Find the session's position in filtered list
+                const sessionIndex = this.filteredSessions.findIndex(
+                    s => s.athlete === athlete && s.datetime === session
+                );
 
-                // Remove highlight from any previously highlighted item
-                list.querySelectorAll('.info-session-item.focused').forEach(el => {{
-                    el.classList.remove('focused');
-                }});
+                // If session is beyond current visible limit, expand to show it
+                if (sessionIndex >= 0 && sessionIndex >= (this.maxVisibleSessions || 50)) {{
+                    this.maxVisibleSessions = sessionIndex + 10;  // Show some extra
+                    this.updateInfo();
+                }}
 
-                // Add highlight to this item
-                item.classList.add('focused');
+                // Now find and focus the item (use setTimeout to wait for DOM update)
+                setTimeout(() => {{
+                    const list = document.querySelector('.info-session-list');
+                    if (!list) return;
 
-                // Scroll the item into view
-                item.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
+                    const item = list.querySelector(`.info-session-item[data-athlete="${{athlete}}"][data-datetime="${{session}}"]`);
+                    if (!item) return;
+
+                    // Remove highlight from any previously highlighted item
+                    list.querySelectorAll('.info-session-item.focused').forEach(el => {{
+                        el.classList.remove('focused');
+                    }});
+
+                    // Add highlight to this item
+                    item.classList.add('focused');
+
+                    // Scroll the item into view
+                    item.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
+                }}, 50);
             }},
 
             populateAthleteSelector() {{
@@ -3380,7 +3398,8 @@ def generate_browser(_data_dir: Path) -> str:
                     // Collapsible session list
                     if (self.sessionListExpanded && self.filteredSessions.length > 0) {{
                         html += `<div class="info-session-list">`;
-                        const toShow = self.filteredSessions.slice(0, 50);  // Show more sessions
+                        const limit = self.maxVisibleSessions || 50;
+                        const toShow = self.filteredSessions.slice(0, limit);
                         for (const s of toShow) {{
                             const dateStr = s.datetime ? `${{s.datetime.substring(0,4)}}-${{s.datetime.substring(4,6)}}-${{s.datetime.substring(6,8)}}` : '';
                             const dist = s.distance_m > 0 ? ` · ${{(parseFloat(s.distance_m) / 1000).toFixed(1)}}km` : '';
@@ -3393,7 +3412,7 @@ def generate_browser(_data_dir: Path) -> str:
                             html += `<a href="#/session/${{s.athlete}}/${{s.datetime}}" class="info-session-link" title="View Activity">→</a>`;
                             html += `</div>`;
                         }}
-                        if (self.filteredSessions.length > 50) {{
+                        if (self.filteredSessions.length > limit) {{
                             // Build sessions URL with current filters
                             const filters = FilterState.get();
                             const params = new URLSearchParams();
