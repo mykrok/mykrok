@@ -16,6 +16,7 @@ If output_dir is not specified, generates in the current directory.
 
 from __future__ import annotations
 
+import base64
 import csv
 import json
 import math
@@ -26,6 +27,18 @@ from pathlib import Path
 
 import pyarrow as pa
 import pyarrow.parquet as pq
+
+# Minimal valid JPEG - a small colored square (8x8 pixels)
+# This is a real JPEG that will display in browsers
+PLACEHOLDER_JPEG = base64.b64decode(
+    "/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkS"
+    "Ew8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJ"
+    "CQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIy"
+    "MjIyMjIyMjIyMjIyMjL/wAARCAAIAAgDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAA"
+    "AAAAAAAAAAMH/8QAIhAAAgEDAwUBAAAAAAAAAAAAAQIDAAQRBRIhBhMiMUFR/8QA"
+    "FQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAZEQACAwEAAAAAAAAAAAAAAAABAgADESH/2gAM"
+    "AwEAAhEDEQA/AKOm6Vp9np8NvBCqxoMD3z+1KUVB2TGSQF1HE//Z"
+)
 
 # Activity types with realistic parameters
 ACTIVITY_TYPES = {
@@ -173,9 +186,11 @@ def generate_gps_track(
         lng = start_lng + px * lng_scale + random.gauss(0, lng_scale * 0.01)
 
         time_s = int(progress * duration_s)
+        cumulative_dist = progress * distance_m  # Cumulative distance in meters
 
         point = {
             "time": time_s,
+            "distance": round(cumulative_dist, 1),
             "lat": round(lat, 6),
             "lng": round(lng, 6),
             "altitude": round(50 + 20 * math.sin(progress * math.pi * 4), 1),
@@ -208,6 +223,7 @@ def track_to_parquet(track: list[dict], output_path: Path) -> None:
     # Build columns from available data
     columns = {
         "time": pa.array([p["time"] for p in track], type=pa.int32()),
+        "distance": pa.array([p.get("distance", 0) for p in track], type=pa.float32()),
         "lat": pa.array([p["lat"] for p in track], type=pa.float64()),
         "lng": pa.array([p["lng"] for p in track], type=pa.float64()),
     }
@@ -356,8 +372,8 @@ def generate_sessions_tsv_row(activity: dict, session_key: str) -> dict:
         "has_gps": "true" if activity.get("has_gps") else "false",
         "photos_path": f"ses={session_key}/photos/" if activity.get("has_photos") else "",
         "photo_count": activity.get("photo_count", 0),
-        "center_lat": "",  # Will be filled from GPS data
-        "center_lng": "",
+        "start_lat": "",  # Will be filled from GPS data
+        "start_lng": "",
     }
 
 
@@ -385,7 +401,7 @@ def generate_fixtures(output_dir: Path) -> None:
         "datetime", "type", "sport", "name", "distance_m", "moving_time_s",
         "elapsed_time_s", "elevation_gain_m", "calories", "avg_hr", "max_hr",
         "avg_watts", "gear_id", "athletes", "kudos_count", "comment_count",
-        "has_gps", "photos_path", "photo_count", "center_lat", "center_lng",
+        "has_gps", "photos_path", "photo_count", "start_lat", "start_lng",
     ]
 
     # Shared run datetime (both alice and bob did this together)
@@ -465,8 +481,8 @@ def generate_fixtures(output_dir: Path) -> None:
 
             # Update center coords
             row = generate_sessions_tsv_row(activity, session_key)
-            row["center_lat"] = track[0]["lat"]
-            row["center_lng"] = track[0]["lng"]
+            row["start_lat"] = track[0]["lat"]
+            row["start_lng"] = track[0]["lng"]
         else:
             row = generate_sessions_tsv_row(activity, session_key)
 
@@ -476,9 +492,9 @@ def generate_fixtures(output_dir: Path) -> None:
         if activity["has_photos"]:
             photos_dir = session_dir / "photos"
             photos_dir.mkdir(exist_ok=True)
-            # Create placeholder photo files
+            # Create placeholder photo files (actual valid JPEGs)
             for i in range(activity["photo_count"]):
-                (photos_dir / f"photo_{i+1}.jpg").touch()
+                (photos_dir / f"photo_{i+1}.jpg").write_bytes(PLACEHOLDER_JPEG)
 
     # Sort by datetime and write sessions.tsv
     alice_tsv_rows.sort(key=lambda r: r["datetime"])
@@ -549,8 +565,8 @@ def generate_fixtures(output_dir: Path) -> None:
             track_to_parquet(track, session_dir / "tracking.parquet")
 
             row = generate_sessions_tsv_row(activity, session_key)
-            row["center_lat"] = track[0]["lat"]
-            row["center_lng"] = track[0]["lng"]
+            row["start_lat"] = track[0]["lat"]
+            row["start_lng"] = track[0]["lng"]
         else:
             row = generate_sessions_tsv_row(activity, session_key)
 
@@ -560,7 +576,7 @@ def generate_fixtures(output_dir: Path) -> None:
             photos_dir = session_dir / "photos"
             photos_dir.mkdir(exist_ok=True)
             for i in range(activity["photo_count"]):
-                (photos_dir / f"photo_{i+1}.jpg").touch()
+                (photos_dir / f"photo_{i+1}.jpg").write_bytes(PLACEHOLDER_JPEG)
 
     bob_tsv_rows.sort(key=lambda r: r["datetime"])
     with open(bob_dir / "sessions.tsv", "w", newline="", encoding="utf-8") as f:

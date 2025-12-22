@@ -43,12 +43,15 @@ Screenshots are auto-generated from the demo dataset (`tox -e screenshots`).
 ![Full-screen session view](docs/screenshots/07-session-full.jpg)
 *Full-screen session view*
 
+![Activity data streams](docs/screenshots/08-data-streams.jpg)
+*Activity data streams (elevation, heart rate, cadence)*
+
 ### Statistics
 
-![Statistics dashboard](docs/screenshots/08-stats-dashboard.jpg)
+![Statistics dashboard](docs/screenshots/09-stats-dashboard.jpg)
 *Statistics dashboard*
 
-![Statistics by athlete](docs/screenshots/09-stats-filtered.jpg)
+![Statistics by athlete](docs/screenshots/10-stats-filtered.jpg)
 *Statistics by athlete*
 
 ### No Backend Required

@@ -2056,6 +2056,94 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             color: #333;
         }}
 
+        /* Data Stream Charts */
+        .stream-charts {{
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }}
+
+        .stream-chart-container {{
+            position: relative;
+            height: 150px;
+            background: #fafafa;
+            border-radius: 8px;
+            padding: 12px;
+        }}
+
+        .stream-chart-container.elevation-chart {{
+            height: 120px;
+        }}
+
+        .stream-chart-label {{
+            position: absolute;
+            top: 8px;
+            left: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            z-index: 1;
+        }}
+
+        .stream-chart-canvas {{
+            width: 100% !important;
+            height: 100% !important;
+        }}
+
+        .stream-legend {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #666;
+        }}
+
+        .stream-legend-item {{
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            opacity: 1;
+            transition: opacity 0.2s;
+        }}
+
+        .stream-legend-item.disabled {{
+            opacity: 0.4;
+        }}
+
+        .stream-legend-color {{
+            width: 12px;
+            height: 3px;
+            border-radius: 2px;
+        }}
+
+        .stream-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }}
+
+        .stream-header .full-session-section-title {{
+            margin: 0;
+        }}
+
+        .xaxis-select {{
+            padding: 4px 8px;
+            font-size: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+        }}
+
+        .xaxis-select:hover {{
+            border-color: #bbb;
+        }}
+
         .full-session-photos .photo-grid {{
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -2427,6 +2515,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
     </nav>
 
     <script src="assets/leaflet/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script type="module">
         import {{ parquetReadObjects }} from './assets/hyparquet/index.js';
 
@@ -2442,6 +2531,8 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 if (state.session) params.set('s', state.session);
                 if (state.search) params.set('q', state.search);
                 if (state.type) params.set('t', state.type);
+                if (state.dateFrom) params.set('from', state.dateFrom);
+                if (state.dateTo) params.set('to', state.dateTo);
                 const queryStr = params.toString();
                 return '#/' + state.view + (queryStr ? '?' + queryStr : '');
             }},
@@ -2459,7 +2550,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     lng: params.get('lng') ? parseFloat(params.get('lng')) : null,
                     session: params.get('s') || '',
                     search: params.get('q') || '',
-                    type: params.get('t') || ''
+                    type: params.get('t') || '',
+                    dateFrom: params.get('from') || '',
+                    dateTo: params.get('to') || ''
                 }};
             }},
 
@@ -2562,8 +2655,22 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                             SessionsView.filters.type = state.type;
                         }}
                     }}
+                    if (state.dateFrom) {{
+                        const dateFromInput = document.getElementById('date-from');
+                        if (dateFromInput) {{
+                            dateFromInput.value = state.dateFrom;
+                            SessionsView.filters.dateFrom = state.dateFrom;
+                        }}
+                    }}
+                    if (state.dateTo) {{
+                        const dateToInput = document.getElementById('date-to');
+                        if (dateToInput) {{
+                            dateToInput.value = state.dateTo;
+                            SessionsView.filters.dateTo = state.dateTo;
+                        }}
+                    }}
                     // Trigger re-render after applying filters
-                    if (state.search || state.type) {{
+                    if (state.search || state.type || state.dateFrom || state.dateTo) {{
                         SessionsView.applyFiltersAndRender();
                     }}
                 }}
@@ -3180,17 +3287,19 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     this.filters.dateFrom = e.target.value;
                     this.page = 1;
                     this.applyFiltersAndRender();
+                    URLState.update({{ dateFrom: e.target.value }});
                 }});
 
                 document.getElementById('date-to').addEventListener('change', (e) => {{
                     this.filters.dateTo = e.target.value;
                     this.page = 1;
                     this.applyFiltersAndRender();
+                    URLState.update({{ dateTo: e.target.value }});
                 }});
 
                 document.getElementById('clear-filters').addEventListener('click', () => {{
                     this.clearFilters();
-                    URLState.update({{ search: '', type: '', session: '' }});
+                    URLState.update({{ search: '', type: '', session: '', dateFrom: '', dateTo: '' }});
                 }});
 
                 // Set up sortable headers
@@ -4028,10 +4137,22 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 }}
             }},
 
+            streamCharts: [],  // Track Chart.js instances for cleanup
+
+            // Downsample data for performance (max 500 points for display)
+            downsampleData(data, maxPoints = 500) {{
+                if (data.length <= maxPoints) return data;
+                const step = Math.ceil(data.length / maxPoints);
+                return data.filter((_, i) => i % step === 0);
+            }},
+
             async loadStreams(athlete, datetime) {{
                 const container = document.getElementById('full-session-streams');
-                // Phase 8: Data streams visualization will be added here
-                // For now, show a placeholder if streams exist
+
+                // Destroy existing charts
+                this.streamCharts.forEach(chart => chart.destroy());
+                this.streamCharts = [];
+
                 try {{
                     const response = await fetch(`athl=${{athlete}}/ses=${{datetime}}/tracking.parquet`);
                     if (!response.ok) {{
@@ -4041,29 +4162,285 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     const buffer = await response.arrayBuffer();
                     const data = await parquetReadObjects({{ file: buffer }});
 
+                    if (!data || data.length === 0) {{
+                        container.innerHTML = '';
+                        return;
+                    }}
+
                     // Check what streams are available
                     const hasHr = data.some(r => r.heartrate);
                     const hasCadence = data.some(r => r.cadence);
+                    const hasWatts = data.some(r => r.watts);
                     const hasElevation = data.some(r => r.altitude);
+                    const hasSpeed = data.some(r => r.velocity_smooth);
 
-                    if (hasHr || hasCadence || hasElevation) {{
-                        const streams = [];
-                        if (hasHr) streams.push('Heart Rate');
-                        if (hasCadence) streams.push('Cadence');
-                        if (hasElevation) streams.push('Elevation');
-                        container.innerHTML = `
-                            <h3 class="full-session-section-title">Data Streams</h3>
-                            <p style="color:#666;font-size:14px;">Available: ${{streams.join(', ')}}</p>
-                            <p style="color:#999;font-size:12px;margin-top:8px;">
-                                <em>Detailed stream visualization coming in Phase 8</em>
-                            </p>
-                        `;
-                    }} else {{
+                    if (!hasHr && !hasCadence && !hasWatts && !hasElevation) {{
                         container.innerHTML = '';
+                        return;
                     }}
+
+                    // Downsample for performance
+                    const sampled = this.downsampleData(data);
+
+                    // Check what X-axis options are available
+                    const hasDistance = sampled.some(r => r.distance);
+                    const hasTime = sampled.some(r => r.time !== undefined);
+
+                    // Store data for re-rendering when X-axis changes
+                    this.streamData = {{ sampled, hasElevation, hasHr, hasCadence, hasWatts, hasDistance, hasTime }};
+
+                    // Build HTML with X-axis selector
+                    let html = '<div class="stream-header">';
+                    html += '<h3 class="full-session-section-title">Data Streams</h3>';
+                    if (hasDistance && hasTime) {{
+                        html += `<select id="xaxis-selector" class="xaxis-select">
+                            <option value="distance">Distance (km)</option>
+                            <option value="time">Time (min)</option>
+                        </select>`;
+                    }}
+                    html += '</div>';
+                    html += '<div class="stream-charts">';
+
+                    // Elevation chart (area fill, always first if available)
+                    if (hasElevation) {{
+                        html += `
+                            <div class="stream-chart-container elevation-chart">
+                                <span class="stream-chart-label">Elevation</span>
+                                <canvas id="elevation-chart" class="stream-chart-canvas"></canvas>
+                            </div>
+                        `;
+                    }}
+
+                    // Combined HR/Cadence/Power chart
+                    if (hasHr || hasCadence || hasWatts) {{
+                        html += `
+                            <div class="stream-chart-container">
+                                <span class="stream-chart-label">Activity Data</span>
+                                <canvas id="activity-chart" class="stream-chart-canvas"></canvas>
+                            </div>
+                        `;
+                    }}
+
+                    html += '</div>';
+                    container.innerHTML = html;
+
+                    // Set up X-axis selector change handler
+                    const xaxisSelector = document.getElementById('xaxis-selector');
+                    if (xaxisSelector) {{
+                        xaxisSelector.addEventListener('change', () => this.renderStreamCharts());
+                    }}
+
+                    // Render charts
+                    this.renderStreamCharts();
+
                 }} catch (e) {{
+                    console.warn('Could not load streams:', e);
                     container.innerHTML = '';
                 }}
+            }},
+
+            xAxisMode: 'distance',  // Default mode
+
+            renderStreamCharts() {{
+                if (!this.streamData) return;
+                const {{ sampled, hasElevation, hasHr, hasCadence, hasWatts, hasDistance, hasTime }} = this.streamData;
+
+                // Destroy existing charts
+                this.streamCharts.forEach(chart => chart.destroy());
+                this.streamCharts = [];
+
+                // Determine X-axis mode
+                const selector = document.getElementById('xaxis-selector');
+                const useDistance = selector ? selector.value === 'distance' : hasDistance;
+
+                // Calculate X-axis data
+                const xData = sampled.map(r => {{
+                    if (useDistance && r.distance) return Math.round(r.distance / 100) / 10;  // km, 1 decimal
+                    return Math.round((r.time || 0) / 60);  // minutes, whole numbers
+                }});
+                const xLabel = useDistance ? 'Distance (km)' : 'Time (min)';
+
+                // Create elevation chart
+                if (hasElevation) {{
+                        const elevData = sampled.map(r => r.altitude);
+                        const minElev = Math.min(...elevData.filter(e => e != null));
+                        const maxElev = Math.max(...elevData.filter(e => e != null));
+
+                        const elevChart = new Chart(document.getElementById('elevation-chart'), {{
+                            type: 'line',
+                            data: {{
+                                labels: xData,
+                                datasets: [{{
+                                    label: 'Elevation',
+                                    data: elevData,
+                                    borderColor: '#888',
+                                    backgroundColor: 'rgba(100, 100, 100, 0.2)',
+                                    fill: true,
+                                    tension: 0.3,
+                                    borderWidth: 1,
+                                    pointRadius: 0,
+                                }}]
+                            }},
+                            options: {{
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                interaction: {{
+                                    mode: 'index',
+                                    intersect: false
+                                }},
+                                plugins: {{
+                                    legend: {{ display: false }},
+                                    tooltip: {{
+                                        callbacks: {{
+                                            title: (items) => `${{items[0].parsed.x.toFixed(1)}} ${{useDistance ? 'km' : 'min'}}`,
+                                            label: (item) => `${{item.parsed.y.toFixed(0)}} m`
+                                        }}
+                                    }}
+                                }},
+                                scales: {{
+                                    x: {{
+                                        display: true,
+                                        title: {{ display: false }},
+                                        ticks: {{ font: {{ size: 10 }}, maxTicksLimit: 8 }}
+                                    }},
+                                    y: {{
+                                        display: true,
+                                        min: Math.floor(minElev * 0.95),
+                                        max: Math.ceil(maxElev * 1.05),
+                                        ticks: {{ font: {{ size: 10 }} }},
+                                        title: {{ display: true, text: 'm', font: {{ size: 10 }} }}
+                                    }}
+                                }}
+                            }}
+                        }});
+                        this.streamCharts.push(elevChart);
+                    }}
+
+                    // Create combined activity data chart
+                    if (hasHr || hasCadence || hasWatts) {{
+                        const datasets = [];
+
+                        if (hasHr) {{
+                            // Filter out initial 0 HR readings (common sensor artifact)
+                            const hrData = sampled.map((r, i) => {{
+                                // Skip first point if HR is 0 or very low (sensor warming up)
+                                if (i === 0 && (!r.heartrate || r.heartrate < 30)) return null;
+                                return r.heartrate || null;
+                            }});
+                            datasets.push({{
+                                label: 'Heart Rate',
+                                data: hrData,
+                                borderColor: '#e63946',
+                                backgroundColor: 'rgba(230, 57, 70, 0.1)',
+                                fill: false,
+                                tension: 0.3,
+                                borderWidth: 2,
+                                pointRadius: 0,
+                                yAxisID: 'yHr',
+                                spanGaps: true  // Connect line across null gaps
+                            }});
+                        }}
+
+                        if (hasCadence) {{
+                            datasets.push({{
+                                label: 'Cadence',
+                                data: sampled.map(r => r.cadence),
+                                borderColor: '#457b9d',
+                                backgroundColor: 'rgba(69, 123, 157, 0.1)',
+                                fill: false,
+                                tension: 0.3,
+                                borderWidth: 2,
+                                pointRadius: 0,
+                                yAxisID: 'yCadence'
+                            }});
+                        }}
+
+                        if (hasWatts) {{
+                            datasets.push({{
+                                label: 'Power',
+                                data: sampled.map(r => r.watts),
+                                borderColor: '#f4a261',
+                                backgroundColor: 'rgba(244, 162, 97, 0.1)',
+                                fill: false,
+                                tension: 0.3,
+                                borderWidth: 2,
+                                pointRadius: 0,
+                                yAxisID: 'yPower'
+                            }});
+                        }}
+
+                        // Configure scales based on available data
+                        const scales = {{
+                            x: {{
+                                display: true,
+                                title: {{ display: true, text: xLabel, font: {{ size: 10 }} }},
+                                ticks: {{ font: {{ size: 10 }}, maxTicksLimit: 8 }}
+                            }}
+                        }};
+
+                        if (hasHr) {{
+                            scales.yHr = {{
+                                type: 'linear',
+                                position: 'left',
+                                display: true,
+                                title: {{ display: true, text: 'BPM', font: {{ size: 10 }}, color: '#e63946' }},
+                                ticks: {{ font: {{ size: 10 }}, color: '#e63946' }},
+                                grid: {{ display: hasHr && !hasCadence && !hasWatts }}
+                            }};
+                        }}
+
+                        if (hasCadence) {{
+                            scales.yCadence = {{
+                                type: 'linear',
+                                position: hasHr ? 'right' : 'left',
+                                display: true,
+                                title: {{ display: true, text: 'RPM', font: {{ size: 10 }}, color: '#457b9d' }},
+                                ticks: {{ font: {{ size: 10 }}, color: '#457b9d' }},
+                                grid: {{ display: !hasHr }}
+                            }};
+                        }}
+
+                        if (hasWatts) {{
+                            scales.yPower = {{
+                                type: 'linear',
+                                position: 'right',
+                                display: true,
+                                title: {{ display: true, text: 'W', font: {{ size: 10 }}, color: '#f4a261' }},
+                                ticks: {{ font: {{ size: 10 }}, color: '#f4a261' }},
+                                grid: {{ display: false }}
+                            }};
+                        }}
+
+                        const activityChart = new Chart(document.getElementById('activity-chart'), {{
+                            type: 'line',
+                            data: {{
+                                labels: xData,
+                                datasets: datasets
+                            }},
+                            options: {{
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                interaction: {{
+                                    mode: 'index',
+                                    intersect: false
+                                }},
+                                plugins: {{
+                                    legend: {{
+                                        display: true,
+                                        position: 'top',
+                                        labels: {{ font: {{ size: 11 }}, usePointStyle: true, boxWidth: 6 }}
+                                    }},
+                                    tooltip: {{
+                                        callbacks: {{
+                                            title: (items) => `${{items[0].parsed.x.toFixed(1)}} ${{useDistance ? 'km' : 'min'}}`
+                                        }}
+                                    }}
+                                }},
+                                scales: scales
+                            }}
+                        }});
+                        this.streamCharts.push(activityChart);
+                    }}
             }},
 
             loadPhotos(athlete, datetime, session) {{
@@ -4179,8 +4556,8 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             sessions: [],
             typeColors: {json.dumps(type_colors)},
             filters: {{ year: '', type: '' }},
-            monthlyBars: [],  // Store bar positions for click detection
-            typeBars: [],     // Store bar positions for click detection
+            monthlyChart: null,  // Chart.js instance
+            typeChart: null,     // Chart.js instance
 
             init() {{
                 document.getElementById('year-filter').addEventListener('change', (e) => {{
@@ -4197,65 +4574,36 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 document.getElementById('athlete-selector').addEventListener('change', () => {{
                     this.calculate();
                 }});
-
-                // Add chart click handlers
-                document.getElementById('monthly-chart').addEventListener('click', (e) => {{
-                    const rect = e.target.getBoundingClientRect();
-                    const x = e.clientX - rect.left;
-                    const y = e.clientY - rect.top;
-                    this.handleMonthlyChartClick(x, y);
-                }});
-
-                document.getElementById('type-chart').addEventListener('click', (e) => {{
-                    const rect = e.target.getBoundingClientRect();
-                    const x = e.clientX - rect.left;
-                    const y = e.clientY - rect.top;
-                    this.handleTypeChartClick(x, y);
-                }});
-
-                // Add cursor pointer on hover
-                const monthlyCanvas = document.getElementById('monthly-chart');
-                const typeCanvas = document.getElementById('type-chart');
-                monthlyCanvas.style.cursor = 'pointer';
-                typeCanvas.style.cursor = 'pointer';
+                // Chart click handlers are set up in renderMonthlyChart/renderTypeChart
             }},
 
-            handleMonthlyChartClick(x, y) {{
-                for (const bar of this.monthlyBars) {{
-                    if (x >= bar.x && x <= bar.x + bar.width && y >= bar.y && y <= bar.y + bar.height) {{
-                        // Navigate to sessions view with month filter
-                        const [year, month] = [bar.month.substring(0, 4), bar.month.substring(4, 6)];
-                        // Set date filters and navigate
-                        const dateFrom = `${{year}}-${{month}}-01`;
-                        const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
-                        const dateTo = `${{year}}-${{month}}-${{String(lastDay).padStart(2, '0')}}`;
+            handleMonthlyChartClick(month) {{
+                // Navigate to sessions view with month filter via URL
+                const [year, monthNum] = [month.substring(0, 4), month.substring(4, 6)];
+                const dateFrom = `${{year}}-${{monthNum}}-01`;
+                const lastDay = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
+                const dateTo = `${{year}}-${{monthNum}}-${{String(lastDay).padStart(2, '0')}}`;
 
-                        location.hash = `#/sessions`;
-                        setTimeout(() => {{
-                            document.getElementById('date-from').value = dateFrom;
-                            document.getElementById('date-to').value = dateTo;
-                            SessionsView.filters.dateFrom = dateFrom;
-                            SessionsView.filters.dateTo = dateTo;
-                            SessionsView.applyFilters();
-                        }}, 100);
-                        return;
-                    }}
-                }}
+                // Build URL with date filter params
+                const params = new URLSearchParams();
+                params.set('from', dateFrom);
+                params.set('to', dateTo);
+                // Preserve current athlete
+                const athlete = document.getElementById('athlete-selector')?.value;
+                if (athlete) params.set('a', athlete);
+
+                location.hash = `#/sessions?${{params.toString()}}`;
             }},
 
-            handleTypeChartClick(x, y) {{
-                for (const bar of this.typeBars) {{
-                    if (x >= bar.x && x <= bar.x + bar.width && y >= bar.y && y <= bar.y + bar.height) {{
-                        // Navigate to sessions view with type filter
-                        location.hash = `#/sessions`;
-                        setTimeout(() => {{
-                            document.getElementById('type-filter').value = bar.type;
-                            SessionsView.filters.type = bar.type;
-                            SessionsView.applyFilters();
-                        }}, 100);
-                        return;
-                    }}
-                }}
+            handleTypeChartClick(type) {{
+                // Navigate to sessions view with type filter via URL
+                const params = new URLSearchParams();
+                params.set('t', type);
+                // Preserve current athlete
+                const athlete = document.getElementById('athlete-selector')?.value;
+                if (athlete) params.set('a', athlete);
+
+                location.hash = `#/sessions?${{params.toString()}}`;
             }},
 
             setSessions(sessions) {{
@@ -4353,131 +4701,157 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
             renderMonthlyChart(byMonth) {{
                 const canvas = document.getElementById('monthly-chart');
-                const ctx = canvas.getContext('2d');
-                const rect = canvas.parentElement.getBoundingClientRect();
-                canvas.width = rect.width - 32;
-                canvas.height = 250;
-
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-
                 const months = Object.keys(byMonth).sort();
+
+                // Destroy existing chart if any
+                if (this.monthlyChart) {{
+                    this.monthlyChart.destroy();
+                    this.monthlyChart = null;
+                }}
+
                 if (months.length === 0) {{
-                    ctx.fillStyle = '#999';
-                    ctx.font = '14px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('No data available', canvas.width / 2, canvas.height / 2);
+                    canvas.style.display = 'none';
+                    canvas.parentElement.innerHTML = '<div style="text-align:center;padding:100px 0;color:#999;">No data available</div>';
                     return;
                 }}
 
-                const maxCount = Math.max(...months.map(m => byMonth[m].count));
-                const padding = {{ top: 20, right: 20, bottom: 60, left: 50 }};
-                const chartWidth = canvas.width - padding.left - padding.right;
-                const chartHeight = canvas.height - padding.top - padding.bottom;
-                const barWidth = Math.min(30, (chartWidth / months.length) - 4);
+                const labels = months.map(m => m.substring(0, 4) + '-' + m.substring(4, 6));
+                const data = months.map(m => byMonth[m].count);
+                const monthKeys = months; // Store for click handler
 
-                // Clear bar positions
-                this.monthlyBars = [];
-
-                // Draw axes
-                ctx.strokeStyle = '#ddd';
-                ctx.beginPath();
-                ctx.moveTo(padding.left, padding.top);
-                ctx.lineTo(padding.left, canvas.height - padding.bottom);
-                ctx.lineTo(canvas.width - padding.right, canvas.height - padding.bottom);
-                ctx.stroke();
-
-                // Draw bars
-                months.forEach((month, i) => {{
-                    const data = byMonth[month];
-                    const barHeight = (data.count / maxCount) * chartHeight;
-                    const x = padding.left + (i * (chartWidth / months.length)) + ((chartWidth / months.length) - barWidth) / 2;
-                    const y = canvas.height - padding.bottom - barHeight;
-
-                    // Store bar position for click detection
-                    this.monthlyBars.push({{ month, x, y, width: barWidth, height: barHeight }});
-
-                    ctx.fillStyle = '#fc4c02';
-                    ctx.fillRect(x, y, barWidth, barHeight);
-
-                    // Draw count on top
-                    ctx.fillStyle = '#333';
-                    ctx.font = '11px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(data.count.toString(), x + barWidth / 2, y - 4);
-
-                    // Draw month label
-                    ctx.save();
-                    ctx.translate(x + barWidth / 2, canvas.height - padding.bottom + 8);
-                    ctx.rotate(-45 * Math.PI / 180);
-                    ctx.fillStyle = '#666';
-                    ctx.font = '10px sans-serif';
-                    ctx.textAlign = 'right';
-                    const label = month.substring(0, 4) + '-' + month.substring(4, 6);
-                    ctx.fillText(label, 0, 0);
-                    ctx.restore();
+                this.monthlyChart = new Chart(canvas, {{
+                    type: 'bar',
+                    data: {{
+                        labels: labels,
+                        datasets: [{{
+                            label: 'Sessions',
+                            data: data,
+                            backgroundColor: '#fc4c02',
+                            borderRadius: 4,
+                            borderSkipped: false
+                        }}]
+                    }},
+                    options: {{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {{
+                            legend: {{ display: false }},
+                            tooltip: {{
+                                backgroundColor: 'rgba(0,0,0,0.8)',
+                                titleFont: {{ size: 13 }},
+                                bodyFont: {{ size: 12 }},
+                                padding: 10,
+                                cornerRadius: 6,
+                                callbacks: {{
+                                    title: (items) => items[0].label,
+                                    label: (item) => `${{item.raw}} sessions`
+                                }}
+                            }}
+                        }},
+                        scales: {{
+                            x: {{
+                                grid: {{ display: false }},
+                                ticks: {{
+                                    maxRotation: 45,
+                                    minRotation: 45,
+                                    font: {{ size: 10 }}
+                                }}
+                            }},
+                            y: {{
+                                beginAtZero: true,
+                                grid: {{ color: '#eee' }},
+                                ticks: {{ stepSize: 1 }},
+                                title: {{
+                                    display: true,
+                                    text: 'Sessions',
+                                    font: {{ size: 12 }}
+                                }}
+                            }}
+                        }},
+                        onClick: (event, elements) => {{
+                            if (elements.length > 0) {{
+                                const index = elements[0].index;
+                                this.handleMonthlyChartClick(monthKeys[index]);
+                            }}
+                        }},
+                        onHover: (event, elements) => {{
+                            canvas.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+                        }}
+                    }}
                 }});
-
-                // Y-axis label
-                ctx.save();
-                ctx.translate(14, canvas.height / 2);
-                ctx.rotate(-90 * Math.PI / 180);
-                ctx.fillStyle = '#666';
-                ctx.font = '12px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('Sessions', 0, 0);
-                ctx.restore();
             }},
 
             renderTypeChart(byType) {{
                 const canvas = document.getElementById('type-chart');
-                const ctx = canvas.getContext('2d');
-                const rect = canvas.parentElement.getBoundingClientRect();
-                canvas.width = rect.width - 32;
-                canvas.height = 250;
-
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-
                 const types = Object.keys(byType).sort((a, b) => byType[b].count - byType[a].count);
+
+                // Destroy existing chart if any
+                if (this.typeChart) {{
+                    this.typeChart.destroy();
+                    this.typeChart = null;
+                }}
+
                 if (types.length === 0) {{
-                    ctx.fillStyle = '#999';
-                    ctx.font = '14px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('No data available', canvas.width / 2, canvas.height / 2);
+                    canvas.style.display = 'none';
+                    canvas.parentElement.innerHTML = '<div style="text-align:center;padding:100px 0;color:#999;">No data available</div>';
                     return;
                 }}
 
-                const maxCount = Math.max(...types.map(t => byType[t].count));
-                const padding = {{ top: 20, right: 60, bottom: 20, left: 80 }};
-                const chartWidth = canvas.width - padding.left - padding.right;
-                const chartHeight = canvas.height - padding.top - padding.bottom;
-                const barHeight = Math.min(25, (chartHeight / types.length) - 4);
+                const data = types.map(t => byType[t].count);
+                const colors = types.map(t => this.typeColors[t] || '#607D8B');
+                const typeKeys = types; // Store for click handler
 
-                // Clear bar positions
-                this.typeBars = [];
-
-                types.forEach((type, i) => {{
-                    const data = byType[type];
-                    const barWidth = (data.count / maxCount) * chartWidth;
-                    const y = padding.top + (i * (chartHeight / types.length)) + ((chartHeight / types.length) - barHeight) / 2;
-
-                    // Store bar position for click detection
-                    this.typeBars.push({{ type, x: padding.left, y, width: barWidth, height: barHeight }});
-
-                    // Bar
-                    ctx.fillStyle = this.typeColors[type] || '#607D8B';
-                    ctx.fillRect(padding.left, y, barWidth, barHeight);
-
-                    // Type label
-                    ctx.fillStyle = '#333';
-                    ctx.font = '12px sans-serif';
-                    ctx.textAlign = 'right';
-                    ctx.fillText(type, padding.left - 8, y + barHeight / 2 + 4);
-
-                    // Count label
-                    ctx.fillStyle = '#666';
-                    ctx.font = '11px sans-serif';
-                    ctx.textAlign = 'left';
-                    ctx.fillText(data.count.toString(), padding.left + barWidth + 6, y + barHeight / 2 + 4);
+                this.typeChart = new Chart(canvas, {{
+                    type: 'bar',
+                    data: {{
+                        labels: types,
+                        datasets: [{{
+                            label: 'Sessions',
+                            data: data,
+                            backgroundColor: colors,
+                            borderRadius: 4,
+                            borderSkipped: false
+                        }}]
+                    }},
+                    options: {{
+                        indexAxis: 'y',  // Horizontal bar chart
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {{
+                            legend: {{ display: false }},
+                            tooltip: {{
+                                backgroundColor: 'rgba(0,0,0,0.8)',
+                                titleFont: {{ size: 13 }},
+                                bodyFont: {{ size: 12 }},
+                                padding: 10,
+                                cornerRadius: 6,
+                                callbacks: {{
+                                    title: (items) => items[0].label,
+                                    label: (item) => `${{item.raw}} sessions`
+                                }}
+                            }}
+                        }},
+                        scales: {{
+                            x: {{
+                                beginAtZero: true,
+                                grid: {{ color: '#eee' }},
+                                ticks: {{ stepSize: 1 }}
+                            }},
+                            y: {{
+                                grid: {{ display: false }},
+                                ticks: {{ font: {{ size: 12 }} }}
+                            }}
+                        }},
+                        onClick: (event, elements) => {{
+                            if (elements.length > 0) {{
+                                const index = elements[0].index;
+                                this.handleTypeChartClick(typeKeys[index]);
+                            }}
+                        }},
+                        onHover: (event, elements) => {{
+                            canvas.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+                        }}
+                    }}
                 }});
             }}
         }};

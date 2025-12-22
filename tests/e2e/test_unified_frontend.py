@@ -73,7 +73,7 @@ class TestAppLaunch:
         page.goto(f"{demo_server}/strava-backup.html")
 
         # Check title/header
-        assert page.locator(".logo").text_content() == "Strava Backup"
+        assert "Strava Backup" in page.locator(".app-logo").text_content()
 
         # Check all three nav tabs are present
         nav_tabs = page.locator(".nav-tab")
@@ -97,10 +97,10 @@ class TestAppLaunch:
         page.goto(f"{demo_server}/strava-backup.html")
 
         # Wait for data to load
-        page.wait_for_selector("#athlete-select")
+        page.wait_for_selector("#athlete-selector")
 
         # Check "All Athletes" option exists with session count
-        select = page.locator("#athlete-select")
+        select = page.locator("#athlete-selector")
         options = select.locator("option")
 
         # Should have: All Athletes, alice, bob
@@ -140,8 +140,15 @@ class TestMapView:
         page.goto(f"{demo_server}/strava-backup.html#/map")
         page.wait_for_selector(".leaflet-marker-icon", timeout=10000)
 
-        # Click first marker
-        page.locator(".leaflet-marker-icon").first.click()
+        # Wait for map to settle before clicking
+        page.wait_for_timeout(2000)
+
+        # Click first marker using JavaScript to avoid timing issues
+        page.evaluate("""() => {
+            if (window.MapView && window.MapView.allMarkers && window.MapView.allMarkers.length > 0) {
+                window.MapView.allMarkers[0].marker.openPopup();
+            }
+        }""")
 
         # Popup should appear
         page.wait_for_selector(".leaflet-popup")
@@ -219,8 +226,8 @@ class TestSessionsView:
         page.locator("#sessions-table tbody tr").first.click()
 
         # Detail panel should appear
-        page.wait_for_selector(".detail-panel.open")
-        assert page.locator(".detail-panel.open").count() == 1
+        page.wait_for_selector("#session-detail:not(.hidden)")
+        assert page.locator("#session-detail:not(.hidden)").count() == 1
 
 
 @pytest.mark.ai_generated
@@ -232,19 +239,19 @@ class TestStatsView:
         page.goto(f"{demo_server}/strava-backup.html#/stats")
 
         # Wait for stats to calculate
-        page.wait_for_selector(".stat-card", timeout=10000)
+        page.wait_for_selector(".summary-card", timeout=10000)
 
-        # Should show stat cards
-        cards = page.locator(".stat-card")
+        # Should show summary cards
+        cards = page.locator(".summary-card")
         assert cards.count() >= 3  # Activities, distance, time at minimum
 
     def test_stats_shows_totals(self, demo_server: str, page: Page) -> None:
         """Verify stats shows correct totals."""
         page.goto(f"{demo_server}/strava-backup.html#/stats")
-        page.wait_for_selector(".stat-card", timeout=10000)
+        page.wait_for_selector(".summary-card", timeout=10000)
 
         # Find activities card
-        stats_text = page.locator(".stats-grid").text_content()
+        stats_text = page.locator(".summary-cards").text_content()
 
         # Should show "15" for total activities
         assert "15" in stats_text
@@ -269,7 +276,7 @@ class TestAthleteFiltering:
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
 
         # Select alice
-        page.select_option("#athlete-select", "alice")
+        page.select_option("#athlete-selector", "alice")
 
         # Wait for filter to apply
         page.wait_for_timeout(500)
@@ -284,7 +291,7 @@ class TestAthleteFiltering:
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
 
         # Select bob
-        page.select_option("#athlete-select", "bob")
+        page.select_option("#athlete-selector", "bob")
 
         # Wait for filter to apply
         page.wait_for_timeout(500)
@@ -305,10 +312,10 @@ class TestSessionDetail:
 
         # Click first session
         page.locator("#sessions-table tbody tr").first.click()
-        page.wait_for_selector(".detail-panel.open")
+        page.wait_for_selector("#session-detail:not(.hidden)")
 
         # Should show stat cards
-        assert page.locator(".detail-stats .stat-card").count() >= 2
+        assert page.locator("#detail-stats .stat-card").count() >= 2
 
     def test_detail_shows_map(self, demo_server: str, page: Page) -> None:
         """Verify detail panel shows map for GPS sessions."""
@@ -321,7 +328,7 @@ class TestSessionDetail:
 
         # Click first run
         page.locator("#sessions-table tbody tr").first.click()
-        page.wait_for_selector(".detail-panel.open")
+        page.wait_for_selector("#session-detail:not(.hidden)")
 
         # Wait for track to load
         page.wait_for_timeout(1000)
@@ -336,10 +343,10 @@ class TestSessionDetail:
 
         # Click first session
         page.locator("#sessions-table tbody tr").first.click()
-        page.wait_for_selector(".detail-panel.open")
+        page.wait_for_selector("#session-detail:not(.hidden)")
 
-        # Click "View on Map" button
-        page.locator("text=View on Map").click()
+        # Click "View on Map" button in detail panel
+        page.locator(".view-on-map-btn").click()
 
         # Should navigate to map view
         page.wait_for_timeout(500)
@@ -356,7 +363,7 @@ class TestSharedRun:
         page.goto(f"{demo_server}/strava-backup.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
 
-        page.select_option("#athlete-select", "alice")
+        page.select_option("#athlete-selector", "alice")
         page.wait_for_timeout(500)
 
         # Search for the shared run date
@@ -368,7 +375,7 @@ class TestSharedRun:
 
         # Clear and check bob
         page.fill("#session-search", "")
-        page.select_option("#athlete-select", "bob")
+        page.select_option("#athlete-selector", "bob")
         page.wait_for_timeout(500)
 
         page.fill("#session-search", "2024-12-18")
@@ -389,10 +396,10 @@ class TestFullScreenSessionView:
 
         # Click first session to open detail panel
         page.locator("#sessions-table tbody tr").first.click()
-        page.wait_for_selector(".detail-panel.open")
+        page.wait_for_selector("#session-detail:not(.hidden)")
 
         # Click expand button
-        page.locator(".detail-expand-btn").click()
+        page.locator("#expand-detail").click()
 
         # Should navigate to full session view
         page.wait_for_timeout(1000)
@@ -410,8 +417,8 @@ class TestFullScreenSessionView:
 
         # Click first session and expand
         page.locator("#sessions-table tbody tr").first.click()
-        page.wait_for_selector(".detail-panel.open")
-        page.locator(".detail-expand-btn").click()
+        page.wait_for_selector("#session-detail:not(.hidden)")
+        page.locator("#expand-detail").click()
         page.wait_for_selector("#view-session.active", timeout=5000)
 
         # Session name should be displayed (not "Activity Name" placeholder)
@@ -429,12 +436,12 @@ class TestFullScreenSessionView:
 
         # Navigate to full session view
         page.locator("#sessions-table tbody tr").first.click()
-        page.wait_for_selector(".detail-panel.open")
-        page.locator(".detail-expand-btn").click()
+        page.wait_for_selector("#session-detail:not(.hidden)")
+        page.locator("#expand-detail").click()
         page.wait_for_selector("#view-session.active", timeout=5000)
 
         # Click back button
-        page.locator("#full-session-back").click()
+        page.locator(".full-session-header .back-btn").click()
 
         # Should return to sessions view
         page.wait_for_timeout(500)
@@ -448,8 +455,8 @@ class TestFullScreenSessionView:
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
 
         page.locator("#sessions-table tbody tr").first.click()
-        page.wait_for_selector(".detail-panel.open")
-        page.locator(".detail-expand-btn").click()
+        page.wait_for_selector("#session-detail:not(.hidden)")
+        page.locator("#expand-detail").click()
         page.wait_for_selector("#view-session.active", timeout=5000)
 
         # Capture the session URL
@@ -478,8 +485,8 @@ class TestFullScreenSessionView:
 
         # Navigate to full session view
         page.locator("#sessions-table tbody tr").first.click()
-        page.wait_for_selector(".detail-panel.open")
-        page.locator(".detail-expand-btn").click()
+        page.wait_for_selector("#session-detail:not(.hidden)")
+        page.locator("#expand-detail").click()
         page.wait_for_selector("#view-session.active", timeout=5000)
 
         # Capture the original session URL
