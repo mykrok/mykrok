@@ -1272,6 +1272,30 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             margin-top: 8px;
             border-top: 1px solid #e0e0e0;
             padding-top: 8px;
+            resize: vertical;
+            min-height: 100px;
+        }}
+
+        .info-resize-handle {{
+            height: 8px;
+            background: linear-gradient(to bottom, transparent 0%, #e0e0e0 50%, transparent 100%);
+            cursor: ns-resize;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 4px;
+        }}
+
+        .info-resize-handle::before {{
+            content: '';
+            width: 30px;
+            height: 3px;
+            background: #ccc;
+            border-radius: 2px;
+        }}
+
+        .info-resize-handle:hover::before {{
+            background: #fc4c02;
         }}
 
         .info-session-item {{
@@ -4170,7 +4194,13 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             }},
 
             updateInfo() {{
+                // Save scroll position before updating
+                let savedScrollTop = 0;
                 if (this.infoControl) {{
+                    const existingList = document.querySelector('.info-session-list');
+                    if (existingList) {{
+                        savedScrollTop = existingList.scrollTop;
+                    }}
                     this.infoControl.remove();
                 }}
                 this.infoControl = L.control({{ position: 'topright' }});
@@ -4205,7 +4235,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     // Collapsible session list
                     if (self.sessionListExpanded && self.filteredSessions.length > 0) {{
                         html += `<div class="info-session-list">`;
-                        const toShow = self.filteredSessions.slice(0, 20);
+                        const toShow = self.filteredSessions.slice(0, 50);  // Show more sessions
                         for (const s of toShow) {{
                             const dateStr = s.datetime ? `${{s.datetime.substring(0,4)}}-${{s.datetime.substring(4,6)}}-${{s.datetime.substring(6,8)}}` : '';
                             const dist = s.distance_m > 0 ? ` · ${{(parseFloat(s.distance_m) / 1000).toFixed(1)}}km` : '';
@@ -4218,10 +4248,11 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                             html += `<a href="#/session/${{s.athlete}}/${{s.datetime}}" class="info-session-link" title="View Activity">→</a>`;
                             html += `</div>`;
                         }}
-                        if (self.filteredSessions.length > 20) {{
+                        if (self.filteredSessions.length > 50) {{
                             html += `<div class="info-session-more"><a href="#/sessions">View all ${{self.filteredSessions.length}} sessions</a></div>`;
                         }}
                         html += `</div>`;
+                        html += `<div class="info-resize-handle" title="Drag to resize"></div>`;
                     }}
 
                     // Zoom hint
@@ -4234,6 +4265,49 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
                     // Set up event listeners after DOM is ready
                     setTimeout(() => {{
+                        // Restore scroll position
+                        const newList = div.querySelector('.info-session-list');
+                        if (newList && savedScrollTop > 0) {{
+                            newList.scrollTop = savedScrollTop;
+                        }}
+
+                        // Prevent scroll events from propagating to map (fixes touchpad scrolling)
+                        if (newList) {{
+                            newList.addEventListener('wheel', (e) => {{
+                                e.stopPropagation();
+                            }}, {{ passive: true }});
+                        }}
+
+                        // Prevent map interactions on the entire panel
+                        L.DomEvent.disableScrollPropagation(div);
+                        L.DomEvent.disableClickPropagation(div);
+
+                        // Resize handle drag functionality
+                        const resizeHandle = div.querySelector('.info-resize-handle');
+                        if (resizeHandle && newList) {{
+                            let startY, startHeight;
+                            const onMouseMove = (e) => {{
+                                const delta = e.clientY - startY;
+                                const newHeight = Math.max(100, Math.min(600, startHeight + delta));
+                                newList.style.maxHeight = newHeight + 'px';
+                            }};
+                            const onMouseUp = () => {{
+                                document.removeEventListener('mousemove', onMouseMove);
+                                document.removeEventListener('mouseup', onMouseUp);
+                                document.body.style.cursor = '';
+                                document.body.style.userSelect = '';
+                            }};
+                            resizeHandle.addEventListener('mousedown', (e) => {{
+                                e.preventDefault();
+                                startY = e.clientY;
+                                startHeight = newList.offsetHeight;
+                                document.body.style.cursor = 'ns-resize';
+                                document.body.style.userSelect = 'none';
+                                document.addEventListener('mousemove', onMouseMove);
+                                document.addEventListener('mouseup', onMouseUp);
+                            }});
+                        }}
+
                         // Toggle session list
                         const toggle = div.querySelector('.info-sessions-toggle');
                         if (toggle) {{
