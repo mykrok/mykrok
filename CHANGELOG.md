@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.6.0 (2025-12-22)
+
+#### 🚀 Features
+
+- Add date range expand buttons (week/month/year) in filter bar
+- Add clickable dates in activity popups to filter by that date
+- Add version display to map header
+
+#### 🔧 Improvements
+
+- Preserve filter state when navigating to "View all sessions"
+- Improve date filter sync and marker focus behavior
+- Simplify CLI by removing deprecated commands
+
+#### 🐛 Bug Fixes
+
+- Fix Activities panel resize and marker focus issues
+
+#### Authors: 1
+
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 ## v0.5.0 (2025-12-22)
 
 #### 🚀 Features
