@@ -37,10 +37,10 @@ def demo_data(tmp_path_factory: pytest.TempPathFactory) -> Path:
 @pytest.fixture(scope="module")
 def demo_server(demo_data: Path) -> Generator[str, None, None]:
     """Start HTTP server serving demo data."""
-    from strava_backup.views.map import copy_assets_to_output, generate_lightweight_map
+    from strava_backup.views.map import copy_assets_to_output, generate_browser
 
     # Generate HTML and copy assets
-    html = generate_lightweight_map(demo_data)
+    html = generate_browser(demo_data)
     html_path = demo_data / "strava-backup.html"
     html_path.write_text(html, encoding="utf-8")
     copy_assets_to_output(demo_data)

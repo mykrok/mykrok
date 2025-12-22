@@ -155,9 +155,9 @@ def generate_html(data_dir: Path) -> Path:
     Returns:
         Path to the generated index.html.
     """
-    from strava_backup.views.map import copy_assets_to_output, generate_lightweight_map
+    from strava_backup.views.map import copy_assets_to_output, generate_browser
 
-    html = generate_lightweight_map(data_dir)
+    html = generate_browser(data_dir)
     html_path = data_dir / "index.html"
     html_path.write_text(html, encoding="utf-8")
     copy_assets_to_output(data_dir)

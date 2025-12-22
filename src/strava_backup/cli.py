@@ -652,82 +652,30 @@ def stats(
         sys.exit(1)
 
 
-@view.command(name="map")
-@click.option(
-    "--output",
-    "-o",
-    type=click.Path(path_type=Path),
-    help="Output HTML file (default: stdout or ./strava-backup.html)",
-)
-@click.option(
-    "--after",
-    type=click.DateTime(),
-    help="Only include activities after this date",
-)
-@click.option(
-    "--before",
-    type=click.DateTime(),
-    help="Only include activities before this date",
-)
-@click.option(
-    "--type",
-    "activity_type",
-    help="Filter by activity type (Run, Ride, Hike, etc.)",
-)
-@click.option(
-    "--heatmap",
-    is_flag=True,
-    help="Generate heatmap instead of individual routes",
-)
-@click.option(
-    "--photos",
-    is_flag=True,
-    help="Show geotagged photos as markers on the map",
-)
+@main.command("create-browser")
 @click.option(
     "--serve",
     is_flag=True,
-    help="Start local HTTP server to view map",
+    help="Start local HTTP server after generation",
 )
 @click.option(
     "--port",
     default=8080,
     help="Server port (default: 8080)",
 )
-@click.option(
-    "--lightweight",
-    is_flag=True,
-    help="Generate lightweight map that loads data on demand from TSV/parquet files",
-)
 @pass_context
-def map_cmd(
-    ctx: Context,
-    output: Path | None,
-    after: Any | None,
-    before: Any | None,
-    activity_type: str | None,
-    heatmap: bool,
-    photos: bool,
-    serve: bool,
-    port: int,
-    lightweight: bool,
-) -> None:
-    """Generate interactive map visualization.
+def create_browser_cmd(ctx: Context, serve: bool, port: int) -> None:
+    """Generate interactive activity browser.
 
-    By default, shows activity routes as colored polylines. Use --heatmap
-    for a density visualization. Use --photos to overlay geotagged photos
-    as clickable markers with preview popups.
+    Creates a single-page application (SPA) with:
+    - Map view with activity markers and tracks
+    - Sessions list with filtering and search
+    - Statistics view with charts
 
-    Use --lightweight to generate a small HTML file that loads data on demand
-    from athletes.tsv, sessions.tsv and tracking.parquet files. This requires
-    serving from the data directory with a local HTTP server.
+    The browser loads data on demand from the data directory (athletes.tsv,
+    sessions.tsv, tracking.parquet files).
     """
-    from strava_backup.views.map import (
-        copy_assets_to_output,
-        generate_lightweight_map,
-        generate_map,
-        serve_map,
-    )
+    from strava_backup.views.map import copy_assets_to_output, generate_browser, serve_map
 
     config = ctx.config
     if config is None:
@@ -735,97 +683,33 @@ def map_cmd(
         sys.exit(1)
 
     try:
-        if lightweight:
-            # Lightweight mode: generate minimal HTML, copy assets
-            html = generate_lightweight_map(config.data.directory)
+        # Generate the SPA HTML
+        html = generate_browser(config.data.directory)
 
-            # Always output to data directory for lightweight mode
-            output_path = config.data.directory / "strava-backup.html"
-            output_path.write_text(html, encoding="utf-8")
+        # Output to data directory
+        output_path = config.data.directory / "strava-backup.html"
+        output_path.write_text(html, encoding="utf-8")
 
-            # Copy JS/CSS assets
-            assets_dst = copy_assets_to_output(config.data.directory)
-            ctx.log(f"Map saved to {output_path}")
-            ctx.log(f"Assets copied to {assets_dst}")
+        # Copy JS/CSS assets
+        assets_dst = copy_assets_to_output(config.data.directory)
+        ctx.log(f"Browser saved to {output_path}")
+        ctx.log(f"Assets copied to {assets_dst}")
 
-            if serve:
-                ctx.log(f"Starting server at http://127.0.0.1:{port}")
-                serve_map(output_path, port=port)
-            else:
-                ctx.log(
-                    "To view: python -m http.server --directory " f"{config.data.directory} {port}"
-                )
+        if serve:
+            ctx.log(f"Starting server at http://127.0.0.1:{port}")
+            serve_map(output_path, port=port)
         else:
-            # Standard mode: embed all data in HTML
-            html = generate_map(
-                data_dir=config.data.directory,
-                after=after,
-                before=before,
-                activity_type=activity_type,
-                heatmap=heatmap,
-                show_photos=photos,
+            ctx.log(
+                f"To view: python -m http.server --directory {config.data.directory} {port}"
             )
 
-            if serve:
-                # When serving with photos, save HTML in data directory for local photo paths
-                if photos and not output:
-                    output_path = config.data.directory / "strava-backup.html"
-                else:
-                    output_path = output or Path("./strava-backup.html")
-                output_path.write_text(html, encoding="utf-8")
-                ctx.log(f"Map saved to {output_path}")
-                ctx.log(f"Starting server at http://127.0.0.1:{port}")
-                serve_map(output_path, port=port)
-            elif output:
-                output.write_text(html, encoding="utf-8")
-                ctx.log(f"Map saved to {output}")
-            else:
-                click.echo(html)
-
     except Exception as e:
-        ctx.error(f"Map generation failed: {e}")
+        ctx.error(f"Browser generation failed: {e}")
         if ctx.json_output:
             ctx.output.output()
         sys.exit(1)
 
 
-@main.command()
-@click.option(
-    "--port",
-    default=8080,
-    help="Server port (default: 8080)",
-)
-@click.option(
-    "--host",
-    default="127.0.0.1",
-    help="Server host (default: 127.0.0.1)",
-)
-@click.option(
-    "--no-open",
-    is_flag=True,
-    help="Don't automatically open browser",
-)
-@pass_context
-def browse(ctx: Context, port: int, host: str, no_open: bool) -> None:
-    """Start local web server to browse backed-up activities."""
-    from strava_backup.views.browser import start_browser
-
-    config = ctx.config
-    if config is None:
-        ctx.error("Configuration not loaded")
-        sys.exit(1)
-
-    try:
-        ctx.log(f"Starting browser at http://{host}:{port}")
-        start_browser(
-            data_dir=config.data.directory,
-            host=host,
-            port=port,
-            open_browser=not no_open,
-        )
-    except Exception as e:
-        ctx.error(f"Browser failed: {e}")
-        sys.exit(1)
 
 
 @main.command()
@@ -876,7 +760,7 @@ def demo(output: Path | None, port: int, no_serve: bool, seed: int) -> None:
     import webbrowser
     from http.server import HTTPServer, SimpleHTTPRequestHandler
 
-    from strava_backup.views.map import copy_assets_to_output, generate_lightweight_map
+    from strava_backup.views.map import copy_assets_to_output, generate_browser
 
     # Import fixture generator
     fixtures_path = Path(__file__).parent.parent.parent / "tests" / "e2e" / "fixtures"
@@ -904,7 +788,7 @@ def demo(output: Path | None, port: int, no_serve: bool, seed: int) -> None:
     generate_fixtures(output_dir)
 
     # Generate the SPA HTML
-    html = generate_lightweight_map(output_dir)
+    html = generate_browser(output_dir)
     html_path = output_dir / "strava-backup.html"
     html_path.write_text(html, encoding="utf-8")
     click.echo(f"Generated: {html_path}")
