@@ -2,7 +2,7 @@
 
 CLI tool to backup Strava activities with incremental sync, map visualization, and FitTrackee export.
 
-**[Live Demo](https://yarikoptic.github.io/strava-backup/)** - Try the web frontend with synthetic data
+**[Live Demo](https://yarikoptic.github.io/strava-backup/)** - Try the web frontend with synthetic data. It is served directly from [gh-pages branch](https://github.com/yarikoptic/strava-backup/tree/gh-pages) where you could also explore the backup filetree we show [below](#no-backend-required).
 
 ## Features
 
