@@ -1,0 +1,62 @@
+# REUSE.toml - REUSE 3.3 compliant licensing information
+# See https://reuse.software/spec/
+
+version = 1
+
+# Default: All project files are Apache-2.0 licensed by strava-backup Team
+[[annotations]]
+path = [
+    "src/**",
+    "tests/**",
+    "scripts/**",
+    "docs/**",
+    "features/**",
+    "specs/**",
+    ".claude/**",
+    ".datalad/**",
+    ".github/**",
+    ".specify/**",
+    "*.py",
+    "*.toml",
+    "*.ini",
+    "*.cfg",
+    "*.md",
+    "*.txt",
+    "*.yaml",
+    "*.yml",
+    "*.lock",
+    "*.sh",
+    "Makefile",
+    ".gitignore",
+    ".gitattributes",
+    ".pre-commit-config.yaml",
+]
+SPDX-FileCopyrightText = "2025 strava-backup Team"
+SPDX-License-Identifier = "Apache-2.0"
+
+# Vendored: hyparquet - MIT licensed
+[[annotations]]
+path = "src/strava_backup/assets/hyparquet/**"
+precedence = "override"
+SPDX-FileCopyrightText = "hyparam"
+SPDX-License-Identifier = "MIT"
+
+# Vendored: snappy.js within hyparquet (from snappyjs) - MIT licensed
+[[annotations]]
+path = "src/strava_backup/assets/hyparquet/snappy.js"
+precedence = "override"
+SPDX-FileCopyrightText = "2016 Zhipeng Jia"
+SPDX-License-Identifier = "MIT"
+
+# Vendored: Leaflet - BSD-2-Clause licensed
+[[annotations]]
+path = "src/strava_backup/assets/leaflet/**"
+precedence = "override"
+SPDX-FileCopyrightText = "2010-2023 Vladimir Agafonkin, 2010-2011 CloudMade"
+SPDX-License-Identifier = "BSD-2-Clause"
+
+# Project icon/logo
+[[annotations]]
+path = "src/strava_backup/assets/strava-backup-icon.svg"
+SPDX-FileCopyrightText = "2025 strava-backup Team"
+SPDX-License-Identifier = "Apache-2.0"
