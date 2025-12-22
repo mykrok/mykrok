@@ -94,6 +94,9 @@ class BackupService:
 
         logger.info("Starting sync")
 
+        rate_limit_exceeded = False
+        rate_limit_next_retry: datetime | None = None
+
         # Get athlete info
         logger.debug("Fetching athlete info")
         athlete_data = self.strava.get_athlete()
@@ -304,8 +307,23 @@ class BackupService:
 
                 log(f"  [{i}/{total}] Error: {error_msg}{retry_info}")
 
+                # If we hit a Strava rate limit, stop immediately.
+                # Continuing will just generate more 429s, and stopping avoids
+                # advancing state in a way that could skip unprocessed activities.
+                if failure_type == FailureType.RATE_LIMIT:
+                    rate_limit_exceeded = True
+                    rate_limit_next_retry = failure_entry.next_retry_after
+                    logger.warning(
+                        "Rate limit exceeded while processing activity %d; stopping early",
+                        activity_id,
+                    )
+                    break
+
+            if rate_limit_exceeded:
+                break
+
         # Process retry-only activities (not in the regular activity list)
-        if retry_ids_to_add and not dry_run:
+        if retry_ids_to_add and not dry_run and not rate_limit_exceeded:
             log(f"Processing {len(retry_ids_to_add)} retry-only activities...")
             for retry_activity_id in retry_ids_to_add:
                 try:
@@ -397,8 +415,21 @@ class BackupService:
 
                     log(f"  [RETRY] Error: {error_msg}{retry_info}")
 
+                    failure_type = FailureType.from_error(e)
+                    if failure_type == FailureType.RATE_LIMIT:
+                        rate_limit_exceeded = True
+                        rate_limit_next_retry = failure_entry.next_retry_after
+                        logger.warning(
+                            "Rate limit exceeded while processing retry activity %d; stopping early",
+                            retry_activity_id,
+                        )
+                        break
+
+                if rate_limit_exceeded:
+                    break
+
         # Update gear catalog
-        if not dry_run:
+        if not dry_run and not rate_limit_exceeded:
             try:
                 gear_list = self.strava.get_athlete_gear()
                 if gear_list:
@@ -407,12 +438,15 @@ class BackupService:
             except Exception as e:
                 log(f"Warning: Failed to update gear: {e}", 1)
 
-            # Update sessions.tsv
+            # Update sessions.tsv (local-only, safe even if rate-limited)
             update_sessions_tsv(self.data_dir, username)
 
-            # Update sync state
+            # Update sync state.
+            # If we stopped early due to rate limiting, do not advance
+            # last_activity_date (otherwise we may skip unprocessed activities
+            # in the next incremental run). Still record last_sync.
             state.last_sync = datetime.now()
-            if latest_activity_date:
+            if latest_activity_date and not rate_limit_exceeded:
                 state.last_activity_date = latest_activity_date
             state.total_activities = activities_synced
             save_sync_state(self.data_dir, username, state)
@@ -433,6 +467,14 @@ class BackupService:
                     )
                     if next_retry:
                         log(f"  Next retry scheduled for: {next_retry.strftime('%Y-%m-%d %H:%M:%S')}", 1)
+
+            if rate_limit_exceeded:
+                when = (
+                    rate_limit_next_retry.strftime("%Y-%m-%d %H:%M:%S")
+                    if rate_limit_next_retry
+                    else "later"
+                )
+                log(f"Rate limit exceeded - stopped early. Re-run sync after: {when}", 0)
 
         logger.info("Sync complete: %d activities (%d new, %d updated), %d photos, %d errors, "
                    "%d retries succeeded, %d retries failed, %d pending",
