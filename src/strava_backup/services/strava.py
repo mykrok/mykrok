@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import time
 import webbrowser
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import TYPE_CHECKING, Any
@@ -62,6 +63,107 @@ class StravaClient:
         """
         self.config = config
         self._client: Client | None = None
+
+        # Track how long we've slept for rate limiting within this process.
+        self._rate_limit_slept_seconds: float = 0.0
+
+    def _is_rate_limit_error(self, exc: Exception) -> bool:
+        msg = str(exc).lower()
+        if "rate limit" in msg or "too many requests" in msg or "429" in msg:
+            return True
+        response = getattr(exc, "response", None)
+        return bool(getattr(response, "status_code", None) == 429)
+
+    def _parse_strava_rate_headers(
+        self, headers: Any
+    ) -> tuple[tuple[int, int] | None, tuple[int, int] | None, int | None]:
+        if not headers:
+            return None, None, None
+
+        retry_after = headers.get("Retry-After") or headers.get("retry-after")
+        retry_after_s: int | None = None
+        if retry_after is not None:
+            try:
+                retry_after_s = int(float(retry_after))
+            except Exception:
+                retry_after_s = None
+
+        def _parse_pair(value: str | None) -> tuple[int, int] | None:
+            if not value:
+                return None
+            parts = [p.strip() for p in value.split(",")]
+            if len(parts) < 2:
+                return None
+            try:
+                return int(parts[0]), int(parts[1])
+            except Exception:
+                return None
+
+        limit = _parse_pair(headers.get("X-RateLimit-Limit") or headers.get("x-ratelimit-limit"))
+        usage = _parse_pair(headers.get("X-RateLimit-Usage") or headers.get("x-ratelimit-usage"))
+        return limit, usage, retry_after_s
+
+    def _compute_rate_limit_wait_seconds(self, exc: Exception) -> int:
+        response = getattr(exc, "response", None)
+        headers = getattr(response, "headers", None)
+
+        limit, usage, retry_after_s = self._parse_strava_rate_headers(headers)
+        if retry_after_s is not None and retry_after_s > 0:
+            return retry_after_s
+
+        now = time.time()
+
+        if limit and usage:
+            limit_short, limit_long = limit
+            usage_short, usage_long = usage
+
+            if limit_long > 0 and usage_long >= limit_long:
+                now_dt = datetime.now(tz=timezone.utc)
+                tomorrow = (now_dt + timedelta(days=1)).date()
+                reset_dt = datetime(tomorrow.year, tomorrow.month, tomorrow.day, tzinfo=timezone.utc)
+                return max(1, int((reset_dt - now_dt).total_seconds()) + 5)
+
+            if limit_short > 0 and usage_short >= limit_short:
+                next_boundary = (int(now // 900) + 1) * 900
+                return max(1, next_boundary - int(now) + 2)
+
+        return 15 * 60
+
+    def _sleep_for_rate_limit(self, seconds: int) -> None:
+        seconds = max(1, int(seconds))
+        self._rate_limit_slept_seconds += seconds
+        time.sleep(seconds)
+
+    def _call_with_rate_limit_retry(self, func: Any, *args: Any, **kwargs: Any) -> Any:
+        max_wait = int(getattr(self.config.sync, "max_rate_limit_wait_seconds", 0) or 0)
+        wait_enabled = bool(getattr(self.config.sync, "wait_on_rate_limit", False))
+
+        attempt = 0
+        while True:
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                if not self._is_rate_limit_error(e):
+                    raise
+
+                if not wait_enabled:
+                    raise
+
+                if max_wait > 0 and self._rate_limit_slept_seconds >= max_wait:
+                    raise StravaRateLimitError(
+                        f"Rate limit exceeded and max wait exceeded ({max_wait}s)"
+                    ) from e
+
+                attempt += 1
+                if attempt > 10:
+                    raise StravaRateLimitError("Rate limit exceeded too many times") from e
+
+                wait_s = self._compute_rate_limit_wait_seconds(e)
+                if max_wait > 0:
+                    remaining = max_wait - int(self._rate_limit_slept_seconds)
+                    wait_s = min(wait_s, max(1, remaining))
+
+                self._sleep_for_rate_limit(wait_s)
 
     @property
     def client(self) -> Client:
@@ -121,7 +223,7 @@ class StravaClient:
         Returns:
             Athlete object from stravalib.
         """
-        return self.client.get_athlete()
+        return self._call_with_rate_limit_retry(self.client.get_athlete)
 
     def get_activities(
         self,
@@ -145,7 +247,11 @@ class StravaClient:
         after_dt = datetime.fromtimestamp(after, tz=timezone.utc) if after else None
         before_dt = datetime.fromtimestamp(before, tz=timezone.utc) if before else None
 
-        activities = self.client.get_activities(after=after_dt, before=before_dt)
+        activities = self._call_with_rate_limit_retry(
+            self.client.get_activities,
+            after=after_dt,
+            before=before_dt,
+        )
 
         for count, activity in enumerate(activities):
             if limit is not None and count >= limit:
@@ -161,7 +267,7 @@ class StravaClient:
         Returns:
             Detailed activity object from stravalib.
         """
-        return self.client.get_activity(activity_id)
+        return self._call_with_rate_limit_retry(self.client.get_activity, activity_id)
 
     def get_activity_streams(
         self,
@@ -194,7 +300,8 @@ class StravaClient:
             ]
 
         try:
-            streams = self.client.get_activity_streams(
+            streams = self._call_with_rate_limit_retry(
+                self.client.get_activity_streams,
                 activity_id,
                 types=types,
                 resolution=resolution,  # type: ignore[arg-type]
@@ -224,7 +331,11 @@ class StravaClient:
             List of photo metadata dictionaries.
         """
         try:
-            photos = self.client.get_activity_photos(activity_id, size=size)
+            photos = self._call_with_rate_limit_retry(
+                self.client.get_activity_photos,
+                activity_id,
+                size=size,
+            )
             return [
                 {
                     "unique_id": p.unique_id,

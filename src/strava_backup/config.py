@@ -63,6 +63,13 @@ class SyncConfig:
     streams: bool = True
     comments: bool = True
 
+    # Rate limit handling
+    # If True, API calls will sleep and retry on Strava 429s.
+    # If False, the sync will stop early when rate limited.
+    wait_on_rate_limit: bool = True
+    # Safety cap to avoid sleeping indefinitely (seconds).
+    max_rate_limit_wait_seconds: int = 2 * 60 * 60
+
 
 @dataclass
 class Config:
@@ -196,6 +203,15 @@ def _load_from_file(path: Path, config: Config) -> Config:
         config.sync.photos = sync.get("photos", config.sync.photos)
         config.sync.streams = sync.get("streams", config.sync.streams)
         config.sync.comments = sync.get("comments", config.sync.comments)
+        config.sync.wait_on_rate_limit = sync.get(
+            "wait_on_rate_limit", config.sync.wait_on_rate_limit
+        )
+        config.sync.max_rate_limit_wait_seconds = int(
+            sync.get(
+                "max_rate_limit_wait_seconds",
+                config.sync.max_rate_limit_wait_seconds,
+            )
+        )
 
     return config
 
