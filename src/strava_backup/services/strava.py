@@ -6,6 +6,7 @@ and rate limiting for Strava API operations.
 
 from __future__ import annotations
 
+import logging
 import os
 import time
 import webbrowser
@@ -26,6 +27,7 @@ from strava_backup.config import Config, save_tokens
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+logger = logging.getLogger("strava_backup.strava")
 
 # OAuth2 scopes we request
 OAUTH_SCOPES = ["read", "activity:read_all", "profile:read_all"]
@@ -224,17 +226,22 @@ class StravaClient:
             List of photo metadata dictionaries.
         """
         try:
+            logger.debug("Fetching photos for activity %d with size=%d", activity_id, size)
             photos = self.client.get_activity_photos(activity_id, size=size)
-            return [
-                {
+            result = []
+            for p in photos:
+                photo_dict = {
                     "unique_id": p.unique_id,
                     "created_at": p.created_at.isoformat() if p.created_at else None,
                     "location": list(p.location) if p.location else None,
                     "urls": p.urls,
                 }
-                for p in photos
-            ]
-        except Exception:
+                logger.debug("  Photo %s: urls=%s", p.unique_id, p.urls)
+                result.append(photo_dict)
+            logger.debug("Fetched %d photos for activity %d", len(result), activity_id)
+            return result
+        except Exception as e:
+            logger.debug("Failed to fetch photos for activity %d: %s", activity_id, e)
             return []
 
     def get_activity_comments(self, activity_id: int) -> list[dict[str, Any]]:

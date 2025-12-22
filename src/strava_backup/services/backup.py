@@ -256,9 +256,9 @@ class BackupService:
                             activity.photo_count = len(photos)
 
                             # Download photos
-                            downloaded = self._download_photos(session_dir, photos, log)
-                            photos_downloaded += downloaded
-                            logger.debug("Downloaded %d photos", downloaded)
+                            dl_result = self._download_photos(session_dir, photos, log)
+                            photos_downloaded += dl_result["downloaded"]
+                            logger.debug("Downloaded %d photos", dl_result["downloaded"])
                     except Exception as e:
                         logger.warning("Failed to get photos for activity %d: %s", activity.id, e)
                         log(f"    Warning: Failed to get photos: {e}", 1)
@@ -373,7 +373,8 @@ class BackupService:
                                 activity.photos = photos
                                 activity.has_photos = True
                                 activity.photo_count = len(photos)
-                                photos_downloaded += self._download_photos(session_dir, photos, log)
+                                dl_result = self._download_photos(session_dir, photos, log)
+                                photos_downloaded += dl_result["downloaded"]
                         except Exception as e:
                             logger.warning(
                                 "Failed to get photos for activity %d: %s", activity.id, e
@@ -514,7 +515,7 @@ class BackupService:
         session_dir: Path,
         photos: list[dict[str, Any]],
         log: Callable[[str, int], None],
-    ) -> int:
+    ) -> dict[str, int]:
         """Download photos for an activity.
 
         Args:
@@ -523,18 +524,23 @@ class BackupService:
             log: Logging callback.
 
         Returns:
-            Number of photos downloaded.
+            Dict with counts: downloaded, already_exists, placeholder, failed.
         """
-        if not photos:
-            return 0
+        result = {"downloaded": 0, "already_exists": 0, "placeholder": 0, "failed": 0}
 
+        if not photos:
+            logger.debug("_download_photos: no photos to download")
+            return result
+
+        logger.debug("_download_photos: processing %d photos", len(photos))
         photos_dir = ensure_photos_dir(session_dir)
-        downloaded = 0
 
         for photo in photos:
             urls = photo.get("urls", {})
+            logger.debug("  Photo %s: urls=%s", photo.get("unique_id"), urls)
             if not urls:
                 log("    Skipping photo: no URLs in metadata", 1)
+                result["failed"] += 1
                 continue
 
             # Get the largest available size (prefer larger sizes)
@@ -543,18 +549,22 @@ class BackupService:
             for size in ["2048", "1800", "1024", "600", "256"]:
                 if size in urls:
                     url = urls[size]
+                    logger.debug("  Selected size %s: %s", size, url[:80] if url else None)
                     break
             # Fallback: use any available URL
             if not url and urls:
                 url = next(iter(urls.values()))
+                logger.debug("  Fallback URL: %s", url[:80] if url else None)
 
             if not url:
                 log("    Skipping photo: no usable URL found", 1)
+                result["failed"] += 1
                 continue
 
             # Check for placeholder images (expired/deleted photos)
             if "placeholder" in url.lower():
-                log("    Skipping photo: placeholder URL (original may have expired)", 1)
+                logger.debug("  Placeholder URL: %s", url)
+                result["placeholder"] += 1
                 continue
 
             # Determine photo timestamp and filename
@@ -579,8 +589,11 @@ class BackupService:
 
             # Skip if already downloaded
             if photo_path.exists():
+                logger.debug("  Photo already exists: %s", photo_path)
+                result["already_exists"] += 1
                 continue
 
+            logger.debug("  Downloading to: %s", photo_path)
             try:
                 response = requests.get(url, timeout=30)
                 response.raise_for_status()
@@ -588,16 +601,17 @@ class BackupService:
                 with open(photo_path, "wb") as f:
                     f.write(response.content)
 
-                downloaded += 1
+                result["downloaded"] += 1
                 log(f"    Downloaded photo: {photo_path.name}", 1)
 
             except Exception as e:
                 log(f"    Failed to download photo: {e}", 0)
+                result["failed"] += 1
 
             # Small delay to be nice to servers
             time.sleep(0.1)
 
-        return downloaded
+        return result
 
     def sync_single_activity(
         self,
@@ -1063,14 +1077,32 @@ class BackupService:
                             # (stored URLs in info.json may have expired)
                             log("    Fetching fresh photo URLs from API...", 0)
                             photos = self.strava.get_activity_photos(activity.id)
+                            logger.debug(
+                                "API returned %d photos for activity %d",
+                                len(photos) if photos else 0,
+                                activity.id,
+                            )
                             if photos:
                                 activity.photos = photos
-                                downloaded = self._download_photos(session_dir, photos, log)
-                                if downloaded > 0:
-                                    fixed_issues.append(f"photos({downloaded})")
-                                    log(f"    Fixed: Downloaded {downloaded} photos", 0)
+                                dl_result = self._download_photos(session_dir, photos, log)
+                                if dl_result["downloaded"] > 0:
+                                    fixed_issues.append(f"photos({dl_result['downloaded']})")
+                                    log(f"    Fixed: Downloaded {dl_result['downloaded']} photos", 0)
                                 else:
-                                    log("    No photos downloaded (may be placeholders)", 0)
+                                    # Build informative message about why no photos downloaded
+                                    parts = []
+                                    if dl_result["placeholder"] > 0:
+                                        parts.append(
+                                            f"{dl_result['placeholder']} deleted from Strava"
+                                        )
+                                    if dl_result["already_exists"] > 0:
+                                        parts.append(f"{dl_result['already_exists']} already exist")
+                                    if dl_result["failed"] > 0:
+                                        parts.append(f"{dl_result['failed']} failed")
+                                    if parts:
+                                        log(f"    Cannot recover: {', '.join(parts)}", 0)
+                                    else:
+                                        log("    No photos to download", 0)
                             else:
                                 log("    API returned no photo metadata", 0)
                         except Exception as e:
