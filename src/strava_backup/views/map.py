@@ -5673,11 +5673,23 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     this.monthlyChart = null;
                 }}
 
+                if (!canvas) return; // Canvas may have been removed
+
+                // Remove any existing "no data" message
+                const existingMsg = canvas.parentElement.querySelector('.no-data-message');
+                if (existingMsg) existingMsg.remove();
+
                 if (months.length === 0) {{
                     canvas.style.display = 'none';
-                    canvas.parentElement.innerHTML = '<div style="text-align:center;padding:100px 0;color:#999;">No data available</div>';
+                    const msg = document.createElement('div');
+                    msg.className = 'no-data-message';
+                    msg.style.cssText = 'text-align:center;padding:100px 0;color:#999;';
+                    msg.textContent = 'No data available';
+                    canvas.parentElement.appendChild(msg);
                     return;
                 }}
+
+                canvas.style.display = 'block';
 
                 const labels = months.map(m => m.substring(0, 4) + '-' + m.substring(4, 6));
                 const data = months.map(m => byMonth[m].count);
@@ -5755,11 +5767,23 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     this.typeChart = null;
                 }}
 
+                if (!canvas) return; // Canvas may have been removed
+
+                // Remove any existing "no data" message
+                const existingMsg = canvas.parentElement.querySelector('.no-data-message');
+                if (existingMsg) existingMsg.remove();
+
                 if (types.length === 0) {{
                     canvas.style.display = 'none';
-                    canvas.parentElement.innerHTML = '<div style="text-align:center;padding:100px 0;color:#999;">No data available</div>';
+                    const msg = document.createElement('div');
+                    msg.className = 'no-data-message';
+                    msg.style.cssText = 'text-align:center;padding:100px 0;color:#999;';
+                    msg.textContent = 'No data available';
+                    canvas.parentElement.appendChild(msg);
                     return;
                 }}
+
+                canvas.style.display = 'block';
 
                 const data = types.map(t => byType[t].count);
                 const colors = types.map(t => this.typeColors[t] || '#607D8B');
