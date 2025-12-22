@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.7.0 (2025-12-22)
+
+#### 🚀 Features
+
+- Bold selected track on map for better visibility
+- Color-coded activity type labels in UI
+
+#### 🔧 Improvements
+
+- Extract JavaScript to external modules with ESLint linting and Jest tests
+- Add REUSE 3.3 compliant licensing (REUSE.toml, LICENSES/)
+
+#### 📝 License
+
+- Change license from MIT to Apache-2.0
+
+#### Authors: 1
+
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 ## v0.6.0 (2025-12-22)
 
 #### 🚀 Features
