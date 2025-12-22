@@ -2812,15 +2812,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
         <!-- Sessions View -->
         <div id="view-sessions" class="view">
             <div class="sessions-container">
-                <div class="filter-bar">
-                    <input type="search" id="session-search" placeholder="Search activities..." class="filter-input">
-                    <select id="type-filter" class="filter-select">
-                        <option value="">All Types</option>
-                    </select>
-                    <input type="date" id="date-from" class="filter-input filter-date" title="From date">
-                    <input type="date" id="date-to" class="filter-input filter-date" title="To date">
-                    <button id="clear-filters" class="filter-btn">Clear</button>
-                </div>
+                <div id="sessions-filter-bar" class="filter-bar"></div>
                 <div class="sessions-table-container">
                     <table id="sessions-table">
                         <thead>
@@ -3521,8 +3513,8 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
                 // Sync all filter bars from shared state
                 FilterBar.syncFromState('map-filter-bar');
+                FilterBar.syncFromState('sessions-filter-bar');
                 FilterBar.syncFromState('stats-filter-bar');
-                SessionsView.syncFiltersFromState();
 
                 // Trigger re-render for current view
                 if (state.view === 'map') {{
@@ -4304,46 +4296,18 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             selectedSession: null,
 
             init() {{
-                // Set up filter event listeners that update shared FilterState
-                let searchTimeout = null;
-                document.getElementById('session-search').addEventListener('input', (e) => {{
-                    this.page = 1;
-                    // Debounce search
-                    clearTimeout(searchTimeout);
-                    searchTimeout = setTimeout(() => {{
-                        FilterState.set({{ search: e.target.value }});
-                        FilterState.syncToURL();
-                    }}, 300);
+                // Initialize filter bar using shared FilterBar component
+                FilterBar.render('sessions-filter-bar', {{
+                    showSearch: true,
+                    showType: true,
+                    showDatePresets: true,
+                    showDates: true
                 }});
-
-                document.getElementById('type-filter').addEventListener('change', (e) => {{
-                    this.page = 1;
-                    FilterState.set({{ type: e.target.value }});
-                    FilterState.syncToURL();
-                }});
-
-                document.getElementById('date-from').addEventListener('change', (e) => {{
-                    this.page = 1;
-                    FilterState.set({{ dateFrom: e.target.value }});
-                    FilterState.syncToURL();
-                }});
-
-                document.getElementById('date-to').addEventListener('change', (e) => {{
-                    this.page = 1;
-                    FilterState.set({{ dateTo: e.target.value }});
-                    FilterState.syncToURL();
-                }});
-
-                document.getElementById('clear-filters').addEventListener('click', () => {{
-                    this.page = 1;
-                    FilterState.clear();
-                    FilterState.syncToURL();
-                    this.syncFiltersFromState();
-                }});
+                FilterBar.init('sessions-filter-bar');
 
                 // Subscribe to FilterState changes
                 FilterState.onChange(() => {{
-                    this.syncFiltersFromState();
+                    this.page = 1;
                     this.applyFiltersAndRender();
                 }});
 
@@ -4394,44 +4358,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
             setSessions(sessions) {{
                 this.sessions = sessions;
-                this.populateTypeFilter();
-                // Sync filter UI from shared state (loaded from URL)
-                this.syncFiltersFromState();
-                this.applyFiltersAndRender();
-            }},
-
-            populateTypeFilter() {{
-                const types = new Set();
-                for (const s of this.sessions) {{
-                    if (s.type) types.add(s.type);
-                }}
-                const select = document.getElementById('type-filter');
-                for (const type of [...types].sort()) {{
-                    const option = document.createElement('option');
-                    option.value = type;
-                    option.textContent = type;
-                    select.appendChild(option);
-                }}
-            }},
-
-            // Sync filter UI inputs from shared FilterState
-            syncFiltersFromState() {{
-                const state = FilterState.get();
-                document.getElementById('session-search').value = state.search;
-                document.getElementById('type-filter').value = state.type;
-                document.getElementById('date-from').value = state.dateFrom;
-                document.getElementById('date-to').value = state.dateTo;
-                // Also update internal filters object
-                this.filters = {{ ...state }};
-            }},
-
-            clearFilters() {{
-                this.filters = {{ search: '', type: '', dateFrom: '', dateTo: '' }};
-                document.getElementById('session-search').value = '';
-                document.getElementById('type-filter').value = '';
-                document.getElementById('date-from').value = '';
-                document.getElementById('date-to').value = '';
-                this.page = 1;
+                // Use shared FilterBar component for type population and state sync
+                FilterBar.populateTypes('sessions-filter-bar', sessions);
+                FilterBar.syncFromState('sessions-filter-bar');
                 this.applyFiltersAndRender();
             }},
 
@@ -4441,6 +4370,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
                 // Use shared applyFilters function
                 this.filtered = applyFilters(this.sessions, filters, currentAthlete);
+
+                // Update filter count display
+                FilterBar.updateCount('sessions-filter-bar', this.filtered.length, this.sessions.length);
 
                 this.sort();
                 this.render();
@@ -4533,7 +4465,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                             <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H9V5h6v2z"/></svg>
                             <h3>No sessions found</h3>
                             <p>${{hasFilters ? 'Try adjusting your filters or search terms' : 'No activity data available yet'}}</p>
-                            ${{hasFilters ? '<button class="clear-filters-btn" onclick="SessionsView.clearFilters()">Clear Filters</button>' : ''}}
+                            ${{hasFilters ? '<button class="clear-filters-btn" onclick="FilterState.clear(); FilterState.syncToURL();">Clear Filters</button>' : ''}}
                         </div>
                     </td></tr>`;
                 }} else {{
@@ -5899,11 +5831,13 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
             // Populate filter bar types for all views
             FilterBar.populateTypes('map-filter-bar', this.allSessions);
+            FilterBar.populateTypes('sessions-filter-bar', this.allSessions);
             FilterBar.populateTypes('stats-filter-bar', this.allSessions);
 
             // Sync initial filter state from URL
             FilterState.syncFromURL();
             FilterBar.syncFromState('map-filter-bar');
+            FilterBar.syncFromState('sessions-filter-bar');
             FilterBar.syncFromState('stats-filter-bar');
 
             // Apply initial filters

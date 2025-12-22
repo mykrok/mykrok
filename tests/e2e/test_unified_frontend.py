@@ -185,8 +185,8 @@ class TestSessionsView:
         page.goto(f"{demo_server}/strava-backup.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
 
-        # Search for "Run"
-        page.fill("#session-search", "Run")
+        # Search for "Run" using the unified FilterBar search input
+        page.fill("#sessions-filter-bar .filter-search", "Run")
 
         # Wait for filter to apply
         page.wait_for_timeout(500)
@@ -202,8 +202,8 @@ class TestSessionsView:
         page.goto(f"{demo_server}/strava-backup.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
 
-        # Select "Ride" type
-        page.select_option("#type-filter", "Ride")
+        # Select "Ride" type using the unified FilterBar type select
+        page.select_option("#sessions-filter-bar .filter-type", "Ride")
 
         # Wait for filter to apply
         page.wait_for_timeout(500)
@@ -323,7 +323,7 @@ class TestSessionDetail:
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
 
         # Find a session with GPS (Run or Ride should have GPS)
-        page.select_option("#type-filter", "Run")
+        page.select_option("#sessions-filter-bar .filter-type", "Run")
         page.wait_for_timeout(500)
 
         # Click first run
@@ -367,18 +367,18 @@ class TestSharedRun:
         page.wait_for_timeout(500)
 
         # Search for the shared run date
-        page.fill("#session-search", "2024-12-18")
+        page.fill("#sessions-filter-bar .filter-search", "2024-12-18")
         page.wait_for_timeout(500)
 
         rows = page.locator("#sessions-table tbody tr")
         assert rows.count() >= 1
 
         # Clear and check bob
-        page.fill("#session-search", "")
+        page.fill("#sessions-filter-bar .filter-search", "")
         page.select_option("#athlete-selector", "bob")
         page.wait_for_timeout(500)
 
-        page.fill("#session-search", "2024-12-18")
+        page.fill("#sessions-filter-bar .filter-search", "2024-12-18")
         page.wait_for_timeout(500)
 
         rows = page.locator("#sessions-table tbody tr")
@@ -633,9 +633,10 @@ class TestDateNavigation:
         page.goto(f"{demo_server}/strava-backup.html#/sessions")
         page.wait_for_selector("#sessions-table", timeout=10000)
 
-        # Should have prev/next date nav buttons
-        prev_btn = page.locator(".filter-bar .date-nav-btn--prev")
-        next_btn = page.locator(".filter-bar .date-nav-btn--next")
+        # Should have prev/next date nav buttons within sessions filter bar
+        sessions_bar = page.locator("#sessions-filter-bar")
+        prev_btn = sessions_bar.locator(".date-nav-btn--prev")
+        next_btn = sessions_bar.locator(".date-nav-btn--next")
 
         assert prev_btn.count() == 1, "Sessions view should have prev date nav button"
         assert next_btn.count() == 1, "Sessions view should have next date nav button"
@@ -706,34 +707,29 @@ class TestFilterBarConsistency:
     def test_sessions_filter_bar_structure(self, demo_server: str, page: Page) -> None:
         """Verify sessions filter bar has same elements as map."""
         page.goto(f"{demo_server}/strava-backup.html#/sessions")
-        page.wait_for_selector(".filter-bar", timeout=10000)
+        page.wait_for_selector("#sessions-filter-bar", timeout=10000)
 
-        bar = page.locator(".filter-bar")
+        bar = page.locator("#sessions-filter-bar")
 
-        # Should have same elements as map filter bar
-        # Bug #4: Sessions view may be missing date nav buttons
-        assert bar.locator("#session-search, .filter-search").count() == 1
-        assert bar.locator("#session-type, .filter-type").count() == 1
-        # These may be missing or use different IDs - that's the DRY violation
-        has_date_nav = bar.locator(".date-nav-group").count() == 1
-        has_date_inputs = (
-            bar.locator("#date-from, .filter-date-from").count() == 1
-            and bar.locator("#date-to, .filter-date-to").count() == 1
-        )
-
-        assert has_date_inputs, "Sessions should have date inputs"
-        assert has_date_nav, "Sessions should have date nav buttons (DRY violation)"
+        # Should have same elements as map filter bar (DRY: uses shared FilterBar)
+        assert bar.locator(".filter-search").count() == 1
+        assert bar.locator(".filter-type").count() == 1
+        assert bar.locator(".filter-date-preset").count() == 1
+        assert bar.locator(".date-nav-group").count() == 1
+        assert bar.locator(".filter-date-from").count() == 1
+        assert bar.locator(".filter-date-to").count() == 1
 
     def test_stats_filter_bar_structure(self, demo_server: str, page: Page) -> None:
         """Verify stats filter bar has same elements as map."""
         page.goto(f"{demo_server}/strava-backup.html#/stats")
-        page.wait_for_selector("#stats-filter-bar, .filter-bar", timeout=10000)
+        page.wait_for_selector("#stats-filter-bar", timeout=10000)
 
-        bar = page.locator("#stats-filter-bar, .filter-bar").first
+        bar = page.locator("#stats-filter-bar")
 
-        # Should have same elements
+        # Should have same elements as map filter bar (DRY: uses shared FilterBar)
         assert bar.locator(".filter-search").count() == 1
         assert bar.locator(".filter-type").count() == 1
-        # Check for date nav consistency
-        has_date_nav = bar.locator(".date-nav-group").count() == 1
-        assert has_date_nav, "Stats should have date nav buttons"
+        assert bar.locator(".filter-date-preset").count() == 1
+        assert bar.locator(".date-nav-group").count() == 1
+        assert bar.locator(".filter-date-from").count() == 1
+        assert bar.locator(".filter-date-to").count() == 1
