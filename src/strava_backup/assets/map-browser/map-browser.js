@@ -2971,7 +2971,7 @@ const FullSessionView = {
         }
     },
 
-    loadPhotos(athlete, datetime, session) {
+    async loadPhotos(athlete, datetime, session) {
         const container = document.getElementById('full-session-photos');
         const photoCount = parseInt(session?.photo_count) || 0;
 
@@ -2982,32 +2982,54 @@ const FullSessionView = {
 
         container.innerHTML = `
             <h3 class="full-session-section-title">Photos (${photoCount})</h3>
-            <div class="photo-grid" id="full-session-photo-grid"></div>
+            <div class="photo-grid" id="full-session-photo-grid">Loading...</div>
         `;
 
-        // Load photos from directory
-        fetch(`athl=${athlete}/ses=${datetime}/photos/`)
-            .then(response => response.text())
-            .then(html => {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-                const links = [...doc.querySelectorAll('a')];
-                const photoFiles = links
-                    .map(a => a.getAttribute('href'))
-                    // Filter for image files; strip trailing @ from symlinks (Python SimpleHTTPServer)
-                    .filter(href => href && /\.(jpg|jpeg|png|gif)(@)?$/i.test(href))
-                    .map(href => href.replace(/@$/, ''));
+        try {
+            // Load photos from info.json (works without directory listing)
+            const response = await fetch(`athl=${athlete}/ses=${datetime}/info.json`);
+            if (!response.ok) {
+                container.innerHTML = '';
+                return;
+            }
 
-                const grid = document.getElementById('full-session-photo-grid');
-                grid.innerHTML = photoFiles.map(file => `
+            const info = await response.json();
+            const photos = info.photos || [];
+
+            if (photos.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const grid = document.getElementById('full-session-photo-grid');
+            grid.innerHTML = photos.map(photo => {
+                const urls = photo.urls || {};
+                const thumbUrl = urls['600'] || urls['256'] || Object.values(urls)[0] || '';
+                const fullUrl = urls['2048'] || urls['1024'] || urls['600'] || thumbUrl;
+
+                // Build local path from created_at timestamp
+                const createdAt = photo.created_at || '';
+                let localPath = '';
+                if (createdAt) {
+                    const dt = createdAt.replace(/[-:]/g, '').replace(/\+.*$/, '').substring(0, 15);
+                    localPath = `athl=${athlete}/ses=${datetime}/photos/${dt}.jpg`;
+                }
+
+                const src = localPath || thumbUrl;
+                const href = localPath || fullUrl;
+
+                return src ? `
                     <div class="photo-item">
-                        <img src="athl=${athlete}/ses=${datetime}/photos/${file}"
-                             onclick="window.open(this.src, '_blank')"
+                        <img src="${src}"
+                             onclick="window.open('${href}', '_blank')"
                              alt="Activity photo">
                     </div>
-                `).join('');
-            })
-            .catch(() => { container.innerHTML = ''; });
+                ` : '';
+            }).join('');
+        } catch (e) {
+            console.warn('Failed to load photos:', e);
+            container.innerHTML = '';
+        }
     },
 
     loadSocial(athlete, datetime) {
