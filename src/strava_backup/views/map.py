@@ -1390,6 +1390,86 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             opacity: 0.7;
         }}
 
+        /* Layers control */
+        .layers-control {{
+            background: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            font-size: 13px;
+            min-width: 140px;
+        }}
+
+        .layers-control-header {{
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }}
+
+        .layers-control-header svg {{
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }}
+
+        .layers-section {{
+            margin-bottom: 8px;
+        }}
+
+        .layers-section:last-child {{
+            margin-bottom: 0;
+        }}
+
+        .layers-section-label {{
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #888;
+            margin-bottom: 4px;
+            letter-spacing: 0.5px;
+        }}
+
+        .layers-control label {{
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 0;
+            cursor: pointer;
+            color: #444;
+        }}
+
+        .layers-control label:hover {{
+            color: #fc4c02;
+        }}
+
+        .layers-control input[type="radio"],
+        .layers-control input[type="checkbox"] {{
+            accent-color: #fc4c02;
+            cursor: pointer;
+        }}
+
+        .layers-divider {{
+            border-top: 1px solid #e0e0e0;
+            margin: 8px 0;
+        }}
+
+        .heatmap-gradient {{
+            height: 10px;
+            background: linear-gradient(to right, blue, cyan, lime, yellow, red);
+            border-radius: 2px;
+            margin-top: 4px;
+        }}
+
+        .heatmap-labels {{
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #888;
+            margin-top: 2px;
+        }}
+
         .session-marker {{
             border: 2px solid white;
             border-radius: 50%;
@@ -2964,6 +3044,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
     </nav>
 
     <script src="assets/leaflet/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script type="module">
         import {{ parquetReadObjects }} from './assets/hyparquet/index.js';
@@ -3631,6 +3712,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             totalPhotos: 0,
             infoControl: null,
             sessionListExpanded: false,
+            sessionListHeight: 300,  // Default height, updated when user resizes
             AUTO_LOAD_ZOOM: 11,
             restoringFromURL: false,
 
@@ -3669,16 +3751,15 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 this.sessionsLayer = L.layerGroup().addTo(this.map);
                 this.tracksLayer = L.layerGroup().addTo(this.map);
                 this.photosLayer = L.layerGroup().addTo(this.map);
+                this.heatmapLayer = null;  // Created lazily when needed
+                this.heatmapPoints = [];   // Collected from track data
+                this.displayMode = 'tracks';  // 'tracks' or 'heatmap'
 
                 // Set up legend
                 this.setupLegend();
 
-                // Set up layer control
-                L.control.layers(null, {{
-                    'Sessions': this.sessionsLayer,
-                    'Tracks': this.tracksLayer,
-                    'Photos': this.photosLayer
-                }}, {{ position: 'topleft' }}).addTo(this.map);
+                // Set up custom layers control
+                this.setupLayersControl();
 
                 // Set up zoom-to-fit control
                 const fitBoundsControl = L.control({{ position: 'topright' }});
@@ -3913,6 +3994,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                             // Store reference for filtering
                             const sessionKey = `${{athlete}}|${{session}}`;
                             this.tracksBySession[sessionKey] = polyline;
+
+                            // Add points to heatmap data
+                            this.addPointsToHeatmap(coords);
 
                             this.loadedTracks.add(trackKey);
                             this.loadedTrackCount++;
@@ -4194,12 +4278,17 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             }},
 
             updateInfo() {{
-                // Save scroll position before updating
+                // Save scroll position and list height before updating
                 let savedScrollTop = 0;
                 if (this.infoControl) {{
                     const existingList = document.querySelector('.info-session-list');
                     if (existingList) {{
                         savedScrollTop = existingList.scrollTop;
+                        // Save user's resized height if different from default
+                        const height = existingList.offsetHeight;
+                        if (height > 0) {{
+                            this.sessionListHeight = height;
+                        }}
                     }}
                     this.infoControl.remove();
                 }}
@@ -4265,14 +4354,20 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
                     // Set up event listeners after DOM is ready
                     setTimeout(() => {{
-                        // Restore scroll position
+                        // Restore scroll position and height
                         const newList = div.querySelector('.info-session-list');
-                        if (newList && savedScrollTop > 0) {{
-                            newList.scrollTop = savedScrollTop;
-                        }}
-
-                        // Prevent scroll events from propagating to map (fixes touchpad scrolling)
                         if (newList) {{
+                            // Apply saved height if user has resized
+                            if (self.sessionListHeight && self.sessionListHeight > 0) {{
+                                newList.style.maxHeight = self.sessionListHeight + 'px';
+                            }}
+                            // Restore scroll position - use requestAnimationFrame for reliability
+                            if (savedScrollTop > 0) {{
+                                requestAnimationFrame(() => {{
+                                    newList.scrollTop = savedScrollTop;
+                                }});
+                            }}
+                            // Prevent scroll events from propagating to map (fixes touchpad scrolling)
                             newList.addEventListener('wheel', (e) => {{
                                 e.stopPropagation();
                             }}, {{ passive: true }});
@@ -4288,8 +4383,12 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                             let startY, startHeight;
                             const onMouseMove = (e) => {{
                                 const delta = e.clientY - startY;
-                                const newHeight = Math.max(100, Math.min(600, startHeight + delta));
+                                // Allow expanding up to 80% of viewport height
+                                const maxHeight = Math.min(800, window.innerHeight * 0.8);
+                                const newHeight = Math.max(100, Math.min(maxHeight, startHeight + delta));
                                 newList.style.maxHeight = newHeight + 'px';
+                                // Save height for persistence
+                                self.sessionListHeight = newHeight;
                             }};
                             const onMouseUp = () => {{
                                 document.removeEventListener('mousemove', onMouseMove);
@@ -4341,18 +4440,172 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             }},
 
             setupLegend() {{
-                const legend = L.control({{ position: 'bottomright' }});
+                this.legendControl = L.control({{ position: 'bottomright' }});
                 const self = this;
-                legend.onAdd = function() {{
+                this.legendControl.onAdd = function() {{
                     const div = L.DomUtil.create('div', 'info legend');
+                    self.updateLegendContent(div);
+                    return div;
+                }};
+                this.legendControl.addTo(this.map);
+            }},
+
+            updateLegendContent(div) {{
+                if (!div) {{
+                    div = document.querySelector('.info.legend');
+                }}
+                if (!div) return;
+
+                if (this.displayMode === 'heatmap') {{
+                    div.innerHTML = '<b>Activity Density</b><br>';
+                    div.innerHTML += '<div class="heatmap-gradient"></div>';
+                    div.innerHTML += '<div class="heatmap-labels"><span>Low</span><span>High</span></div>';
+                    div.innerHTML += `<br>${{this.heatmapPoints.length.toLocaleString()}} GPS points`;
+                }} else {{
                     div.innerHTML = '<b>Activity Types</b><br>';
-                    for (const [type, color] of Object.entries(self.typeColors)) {{
+                    for (const [type, color] of Object.entries(this.typeColors)) {{
                         div.innerHTML += `<i style="background:${{color}}"></i> ${{type}}<br>`;
                     }}
                     div.innerHTML += '<br><i style="background:#E91E63;border-radius:50%;"></i> Photos';
+                }}
+            }},
+
+            setupLayersControl() {{
+                const layersControl = L.control({{ position: 'topleft' }});
+                const self = this;
+
+                layersControl.onAdd = function() {{
+                    const div = L.DomUtil.create('div', 'info layers-control');
+
+                    div.innerHTML = `
+                        <div class="layers-control-header">
+                            <svg viewBox="0 0 24 24"><path d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z"/></svg>
+                            Layers
+                        </div>
+                        <div class="layers-section">
+                            <div class="layers-section-label">Display Mode</div>
+                            <label>
+                                <input type="radio" name="displayMode" value="tracks" checked>
+                                Tracks
+                            </label>
+                            <label>
+                                <input type="radio" name="displayMode" value="heatmap">
+                                Heatmap
+                            </label>
+                        </div>
+                        <div class="layers-divider"></div>
+                        <div class="layers-section">
+                            <div class="layers-section-label">Overlays</div>
+                            <label>
+                                <input type="checkbox" name="showMarkers" checked>
+                                Markers
+                            </label>
+                            <label>
+                                <input type="checkbox" name="showPhotos" checked>
+                                Photos
+                            </label>
+                        </div>
+                    `;
+
+                    // Prevent map interactions
+                    L.DomEvent.disableClickPropagation(div);
+                    L.DomEvent.disableScrollPropagation(div);
+
+                    // Display mode radio buttons
+                    div.querySelectorAll('input[name="displayMode"]').forEach(radio => {{
+                        radio.addEventListener('change', (e) => {{
+                            self.setDisplayMode(e.target.value);
+                        }});
+                    }});
+
+                    // Overlay checkboxes
+                    div.querySelector('input[name="showMarkers"]').addEventListener('change', (e) => {{
+                        if (e.target.checked) {{
+                            self.sessionsLayer.addTo(self.map);
+                        }} else {{
+                            self.map.removeLayer(self.sessionsLayer);
+                        }}
+                    }});
+
+                    div.querySelector('input[name="showPhotos"]').addEventListener('change', (e) => {{
+                        if (e.target.checked) {{
+                            self.photosLayer.addTo(self.map);
+                        }} else {{
+                            self.map.removeLayer(self.photosLayer);
+                        }}
+                    }});
+
                     return div;
                 }};
-                legend.addTo(this.map);
+
+                layersControl.addTo(this.map);
+            }},
+
+            setDisplayMode(mode) {{
+                this.displayMode = mode;
+
+                if (mode === 'heatmap') {{
+                    // Hide tracks, show heatmap
+                    this.map.removeLayer(this.tracksLayer);
+                    this.createOrShowHeatmap();
+                }} else {{
+                    // Hide heatmap, show tracks
+                    if (this.heatmapLayer) {{
+                        this.map.removeLayer(this.heatmapLayer);
+                    }}
+                    this.tracksLayer.addTo(this.map);
+                }}
+
+                // Update legend
+                this.updateLegendContent();
+            }},
+
+            createOrShowHeatmap() {{
+                if (this.heatmapPoints.length === 0) {{
+                    // No points yet - will be populated as tracks load
+                    console.log('No heatmap points available yet. Load some tracks first.');
+                }}
+
+                // Sample points if too many (for performance)
+                let points = this.heatmapPoints;
+                const maxPoints = 50000;
+                if (points.length > maxPoints) {{
+                    const step = Math.ceil(points.length / maxPoints);
+                    points = points.filter((_, i) => i % step === 0);
+                }}
+
+                // Create or update heatmap layer
+                const heatData = points.map(p => [p[0], p[1], 1.0]);
+
+                if (this.heatmapLayer) {{
+                    this.heatmapLayer.setLatLngs(heatData);
+                }} else {{
+                    this.heatmapLayer = L.heatLayer(heatData, {{
+                        radius: 15,
+                        blur: 20,
+                        maxZoom: 17,
+                        gradient: {{
+                            0.0: 'blue',
+                            0.25: 'cyan',
+                            0.5: 'lime',
+                            0.75: 'yellow',
+                            1.0: 'red'
+                        }}
+                    }});
+                }}
+
+                this.heatmapLayer.addTo(this.map);
+            }},
+
+            addPointsToHeatmap(points) {{
+                // Called when tracks are loaded to add points to heatmap data
+                this.heatmapPoints = this.heatmapPoints.concat(points);
+
+                // If heatmap is active, update it
+                if (this.displayMode === 'heatmap' && this.heatmapLayer) {{
+                    this.createOrShowHeatmap();
+                    this.updateLegendContent();
+                }}
             }}
         }};
         window.MapView = MapView;
