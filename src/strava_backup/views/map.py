@@ -3744,7 +3744,11 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
                 L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
                     maxZoom: 19,
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                    // Reduce tile requests to avoid rate limiting
+                    keepBuffer: 4,           // Keep more tiles cached around viewport
+                    updateWhenZooming: false, // Don't fetch during zoom animation
+                    updateWhenIdle: true      // Only fetch when map stops moving
                 }}).addTo(this.map);
 
                 this.bounds = L.latLngBounds();
@@ -3881,6 +3885,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 // Update info panel (which now includes session count and list)
                 FilterBar.updateCount('map-filter-bar', filtered.length, this.allSessions.length);
                 this.updateInfo();
+
+                // Update legend to reflect active filter
+                this.updateLegendContent();
             }},
 
             parseTSV(text) {{
@@ -4462,11 +4469,58 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     div.innerHTML += '<div class="heatmap-labels"><span>Low</span><span>High</span></div>';
                     div.innerHTML += `<br>${{this.heatmapPoints.length.toLocaleString()}} GPS points`;
                 }} else {{
+                    const currentType = FilterState.get().type || '';
                     div.innerHTML = '<b>Activity Types</b><br>';
                     for (const [type, color] of Object.entries(this.typeColors)) {{
-                        div.innerHTML += `<i style="background:${{color}}"></i> ${{type}}<br>`;
+                        const isActive = currentType === type;
+                        div.innerHTML += `<span class="legend-type-item${{isActive ? ' active' : ''}}" data-type="${{type}}" style="cursor:pointer;display:block;padding:2px 4px;margin:1px 0;border-radius:3px;${{isActive ? 'background:rgba(0,0,0,0.1);font-weight:bold;' : ''}}"><i style="background:${{color}}"></i> ${{type}}</span>`;
+                    }}
+                    // Clear filter option when a filter is active
+                    if (currentType) {{
+                        div.innerHTML += `<span class="legend-clear-filter" style="cursor:pointer;display:block;padding:2px 4px;margin-top:4px;color:#666;font-style:italic;">&times; Clear filter</span>`;
                     }}
                     div.innerHTML += '<br><i style="background:#E91E63;border-radius:50%;"></i> Photos';
+
+                    // Add click handlers
+                    div.querySelectorAll('.legend-type-item').forEach(item => {{
+                        item.addEventListener('click', (e) => {{
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const clickedType = item.dataset.type;
+                            const current = FilterState.get().type;
+                            // Toggle: if clicking active type, clear it
+                            const newType = current === clickedType ? '' : clickedType;
+                            FilterState.set({{ type: newType }});
+                            FilterState.syncToURL();
+                            this.updateLegendContent(div);
+                        }});
+                        item.addEventListener('mouseenter', () => {{
+                            if (!item.classList.contains('active')) {{
+                                item.style.background = 'rgba(0,0,0,0.05)';
+                            }}
+                        }});
+                        item.addEventListener('mouseleave', () => {{
+                            if (!item.classList.contains('active')) {{
+                                item.style.background = 'transparent';
+                            }}
+                        }});
+                    }});
+                    const clearBtn = div.querySelector('.legend-clear-filter');
+                    if (clearBtn) {{
+                        clearBtn.addEventListener('click', (e) => {{
+                            e.preventDefault();
+                            e.stopPropagation();
+                            FilterState.set({{ type: '' }});
+                            FilterState.syncToURL();
+                            this.updateLegendContent(div);
+                        }});
+                        clearBtn.addEventListener('mouseenter', () => {{
+                            clearBtn.style.background = 'rgba(0,0,0,0.05)';
+                        }});
+                        clearBtn.addEventListener('mouseleave', () => {{
+                            clearBtn.style.background = 'transparent';
+                        }});
+                    }}
                 }}
             }},
 
@@ -4547,11 +4601,14 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 if (mode === 'heatmap') {{
                     // Hide tracks, show heatmap
                     this.map.removeLayer(this.tracksLayer);
-                    this.createOrShowHeatmap();
+                    // Auto-load visible tracks for heatmap data
+                    this.loadVisibleTracksForHeatmap();
                 }} else {{
                     // Hide heatmap, show tracks
                     if (this.heatmapLayer) {{
                         this.map.removeLayer(this.heatmapLayer);
+                        // Destroy the layer to avoid stale canvas issues
+                        this.heatmapLayer = null;
                     }}
                     this.tracksLayer.addTo(this.map);
                 }}
@@ -4560,10 +4617,40 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 this.updateLegendContent();
             }},
 
+            async loadVisibleTracksForHeatmap() {{
+                // Load all visible tracks to populate heatmap data
+                const bounds = this.map.getBounds();
+                // Use allMarkers and filter by both visibility (from filters) and map bounds
+                const visibleMarkers = (this.allMarkers || []).filter(m => {{
+                    if (!m.visible) return false;
+                    const pos = m.marker.getLatLng();
+                    return bounds.contains(pos);
+                }});
+
+                // Load tracks for visible markers that aren't already loaded
+                const loadPromises = [];
+                for (const m of visibleMarkers) {{
+                    const trackKey = `${{m.athlete}}/${{m.session}}`;
+                    if (!this.loadedTracks.has(trackKey) && !this.loadingTracks.has(trackKey)) {{
+                        loadPromises.push(this.loadTrack(m.athlete, m.session, m.color));
+                    }}
+                }}
+
+                // Wait for some tracks to load before showing heatmap
+                if (loadPromises.length > 0) {{
+                    console.log(`Loading ${{loadPromises.length}} tracks for heatmap...`);
+                    await Promise.all(loadPromises);
+                }}
+
+                // Now show the heatmap
+                this.createOrShowHeatmap();
+            }},
+
             createOrShowHeatmap() {{
+                // Don't create heatmap with empty data - causes errors
                 if (this.heatmapPoints.length === 0) {{
-                    // No points yet - will be populated as tracks load
-                    console.log('No heatmap points available yet. Load some tracks first.');
+                    console.log('No heatmap points available yet.');
+                    return;
                 }}
 
                 // Sample points if too many (for performance)
@@ -4577,24 +4664,31 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 // Create or update heatmap layer
                 const heatData = points.map(p => [p[0], p[1], 1.0]);
 
+                // Always create a fresh layer to avoid stale canvas issues
                 if (this.heatmapLayer) {{
-                    this.heatmapLayer.setLatLngs(heatData);
-                }} else {{
-                    this.heatmapLayer = L.heatLayer(heatData, {{
-                        radius: 15,
-                        blur: 20,
-                        maxZoom: 17,
-                        gradient: {{
-                            0.0: 'blue',
-                            0.25: 'cyan',
-                            0.5: 'lime',
-                            0.75: 'yellow',
-                            1.0: 'red'
-                        }}
-                    }});
+                    try {{
+                        this.map.removeLayer(this.heatmapLayer);
+                    }} catch (e) {{
+                        // Layer may already be removed
+                    }}
+                    this.heatmapLayer = null;
                 }}
 
-                this.heatmapLayer.addTo(this.map);
+                this.heatmapLayer = L.heatLayer(heatData, {{
+                    radius: 15,
+                    blur: 20,
+                    maxZoom: 17,
+                    gradient: {{
+                        0.0: 'blue',
+                        0.25: 'cyan',
+                        0.5: 'lime',
+                        0.75: 'yellow',
+                        1.0: 'red'
+                    }}
+                }}).addTo(this.map);
+
+                // Update legend with point count
+                this.updateLegendContent();
             }},
 
             addPointsToHeatmap(points) {{
