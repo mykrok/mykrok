@@ -571,3 +571,169 @@ class TestNavigation:
         # Should navigate to map view
         page.wait_for_selector("#view-map.active", timeout=5000)
         assert "#/map" in page.url
+
+
+@pytest.mark.ai_generated
+class TestDateNavigation:
+    """Test date navigation arrows functionality."""
+
+    def test_date_nav_buttons_disabled_without_dates(self, demo_server: str, page: Page) -> None:
+        """Verify date nav buttons are disabled when no dates set."""
+        page.goto(f"{demo_server}/strava-backup.html#/map")
+        page.wait_for_selector(".map-filter-bar", timeout=10000)
+
+        # Both nav buttons should be disabled initially
+        prev_btn = page.locator(".map-filter-bar .date-nav-btn--prev")
+        next_btn = page.locator(".map-filter-bar .date-nav-btn--next")
+
+        assert prev_btn.is_disabled()
+        assert next_btn.is_disabled()
+
+    def test_date_nav_buttons_enabled_after_preset_selection(
+        self, demo_server: str, page: Page
+    ) -> None:
+        """Bug #1: Date nav buttons should enable immediately when preset selected."""
+        page.goto(f"{demo_server}/strava-backup.html#/map")
+        page.wait_for_selector(".map-filter-bar", timeout=10000)
+
+        # Select "This Year" preset
+        page.select_option(".map-filter-bar .filter-date-preset", "thisYear")
+        page.wait_for_timeout(500)
+
+        # Nav buttons should now be enabled (without switching views)
+        prev_btn = page.locator(".map-filter-bar .date-nav-btn--prev")
+        next_btn = page.locator(".map-filter-bar .date-nav-btn--next")
+
+        assert not prev_btn.is_disabled(), "Prev button should be enabled after preset"
+        assert not next_btn.is_disabled(), "Next button should be enabled after preset"
+
+    def test_date_inputs_show_full_year(self, demo_server: str, page: Page) -> None:
+        """Bug #2: Date inputs should be wide enough to show full year (YYYY-MM-DD)."""
+        page.goto(f"{demo_server}/strava-backup.html#/map")
+        page.wait_for_selector(".map-filter-bar", timeout=10000)
+
+        # Select a date preset to populate the inputs
+        page.select_option(".map-filter-bar .filter-date-preset", "thisYear")
+        page.wait_for_timeout(500)
+
+        # Get the date-from input value and its visible width
+        date_from = page.locator(".map-filter-bar .filter-date-from")
+        date_value = date_from.input_value()
+
+        # Should have full date format YYYY-MM-DD
+        assert len(date_value) == 10, f"Date value '{date_value}' should be YYYY-MM-DD format"
+
+        # Check input is wide enough (at least 120px to show full date)
+        box = date_from.bounding_box()
+        assert box is not None
+        assert box["width"] >= 120, f"Date input width {box['width']}px too narrow"
+
+    def test_sessions_view_has_date_nav_buttons(self, demo_server: str, page: Page) -> None:
+        """Bug #4: Sessions view should also have date navigation buttons."""
+        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.wait_for_selector("#sessions-table", timeout=10000)
+
+        # Should have prev/next date nav buttons
+        prev_btn = page.locator(".filter-bar .date-nav-btn--prev")
+        next_btn = page.locator(".filter-bar .date-nav-btn--next")
+
+        assert prev_btn.count() == 1, "Sessions view should have prev date nav button"
+        assert next_btn.count() == 1, "Sessions view should have next date nav button"
+
+
+@pytest.mark.ai_generated
+class TestActivitiesInfoPanel:
+    """Test activities info panel behavior on map."""
+
+    def test_activities_list_item_has_zoom_and_link(self, demo_server: str, page: Page) -> None:
+        """Bug #3: Activities list items should have zoom and arrow link to view."""
+        page.goto(f"{demo_server}/strava-backup.html#/map")
+        page.wait_for_selector(".leaflet-container", timeout=10000)
+
+        # Wait for sessions to load
+        page.wait_for_timeout(2000)
+
+        # Find the Activities info panel (has header with "Activities")
+        info_panel = page.locator(".info:has(.info-header)")
+        assert info_panel.count() == 1
+
+        # Expand the session list by clicking the toggle
+        sessions_toggle = info_panel.locator(".info-sessions-toggle")
+        if sessions_toggle.count() > 0:
+            sessions_toggle.click()
+            page.wait_for_timeout(500)
+
+            # Check that session items have both main area (for zoom) and link (for navigation)
+            session_items = info_panel.locator(".info-session-item")
+            if session_items.count() > 0:
+                first_item = session_items.first
+
+                # Should have main area for clicking to zoom
+                main_area = first_item.locator(".info-session-main")
+                assert main_area.count() == 1, "Session item should have .info-session-main for zoom"
+
+                # Should have arrow link for navigation
+                arrow_link = first_item.locator(".info-session-link")
+                assert arrow_link.count() == 1, "Session item should have .info-session-link for navigation"
+                assert arrow_link.get_attribute("href") is not None, "Arrow link should have href"
+
+                # Test that clicking main area zooms (doesn't navigate)
+                initial_url = page.url
+                main_area.click()
+                page.wait_for_timeout(500)
+                assert "#/session" not in page.url, "Clicking main area should zoom, not navigate"
+
+
+@pytest.mark.ai_generated
+class TestFilterBarConsistency:
+    """Test filter bar is consistent across all views."""
+
+    def test_map_filter_bar_structure(self, demo_server: str, page: Page) -> None:
+        """Verify map filter bar has all expected elements."""
+        page.goto(f"{demo_server}/strava-backup.html#/map")
+        page.wait_for_selector(".map-filter-bar", timeout=10000)
+
+        bar = page.locator(".map-filter-bar")
+
+        # Should have: search, type, preset, date nav group
+        assert bar.locator(".filter-search").count() == 1
+        assert bar.locator(".filter-type").count() == 1
+        assert bar.locator(".filter-date-preset").count() == 1
+        assert bar.locator(".date-nav-group").count() == 1
+        assert bar.locator(".filter-date-from").count() == 1
+        assert bar.locator(".filter-date-to").count() == 1
+
+    def test_sessions_filter_bar_structure(self, demo_server: str, page: Page) -> None:
+        """Verify sessions filter bar has same elements as map."""
+        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.wait_for_selector(".filter-bar", timeout=10000)
+
+        bar = page.locator(".filter-bar")
+
+        # Should have same elements as map filter bar
+        # Bug #4: Sessions view may be missing date nav buttons
+        assert bar.locator("#session-search, .filter-search").count() == 1
+        assert bar.locator("#session-type, .filter-type").count() == 1
+        # These may be missing or use different IDs - that's the DRY violation
+        has_date_nav = bar.locator(".date-nav-group").count() == 1
+        has_date_inputs = (
+            bar.locator("#date-from, .filter-date-from").count() == 1
+            and bar.locator("#date-to, .filter-date-to").count() == 1
+        )
+
+        assert has_date_inputs, "Sessions should have date inputs"
+        assert has_date_nav, "Sessions should have date nav buttons (DRY violation)"
+
+    def test_stats_filter_bar_structure(self, demo_server: str, page: Page) -> None:
+        """Verify stats filter bar has same elements as map."""
+        page.goto(f"{demo_server}/strava-backup.html#/stats")
+        page.wait_for_selector("#stats-filter-bar, .filter-bar", timeout=10000)
+
+        bar = page.locator("#stats-filter-bar, .filter-bar").first
+
+        # Should have same elements
+        assert bar.locator(".filter-search").count() == 1
+        assert bar.locator(".filter-type").count() == 1
+        # Check for date nav consistency
+        has_date_nav = bar.locator(".date-nav-group").count() == 1
+        assert has_date_nav, "Stats should have date nav buttons"
