@@ -1272,19 +1272,69 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             margin-top: 8px;
             border-top: 1px solid #e0e0e0;
             padding-top: 8px;
+            resize: vertical;
+            min-height: 100px;
+        }}
+
+        .info-resize-handle {{
+            height: 8px;
+            background: linear-gradient(to bottom, transparent 0%, #e0e0e0 50%, transparent 100%);
+            cursor: ns-resize;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 4px;
+        }}
+
+        .info-resize-handle::before {{
+            content: '';
+            width: 30px;
+            height: 3px;
+            background: #ccc;
+            border-radius: 2px;
+        }}
+
+        .info-resize-handle:hover::before {{
+            background: #fc4c02;
         }}
 
         .info-session-item {{
             padding: 6px 4px;
             border-radius: 4px;
-            cursor: pointer;
             margin-bottom: 4px;
             border: 1px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }}
 
         .info-session-item:hover {{
             background: #f5f5f5;
             border-color: #fc4c02;
+        }}
+
+        .info-session-main {{
+            flex: 1;
+            min-width: 0;
+            cursor: pointer;
+        }}
+
+        .info-session-link {{
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            text-decoration: none;
+            color: #666;
+            font-size: 16px;
+            border-radius: 4px;
+            transition: background 0.2s, color 0.2s;
+        }}
+
+        .info-session-link:hover {{
+            background: #fc4c02;
+            color: white;
         }}
 
         .info-session-date {{
@@ -1338,6 +1388,86 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             float: left;
             margin-right: 8px;
             opacity: 0.7;
+        }}
+
+        /* Layers control */
+        .layers-control {{
+            background: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            font-size: 13px;
+            min-width: 140px;
+        }}
+
+        .layers-control-header {{
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }}
+
+        .layers-control-header svg {{
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }}
+
+        .layers-section {{
+            margin-bottom: 8px;
+        }}
+
+        .layers-section:last-child {{
+            margin-bottom: 0;
+        }}
+
+        .layers-section-label {{
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #888;
+            margin-bottom: 4px;
+            letter-spacing: 0.5px;
+        }}
+
+        .layers-control label {{
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 0;
+            cursor: pointer;
+            color: #444;
+        }}
+
+        .layers-control label:hover {{
+            color: #fc4c02;
+        }}
+
+        .layers-control input[type="radio"],
+        .layers-control input[type="checkbox"] {{
+            accent-color: #fc4c02;
+            cursor: pointer;
+        }}
+
+        .layers-divider {{
+            border-top: 1px solid #e0e0e0;
+            margin: 8px 0;
+        }}
+
+        .heatmap-gradient {{
+            height: 10px;
+            background: linear-gradient(to right, blue, cyan, lime, yellow, red);
+            border-radius: 2px;
+            margin-top: 4px;
+        }}
+
+        .heatmap-labels {{
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #888;
+            margin-top: 2px;
         }}
 
         .session-marker {{
@@ -2340,7 +2470,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
         }}
 
         .map-filter-bar .filter-date {{
-            width: 115px;
+            width: 130px;
         }}
 
         .map-filter-bar .filter-btn {{
@@ -2352,6 +2482,111 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             font-size: 12px;
             color: #666;
             padding: 0 8px;
+        }}
+
+        /* Date navigation group */
+        .date-nav-group {{
+            display: flex;
+            align-items: center;
+        }}
+
+        .date-nav-btn {{
+            width: 28px;
+            height: 32px;
+            border: 1px solid #ced4da;
+            background: #e9ecef;
+            color: #495057;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.15s ease;
+            padding: 0;
+        }}
+
+        .date-nav-btn:hover:not(:disabled) {{
+            background: #dee2e6;
+        }}
+
+        .date-nav-btn:active:not(:disabled) {{
+            background: #ced4da;
+        }}
+
+        .date-nav-btn:disabled {{
+            background: #f8f9fa;
+            color: #adb5bd;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }}
+
+        .date-nav-btn--prev {{
+            border-radius: 4px 0 0 4px;
+            border-right: none;
+        }}
+
+        .date-nav-btn--next {{
+            border-radius: 0 4px 4px 0;
+            border-left: none;
+        }}
+
+        .date-nav-group .filter-date-from {{
+            border-radius: 0;
+        }}
+
+        .date-nav-group .filter-date-to {{
+            border-radius: 0;
+        }}
+
+        .date-nav-btn svg {{
+            width: 14px;
+            height: 14px;
+        }}
+
+        /* Zoom to fit control - matches Leaflet style */
+        .leaflet-control-fitbounds {{
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
+        }}
+
+        .leaflet-control-fitbounds button {{
+            width: 30px;
+            height: 30px;
+            border: none;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            padding: 0;
+        }}
+
+        .leaflet-control-fitbounds button:hover {{
+            background: #f4f4f4;
+        }}
+
+        .leaflet-control-fitbounds svg {{
+            width: 16px;
+            height: 16px;
+            color: #333;
+        }}
+
+        /* Popup links styling */
+        .popup-links {{
+            display: flex;
+            gap: 12px;
+            margin-top: 4px;
+        }}
+
+        .popup-zoom-link {{
+            color: #2196F3;
+            text-decoration: none;
+            cursor: pointer;
+        }}
+
+        .popup-zoom-link:hover {{
+            text-decoration: underline;
         }}
 
         /* ===== Session List Panel ===== */
@@ -2681,15 +2916,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
         <!-- Sessions View -->
         <div id="view-sessions" class="view">
             <div class="sessions-container">
-                <div class="filter-bar">
-                    <input type="search" id="session-search" placeholder="Search activities..." class="filter-input">
-                    <select id="type-filter" class="filter-select">
-                        <option value="">All Types</option>
-                    </select>
-                    <input type="date" id="date-from" class="filter-input filter-date" title="From date">
-                    <input type="date" id="date-to" class="filter-input filter-date" title="To date">
-                    <button id="clear-filters" class="filter-btn">Clear</button>
-                </div>
+                <div id="sessions-filter-bar" class="filter-bar"></div>
                 <div class="sessions-table-container">
                     <table id="sessions-table">
                         <thead>
@@ -2817,6 +3044,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
     </nav>
 
     <script src="assets/leaflet/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script type="module">
         import {{ parquetReadObjects }} from './assets/hyparquet/index.js';
@@ -2993,8 +3221,17 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     </select>`;
                 }}
                 if (showDates) {{
+                    const navDisabled = !state.dateFrom || !state.dateTo ? 'disabled' : '';
+                    html += `<div class="date-nav-group">`;
+                    html += `<button type="button" class="date-nav-btn date-nav-btn--prev" title="Previous period" aria-label="Move date range backward" ${{navDisabled}}>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 12L6 8l4-4"/></svg>
+                    </button>`;
                     html += `<input type="date" class="filter-input filter-date filter-date-from" title="From date" value="${{state.dateFrom}}">`;
                     html += `<input type="date" class="filter-input filter-date filter-date-to" title="To date" value="${{state.dateTo}}">`;
+                    html += `<button type="button" class="date-nav-btn date-nav-btn--next" title="Next period" aria-label="Move date range forward" ${{navDisabled}}>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12l4-4-4-4"/></svg>
+                    </button>`;
+                    html += `</div>`;
                 }}
                 html += `<button class="filter-btn filter-clear">Clear</button>`;
                 html += `<span class="filter-count"></span>`;
@@ -3063,6 +3300,8 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                         const toInput = container.querySelector('.filter-date-to');
                         if (fromInput) fromInput.value = dateFrom;
                         if (toInput) toInput.value = dateTo;
+                        // Update nav button states
+                        this.updateDateNavButtons(container);
                     }});
                 }}
 
@@ -3075,6 +3314,8 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                         // Reset preset
                         const preset = container.querySelector('.filter-date-preset');
                         if (preset) preset.value = '';
+                        // Update nav button states
+                        this.updateDateNavButtons(container);
                     }});
                 }}
 
@@ -3087,7 +3328,54 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                         // Reset preset
                         const preset = container.querySelector('.filter-date-preset');
                         if (preset) preset.value = '';
+                        // Update nav button states
+                        this.updateDateNavButtons(container);
                     }});
+                }}
+
+                // Date navigation buttons
+                const prevBtn = container.querySelector('.date-nav-btn--prev');
+                const nextBtn = container.querySelector('.date-nav-btn--next');
+
+                const navigateDates = (direction) => {{
+                    const state = FilterState.get();
+                    if (!state.dateFrom || !state.dateTo) return;
+
+                    const fromDate = new Date(state.dateFrom);
+                    const toDate = new Date(state.dateTo);
+                    const intervalMs = toDate - fromDate;
+                    // If same date, use 1 day interval
+                    const dayMs = 24 * 60 * 60 * 1000;
+                    const shiftMs = intervalMs > 0 ? intervalMs : dayMs;
+
+                    if (direction === 'prev') {{
+                        fromDate.setTime(fromDate.getTime() - shiftMs);
+                        toDate.setTime(toDate.getTime() - shiftMs);
+                    }} else {{
+                        fromDate.setTime(fromDate.getTime() + shiftMs);
+                        toDate.setTime(toDate.getTime() + shiftMs);
+                    }}
+
+                    const newFrom = fromDate.toISOString().split('T')[0];
+                    const newTo = toDate.toISOString().split('T')[0];
+
+                    FilterState.set({{ dateFrom: newFrom, dateTo: newTo }});
+                    FilterState.syncToURL();
+
+                    // Update inputs
+                    if (dateFromInput) dateFromInput.value = newFrom;
+                    if (dateToInput) dateToInput.value = newTo;
+
+                    // Reset preset dropdown
+                    const preset = container.querySelector('.filter-date-preset');
+                    if (preset) preset.value = '';
+                }};
+
+                if (prevBtn) {{
+                    prevBtn.addEventListener('click', () => navigateDates('prev'));
+                }}
+                if (nextBtn) {{
+                    nextBtn.addEventListener('click', () => navigateDates('next'));
                 }}
 
                 // Clear button
@@ -3135,6 +3423,18 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
                 const dateToInput = container.querySelector('.filter-date-to');
                 if (dateToInput) dateToInput.value = state.dateTo;
+
+                // Update nav button states
+                this.updateDateNavButtons(container);
+            }},
+
+            updateDateNavButtons(container) {{
+                const state = FilterState.get();
+                const hasBothDates = state.dateFrom && state.dateTo;
+                const prevBtn = container.querySelector('.date-nav-btn--prev');
+                const nextBtn = container.querySelector('.date-nav-btn--next');
+                if (prevBtn) prevBtn.disabled = !hasBothDates;
+                if (nextBtn) nextBtn.disabled = !hasBothDates;
             }},
 
             updateCount(containerId, filteredCount, totalCount) {{
@@ -3318,8 +3618,8 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
                 // Sync all filter bars from shared state
                 FilterBar.syncFromState('map-filter-bar');
+                FilterBar.syncFromState('sessions-filter-bar');
                 FilterBar.syncFromState('stats-filter-bar');
-                SessionsView.syncFiltersFromState();
 
                 // Trigger re-render for current view
                 if (state.view === 'map') {{
@@ -3412,6 +3712,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             totalPhotos: 0,
             infoControl: null,
             sessionListExpanded: false,
+            sessionListHeight: 300,  // Default height, updated when user resizes
             AUTO_LOAD_ZOOM: 11,
             restoringFromURL: false,
 
@@ -3443,23 +3744,47 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
                 L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
                     maxZoom: 19,
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                    // Reduce tile requests to avoid rate limiting
+                    keepBuffer: 4,           // Keep more tiles cached around viewport
+                    updateWhenZooming: false, // Don't fetch during zoom animation
+                    updateWhenIdle: true      // Only fetch when map stops moving
                 }}).addTo(this.map);
 
                 this.bounds = L.latLngBounds();
                 this.sessionsLayer = L.layerGroup().addTo(this.map);
                 this.tracksLayer = L.layerGroup().addTo(this.map);
                 this.photosLayer = L.layerGroup().addTo(this.map);
+                this.heatmapLayer = null;  // Created lazily when needed
+                this.heatmapPoints = [];   // Collected from track data
+                this.displayMode = 'tracks';  // 'tracks' or 'heatmap'
 
                 // Set up legend
                 this.setupLegend();
 
-                // Set up layer control
-                L.control.layers(null, {{
-                    'Sessions': this.sessionsLayer,
-                    'Tracks': this.tracksLayer,
-                    'Photos': this.photosLayer
-                }}, {{ position: 'topleft' }}).addTo(this.map);
+                // Set up custom layers control
+                this.setupLayersControl();
+
+                // Set up zoom-to-fit control
+                const fitBoundsControl = L.control({{ position: 'topright' }});
+                const self = this;
+                fitBoundsControl.onAdd = function() {{
+                    const div = L.DomUtil.create('div', 'leaflet-control-fitbounds leaflet-bar');
+                    div.innerHTML = `
+                        <button type="button" title="Fit all activities" aria-label="Zoom map to show all filtered activities">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M2 5V2h3M11 2h3v3M14 11v3h-3M5 14H2v-3"/>
+                                <path d="M5 5h6v6H5z"/>
+                            </svg>
+                        </button>
+                    `;
+                    L.DomEvent.disableClickPropagation(div);
+                    div.querySelector('button').addEventListener('click', () => {{
+                        self.fitToVisibleMarkers();
+                    }});
+                    return div;
+                }};
+                fitBoundsControl.addTo(this.map);
 
                 // Set up auto-loading on zoom/pan
                 this.map.on('moveend', () => this.loadVisibleTracks());
@@ -3560,6 +3885,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 // Update info panel (which now includes session count and list)
                 FilterBar.updateCount('map-filter-bar', filtered.length, this.allSessions.length);
                 this.updateInfo();
+
+                // Update legend to reflect active filter
+                this.updateLegendContent();
             }},
 
             parseTSV(text) {{
@@ -3578,6 +3906,10 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 this.applyFiltersAndUpdateUI();
 
                 // Recalculate bounds for visible markers and fit
+                this.fitToVisibleMarkers();
+            }},
+
+            fitToVisibleMarkers() {{
                 this.bounds = L.latLngBounds();
                 for (const data of this.allMarkers) {{
                     if (data.visible) {{
@@ -3585,7 +3917,26 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     }}
                 }}
                 if (this.bounds.isValid()) {{
-                    this.map.fitBounds(this.bounds, {{ padding: [20, 20] }});
+                    // Use flyToBounds for smooth animation
+                    this.map.flyToBounds(this.bounds, {{ padding: [20, 20], duration: 0.8 }});
+                }}
+            }},
+
+            zoomToSession(athlete, session) {{
+                const markerData = this.allMarkers.find(m => m.athlete === athlete && m.session === session);
+                if (markerData && markerData.marker) {{
+                    // Get the track bounds if available, otherwise use marker location
+                    const sessionKey = `${{athlete}}|${{session}}`;
+                    const track = this.tracksBySession[sessionKey];
+                    if (track) {{
+                        // Smooth animated zoom to track bounds
+                        this.map.flyToBounds(track.getBounds(), {{ padding: [50, 50], maxZoom: 14, duration: 0.8 }});
+                    }} else {{
+                        // Smooth animated zoom to marker
+                        this.map.flyTo(markerData.marker.getLatLng(), 13, {{ duration: 0.8 }});
+                        // Load the track for better view
+                        this.loadTrack(athlete, session, markerData.color);
+                    }}
                 }}
             }},
 
@@ -3650,6 +4001,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                             // Store reference for filtering
                             const sessionKey = `${{athlete}}|${{session}}`;
                             this.tracksBySession[sessionKey] = polyline;
+
+                            // Add points to heatmap data
+                            this.addPointsToHeatmap(coords);
 
                             this.loadedTracks.add(trackKey);
                             this.loadedTrackCount++;
@@ -3739,7 +4093,10 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                                 <div class="photo-meta">
                                     <strong>${{sessionName}}</strong><br>
                                     ${{session.substring(0, 8)}}
-                                    <br><a href="#/session/${{athlete}}/${{session}}" class="popup-activity-link">View Activity →</a>
+                                    <div class="popup-links">
+                                        <a href="javascript:void(0)" class="popup-zoom-link" onclick="MapView.zoomToSession('${{athlete}}', '${{session}}')">Zoom in</a>
+                                        <a href="#/session/${{athlete}}/${{session}}" class="popup-activity-link">View Activity →</a>
+                                    </div>
                                 </div>
                             </div>
                         `, {{ maxWidth: 350 }});
@@ -3877,7 +4234,10 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                                     Type: ${{type}}<br>
                                     Date: ${{session.datetime?.substring(0, 8) || ''}}${{photoInfo}}<br>
                                     Distance: ${{(parseFloat(session.distance_m || 0) / 1000).toFixed(2)}} km
-                                    <br><a href="#/session/${{username}}/${{session.datetime}}" class="popup-activity-link">View Activity →</a>
+                                    <div class="popup-links">
+                                        <a href="javascript:void(0)" class="popup-zoom-link" onclick="MapView.zoomToSession('${{username}}', '${{session.datetime}}')">Zoom in</a>
+                                        <a href="#/session/${{username}}/${{session.datetime}}" class="popup-activity-link">View Activity →</a>
+                                    </div>
                                 `);
 
                                 this.allMarkers.push({{
@@ -3925,7 +4285,18 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             }},
 
             updateInfo() {{
+                // Save scroll position and list height before updating
+                let savedScrollTop = 0;
                 if (this.infoControl) {{
+                    const existingList = document.querySelector('.info-session-list');
+                    if (existingList) {{
+                        savedScrollTop = existingList.scrollTop;
+                        // Save user's resized height if different from default
+                        const height = existingList.offsetHeight;
+                        if (height > 0) {{
+                            this.sessionListHeight = height;
+                        }}
+                    }}
                     this.infoControl.remove();
                 }}
                 this.infoControl = L.control({{ position: 'topright' }});
@@ -3960,20 +4331,24 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     // Collapsible session list
                     if (self.sessionListExpanded && self.filteredSessions.length > 0) {{
                         html += `<div class="info-session-list">`;
-                        const toShow = self.filteredSessions.slice(0, 20);
+                        const toShow = self.filteredSessions.slice(0, 50);  // Show more sessions
                         for (const s of toShow) {{
                             const dateStr = s.datetime ? `${{s.datetime.substring(0,4)}}-${{s.datetime.substring(4,6)}}-${{s.datetime.substring(6,8)}}` : '';
                             const dist = s.distance_m > 0 ? ` · ${{(parseFloat(s.distance_m) / 1000).toFixed(1)}}km` : '';
                             html += `<div class="info-session-item" data-athlete="${{s.athlete}}" data-datetime="${{s.datetime}}">`;
+                            html += `<div class="info-session-main">`;
                             html += `<span class="info-session-date">${{dateStr}}</span>`;
                             html += `<span class="info-session-type">${{s.type || ''}}</span>`;
                             html += `<div class="info-session-name">${{s.name || 'Untitled'}}${{dist}}</div>`;
                             html += `</div>`;
+                            html += `<a href="#/session/${{s.athlete}}/${{s.datetime}}" class="info-session-link" title="View Activity">→</a>`;
+                            html += `</div>`;
                         }}
-                        if (self.filteredSessions.length > 20) {{
+                        if (self.filteredSessions.length > 50) {{
                             html += `<div class="info-session-more"><a href="#/sessions">View all ${{self.filteredSessions.length}} sessions</a></div>`;
                         }}
                         html += `</div>`;
+                        html += `<div class="info-resize-handle" title="Drag to resize"></div>`;
                     }}
 
                     // Zoom hint
@@ -3986,6 +4361,59 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
                     // Set up event listeners after DOM is ready
                     setTimeout(() => {{
+                        // Restore scroll position and height
+                        const newList = div.querySelector('.info-session-list');
+                        if (newList) {{
+                            // Apply saved height if user has resized
+                            if (self.sessionListHeight && self.sessionListHeight > 0) {{
+                                newList.style.maxHeight = self.sessionListHeight + 'px';
+                            }}
+                            // Restore scroll position - use requestAnimationFrame for reliability
+                            if (savedScrollTop > 0) {{
+                                requestAnimationFrame(() => {{
+                                    newList.scrollTop = savedScrollTop;
+                                }});
+                            }}
+                            // Prevent scroll events from propagating to map (fixes touchpad scrolling)
+                            newList.addEventListener('wheel', (e) => {{
+                                e.stopPropagation();
+                            }}, {{ passive: true }});
+                        }}
+
+                        // Prevent map interactions on the entire panel
+                        L.DomEvent.disableScrollPropagation(div);
+                        L.DomEvent.disableClickPropagation(div);
+
+                        // Resize handle drag functionality
+                        const resizeHandle = div.querySelector('.info-resize-handle');
+                        if (resizeHandle && newList) {{
+                            let startY, startHeight;
+                            const onMouseMove = (e) => {{
+                                const delta = e.clientY - startY;
+                                // Allow expanding up to 80% of viewport height
+                                const maxHeight = Math.min(800, window.innerHeight * 0.8);
+                                const newHeight = Math.max(100, Math.min(maxHeight, startHeight + delta));
+                                newList.style.maxHeight = newHeight + 'px';
+                                // Save height for persistence
+                                self.sessionListHeight = newHeight;
+                            }};
+                            const onMouseUp = () => {{
+                                document.removeEventListener('mousemove', onMouseMove);
+                                document.removeEventListener('mouseup', onMouseUp);
+                                document.body.style.cursor = '';
+                                document.body.style.userSelect = '';
+                            }};
+                            resizeHandle.addEventListener('mousedown', (e) => {{
+                                e.preventDefault();
+                                startY = e.clientY;
+                                startHeight = newList.offsetHeight;
+                                document.body.style.cursor = 'ns-resize';
+                                document.body.style.userSelect = 'none';
+                                document.addEventListener('mousemove', onMouseMove);
+                                document.addEventListener('mouseup', onMouseUp);
+                            }});
+                        }}
+
                         // Toggle session list
                         const toggle = div.querySelector('.info-sessions-toggle');
                         if (toggle) {{
@@ -3995,13 +4423,21 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                                 self.updateInfo();
                             }});
                         }}
-                        // Session item clicks
+                        // Session item clicks - zoom to session on map
                         div.querySelectorAll('.info-session-item').forEach(item => {{
-                            item.addEventListener('click', () => {{
-                                const athlete = item.dataset.athlete;
-                                const datetime = item.dataset.datetime;
-                                location.hash = `#/session/${{athlete}}/${{datetime}}`;
-                            }});
+                            // Click on main area zooms to session
+                            const mainArea = item.querySelector('.info-session-main');
+                            if (mainArea) {{
+                                mainArea.style.cursor = 'pointer';
+                                mainArea.addEventListener('click', (e) => {{
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const athlete = item.dataset.athlete;
+                                    const datetime = item.dataset.datetime;
+                                    self.zoomToSession(athlete, datetime);
+                                }});
+                            }}
+                            // Arrow link navigates to session (handled by href)
                         }});
                     }}, 0);
 
@@ -4011,18 +4447,259 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             }},
 
             setupLegend() {{
-                const legend = L.control({{ position: 'bottomright' }});
+                this.legendControl = L.control({{ position: 'bottomright' }});
                 const self = this;
-                legend.onAdd = function() {{
+                this.legendControl.onAdd = function() {{
                     const div = L.DomUtil.create('div', 'info legend');
-                    div.innerHTML = '<b>Activity Types</b><br>';
-                    for (const [type, color] of Object.entries(self.typeColors)) {{
-                        div.innerHTML += `<i style="background:${{color}}"></i> ${{type}}<br>`;
-                    }}
-                    div.innerHTML += '<br><i style="background:#E91E63;border-radius:50%;"></i> Photos';
+                    self.updateLegendContent(div);
                     return div;
                 }};
-                legend.addTo(this.map);
+                this.legendControl.addTo(this.map);
+            }},
+
+            updateLegendContent(div) {{
+                if (!div) {{
+                    div = document.querySelector('.info.legend');
+                }}
+                if (!div) return;
+
+                if (this.displayMode === 'heatmap') {{
+                    div.innerHTML = '<b>Activity Density</b><br>';
+                    div.innerHTML += '<div class="heatmap-gradient"></div>';
+                    div.innerHTML += '<div class="heatmap-labels"><span>Low</span><span>High</span></div>';
+                    div.innerHTML += `<br>${{this.heatmapPoints.length.toLocaleString()}} GPS points`;
+                }} else {{
+                    const currentType = FilterState.get().type || '';
+                    div.innerHTML = '<b>Activity Types</b><br>';
+                    for (const [type, color] of Object.entries(this.typeColors)) {{
+                        const isActive = currentType === type;
+                        div.innerHTML += `<span class="legend-type-item${{isActive ? ' active' : ''}}" data-type="${{type}}" style="cursor:pointer;display:block;padding:2px 4px;margin:1px 0;border-radius:3px;${{isActive ? 'background:rgba(0,0,0,0.1);font-weight:bold;' : ''}}"><i style="background:${{color}}"></i> ${{type}}</span>`;
+                    }}
+                    // Clear filter option when a filter is active
+                    if (currentType) {{
+                        div.innerHTML += `<span class="legend-clear-filter" style="cursor:pointer;display:block;padding:2px 4px;margin-top:4px;color:#666;font-style:italic;">&times; Clear filter</span>`;
+                    }}
+                    div.innerHTML += '<br><i style="background:#E91E63;border-radius:50%;"></i> Photos';
+
+                    // Add click handlers
+                    div.querySelectorAll('.legend-type-item').forEach(item => {{
+                        item.addEventListener('click', (e) => {{
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const clickedType = item.dataset.type;
+                            const current = FilterState.get().type;
+                            // Toggle: if clicking active type, clear it
+                            const newType = current === clickedType ? '' : clickedType;
+                            FilterState.set({{ type: newType }});
+                            FilterState.syncToURL();
+                            this.updateLegendContent(div);
+                        }});
+                        item.addEventListener('mouseenter', () => {{
+                            if (!item.classList.contains('active')) {{
+                                item.style.background = 'rgba(0,0,0,0.05)';
+                            }}
+                        }});
+                        item.addEventListener('mouseleave', () => {{
+                            if (!item.classList.contains('active')) {{
+                                item.style.background = 'transparent';
+                            }}
+                        }});
+                    }});
+                    const clearBtn = div.querySelector('.legend-clear-filter');
+                    if (clearBtn) {{
+                        clearBtn.addEventListener('click', (e) => {{
+                            e.preventDefault();
+                            e.stopPropagation();
+                            FilterState.set({{ type: '' }});
+                            FilterState.syncToURL();
+                            this.updateLegendContent(div);
+                        }});
+                        clearBtn.addEventListener('mouseenter', () => {{
+                            clearBtn.style.background = 'rgba(0,0,0,0.05)';
+                        }});
+                        clearBtn.addEventListener('mouseleave', () => {{
+                            clearBtn.style.background = 'transparent';
+                        }});
+                    }}
+                }}
+            }},
+
+            setupLayersControl() {{
+                const layersControl = L.control({{ position: 'topleft' }});
+                const self = this;
+
+                layersControl.onAdd = function() {{
+                    const div = L.DomUtil.create('div', 'info layers-control');
+
+                    div.innerHTML = `
+                        <div class="layers-control-header">
+                            <svg viewBox="0 0 24 24"><path d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z"/></svg>
+                            Layers
+                        </div>
+                        <div class="layers-section">
+                            <div class="layers-section-label">Display Mode</div>
+                            <label>
+                                <input type="radio" name="displayMode" value="tracks" checked>
+                                Tracks
+                            </label>
+                            <label>
+                                <input type="radio" name="displayMode" value="heatmap">
+                                Heatmap
+                            </label>
+                        </div>
+                        <div class="layers-divider"></div>
+                        <div class="layers-section">
+                            <div class="layers-section-label">Overlays</div>
+                            <label>
+                                <input type="checkbox" name="showMarkers" checked>
+                                Markers
+                            </label>
+                            <label>
+                                <input type="checkbox" name="showPhotos" checked>
+                                Photos
+                            </label>
+                        </div>
+                    `;
+
+                    // Prevent map interactions
+                    L.DomEvent.disableClickPropagation(div);
+                    L.DomEvent.disableScrollPropagation(div);
+
+                    // Display mode radio buttons
+                    div.querySelectorAll('input[name="displayMode"]').forEach(radio => {{
+                        radio.addEventListener('change', (e) => {{
+                            self.setDisplayMode(e.target.value);
+                        }});
+                    }});
+
+                    // Overlay checkboxes
+                    div.querySelector('input[name="showMarkers"]').addEventListener('change', (e) => {{
+                        if (e.target.checked) {{
+                            self.sessionsLayer.addTo(self.map);
+                        }} else {{
+                            self.map.removeLayer(self.sessionsLayer);
+                        }}
+                    }});
+
+                    div.querySelector('input[name="showPhotos"]').addEventListener('change', (e) => {{
+                        if (e.target.checked) {{
+                            self.photosLayer.addTo(self.map);
+                        }} else {{
+                            self.map.removeLayer(self.photosLayer);
+                        }}
+                    }});
+
+                    return div;
+                }};
+
+                layersControl.addTo(this.map);
+            }},
+
+            setDisplayMode(mode) {{
+                this.displayMode = mode;
+
+                if (mode === 'heatmap') {{
+                    // Hide tracks, show heatmap
+                    this.map.removeLayer(this.tracksLayer);
+                    // Auto-load visible tracks for heatmap data
+                    this.loadVisibleTracksForHeatmap();
+                }} else {{
+                    // Hide heatmap, show tracks
+                    if (this.heatmapLayer) {{
+                        this.map.removeLayer(this.heatmapLayer);
+                        // Destroy the layer to avoid stale canvas issues
+                        this.heatmapLayer = null;
+                    }}
+                    this.tracksLayer.addTo(this.map);
+                }}
+
+                // Update legend
+                this.updateLegendContent();
+            }},
+
+            async loadVisibleTracksForHeatmap() {{
+                // Load all visible tracks to populate heatmap data
+                const bounds = this.map.getBounds();
+                // Use allMarkers and filter by both visibility (from filters) and map bounds
+                const visibleMarkers = (this.allMarkers || []).filter(m => {{
+                    if (!m.visible) return false;
+                    const pos = m.marker.getLatLng();
+                    return bounds.contains(pos);
+                }});
+
+                // Load tracks for visible markers that aren't already loaded
+                const loadPromises = [];
+                for (const m of visibleMarkers) {{
+                    const trackKey = `${{m.athlete}}/${{m.session}}`;
+                    if (!this.loadedTracks.has(trackKey) && !this.loadingTracks.has(trackKey)) {{
+                        loadPromises.push(this.loadTrack(m.athlete, m.session, m.color));
+                    }}
+                }}
+
+                // Wait for some tracks to load before showing heatmap
+                if (loadPromises.length > 0) {{
+                    console.log(`Loading ${{loadPromises.length}} tracks for heatmap...`);
+                    await Promise.all(loadPromises);
+                }}
+
+                // Now show the heatmap
+                this.createOrShowHeatmap();
+            }},
+
+            createOrShowHeatmap() {{
+                // Don't create heatmap with empty data - causes errors
+                if (this.heatmapPoints.length === 0) {{
+                    console.log('No heatmap points available yet.');
+                    return;
+                }}
+
+                // Sample points if too many (for performance)
+                let points = this.heatmapPoints;
+                const maxPoints = 50000;
+                if (points.length > maxPoints) {{
+                    const step = Math.ceil(points.length / maxPoints);
+                    points = points.filter((_, i) => i % step === 0);
+                }}
+
+                // Create or update heatmap layer
+                const heatData = points.map(p => [p[0], p[1], 1.0]);
+
+                // Always create a fresh layer to avoid stale canvas issues
+                if (this.heatmapLayer) {{
+                    try {{
+                        this.map.removeLayer(this.heatmapLayer);
+                    }} catch (e) {{
+                        // Layer may already be removed
+                    }}
+                    this.heatmapLayer = null;
+                }}
+
+                this.heatmapLayer = L.heatLayer(heatData, {{
+                    radius: 15,
+                    blur: 20,
+                    maxZoom: 17,
+                    gradient: {{
+                        0.0: 'blue',
+                        0.25: 'cyan',
+                        0.5: 'lime',
+                        0.75: 'yellow',
+                        1.0: 'red'
+                    }}
+                }}).addTo(this.map);
+
+                // Update legend with point count
+                this.updateLegendContent();
+            }},
+
+            addPointsToHeatmap(points) {{
+                // Called when tracks are loaded to add points to heatmap data
+                this.heatmapPoints = this.heatmapPoints.concat(points);
+
+                // If heatmap is active, update it
+                if (this.displayMode === 'heatmap' && this.heatmapLayer) {{
+                    this.createOrShowHeatmap();
+                    this.updateLegendContent();
+                }}
             }}
         }};
         window.MapView = MapView;
@@ -4040,46 +4717,18 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             selectedSession: null,
 
             init() {{
-                // Set up filter event listeners that update shared FilterState
-                let searchTimeout = null;
-                document.getElementById('session-search').addEventListener('input', (e) => {{
-                    this.page = 1;
-                    // Debounce search
-                    clearTimeout(searchTimeout);
-                    searchTimeout = setTimeout(() => {{
-                        FilterState.set({{ search: e.target.value }});
-                        FilterState.syncToURL();
-                    }}, 300);
+                // Initialize filter bar using shared FilterBar component
+                FilterBar.render('sessions-filter-bar', {{
+                    showSearch: true,
+                    showType: true,
+                    showDatePresets: true,
+                    showDates: true
                 }});
-
-                document.getElementById('type-filter').addEventListener('change', (e) => {{
-                    this.page = 1;
-                    FilterState.set({{ type: e.target.value }});
-                    FilterState.syncToURL();
-                }});
-
-                document.getElementById('date-from').addEventListener('change', (e) => {{
-                    this.page = 1;
-                    FilterState.set({{ dateFrom: e.target.value }});
-                    FilterState.syncToURL();
-                }});
-
-                document.getElementById('date-to').addEventListener('change', (e) => {{
-                    this.page = 1;
-                    FilterState.set({{ dateTo: e.target.value }});
-                    FilterState.syncToURL();
-                }});
-
-                document.getElementById('clear-filters').addEventListener('click', () => {{
-                    this.page = 1;
-                    FilterState.clear();
-                    FilterState.syncToURL();
-                    this.syncFiltersFromState();
-                }});
+                FilterBar.init('sessions-filter-bar');
 
                 // Subscribe to FilterState changes
                 FilterState.onChange(() => {{
-                    this.syncFiltersFromState();
+                    this.page = 1;
                     this.applyFiltersAndRender();
                 }});
 
@@ -4130,44 +4779,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
             setSessions(sessions) {{
                 this.sessions = sessions;
-                this.populateTypeFilter();
-                // Sync filter UI from shared state (loaded from URL)
-                this.syncFiltersFromState();
-                this.applyFiltersAndRender();
-            }},
-
-            populateTypeFilter() {{
-                const types = new Set();
-                for (const s of this.sessions) {{
-                    if (s.type) types.add(s.type);
-                }}
-                const select = document.getElementById('type-filter');
-                for (const type of [...types].sort()) {{
-                    const option = document.createElement('option');
-                    option.value = type;
-                    option.textContent = type;
-                    select.appendChild(option);
-                }}
-            }},
-
-            // Sync filter UI inputs from shared FilterState
-            syncFiltersFromState() {{
-                const state = FilterState.get();
-                document.getElementById('session-search').value = state.search;
-                document.getElementById('type-filter').value = state.type;
-                document.getElementById('date-from').value = state.dateFrom;
-                document.getElementById('date-to').value = state.dateTo;
-                // Also update internal filters object
-                this.filters = {{ ...state }};
-            }},
-
-            clearFilters() {{
-                this.filters = {{ search: '', type: '', dateFrom: '', dateTo: '' }};
-                document.getElementById('session-search').value = '';
-                document.getElementById('type-filter').value = '';
-                document.getElementById('date-from').value = '';
-                document.getElementById('date-to').value = '';
-                this.page = 1;
+                // Use shared FilterBar component for type population and state sync
+                FilterBar.populateTypes('sessions-filter-bar', sessions);
+                FilterBar.syncFromState('sessions-filter-bar');
                 this.applyFiltersAndRender();
             }},
 
@@ -4177,6 +4791,9 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
                 // Use shared applyFilters function
                 this.filtered = applyFilters(this.sessions, filters, currentAthlete);
+
+                // Update filter count display
+                FilterBar.updateCount('sessions-filter-bar', this.filtered.length, this.sessions.length);
 
                 this.sort();
                 this.render();
@@ -4269,7 +4886,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                             <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H9V5h6v2z"/></svg>
                             <h3>No sessions found</h3>
                             <p>${{hasFilters ? 'Try adjusting your filters or search terms' : 'No activity data available yet'}}</p>
-                            ${{hasFilters ? '<button class="clear-filters-btn" onclick="SessionsView.clearFilters()">Clear Filters</button>' : ''}}
+                            ${{hasFilters ? '<button class="clear-filters-btn" onclick="FilterState.clear(); FilterState.syncToURL();">Clear Filters</button>' : ''}}
                         </div>
                     </td></tr>`;
                 }} else {{
@@ -5477,11 +6094,23 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     this.monthlyChart = null;
                 }}
 
+                if (!canvas) return; // Canvas may have been removed
+
+                // Remove any existing "no data" message
+                const existingMsg = canvas.parentElement.querySelector('.no-data-message');
+                if (existingMsg) existingMsg.remove();
+
                 if (months.length === 0) {{
                     canvas.style.display = 'none';
-                    canvas.parentElement.innerHTML = '<div style="text-align:center;padding:100px 0;color:#999;">No data available</div>';
+                    const msg = document.createElement('div');
+                    msg.className = 'no-data-message';
+                    msg.style.cssText = 'text-align:center;padding:100px 0;color:#999;';
+                    msg.textContent = 'No data available';
+                    canvas.parentElement.appendChild(msg);
                     return;
                 }}
+
+                canvas.style.display = 'block';
 
                 const labels = months.map(m => m.substring(0, 4) + '-' + m.substring(4, 6));
                 const data = months.map(m => byMonth[m].count);
@@ -5559,11 +6188,23 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     this.typeChart = null;
                 }}
 
+                if (!canvas) return; // Canvas may have been removed
+
+                // Remove any existing "no data" message
+                const existingMsg = canvas.parentElement.querySelector('.no-data-message');
+                if (existingMsg) existingMsg.remove();
+
                 if (types.length === 0) {{
                     canvas.style.display = 'none';
-                    canvas.parentElement.innerHTML = '<div style="text-align:center;padding:100px 0;color:#999;">No data available</div>';
+                    const msg = document.createElement('div');
+                    msg.className = 'no-data-message';
+                    msg.style.cssText = 'text-align:center;padding:100px 0;color:#999;';
+                    msg.textContent = 'No data available';
+                    canvas.parentElement.appendChild(msg);
                     return;
                 }}
+
+                canvas.style.display = 'block';
 
                 const data = types.map(t => byType[t].count);
                 const colors = types.map(t => this.typeColors[t] || '#607D8B');
@@ -5635,11 +6276,13 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
             // Populate filter bar types for all views
             FilterBar.populateTypes('map-filter-bar', this.allSessions);
+            FilterBar.populateTypes('sessions-filter-bar', this.allSessions);
             FilterBar.populateTypes('stats-filter-bar', this.allSessions);
 
             // Sync initial filter state from URL
             FilterState.syncFromURL();
             FilterBar.syncFromState('map-filter-bar');
+            FilterBar.syncFromState('sessions-filter-bar');
             FilterBar.syncFromState('stats-filter-bar');
 
             // Apply initial filters
