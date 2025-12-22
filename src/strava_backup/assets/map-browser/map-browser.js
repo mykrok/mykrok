@@ -1142,7 +1142,7 @@ const MapView = {
                 const createdAt = photo.created_at || '';
                 let localPath = '';
                 if (createdAt) {
-                    const dt = createdAt.replace(/[-:]/g, '').replace(/\\+.*$/, '').substring(0, 15);
+                    const dt = createdAt.replace(/[-:]/g, '').replace(/\+.*$/, '').substring(0, 15);
                     localPath = `athl=${athlete}/ses=${session}/photos/${dt}.jpg`;
                 }
 
@@ -2277,7 +2277,7 @@ const SessionsView = {
                 const createdAt = photo.created_at || '';
                 let localPath = '';
                 if (createdAt) {
-                    const dt = createdAt.replace(/[-:]/g, '').replace(/\\+.*$/, '').substring(0, 15);
+                    const dt = createdAt.replace(/[-:]/g, '').replace(/\+.*$/, '').substring(0, 15);
                     localPath = `athl=${athlete}/ses=${sessionId}/photos/${dt}.jpg`;
                 }
 
