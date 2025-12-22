@@ -115,7 +115,10 @@ class BackupService:
             # Use last activity date as cutoff
             # Only add overlap if last sync was more than 1 day ago (to catch late uploads)
             sync_after = state.last_activity_date.timestamp()
-            if state.last_sync is None or (datetime.now() - state.last_sync).total_seconds() > 86400:
+            if (
+                state.last_sync is None
+                or (datetime.now() - state.last_sync).total_seconds() > 86400
+            ):
                 # Add 1-day overlap for safety when sync hasn't run recently
                 sync_after -= 86400
                 logger.debug("Adding 1-day overlap (last sync was old or never ran)")
@@ -135,8 +138,9 @@ class BackupService:
             log("Dry run mode - no changes will be made")
 
         # Get activities from Strava
-        logger.debug("Fetching activities (after=%s, before=%s, limit=%s)",
-                     sync_after, sync_before, limit)
+        logger.debug(
+            "Fetching activities (after=%s, before=%s, limit=%s)", sync_after, sync_before, limit
+        )
         activities = self.strava.get_activities(
             after=sync_after,
             before=sync_before,
@@ -163,9 +167,16 @@ class BackupService:
 
         total = len(activity_list)
         retry_count = len(retry_ids_to_add)
-        logger.info("Found %d activities to process (%d new/updated, %d retries)",
-                   total + retry_count, total, retry_count)
-        log(f"Found {total} activities to process" + (f" + {retry_count} retries" if retry_count else ""))
+        logger.info(
+            "Found %d activities to process (%d new/updated, %d retries)",
+            total + retry_count,
+            total,
+            retry_count,
+        )
+        log(
+            f"Found {total} activities to process"
+            + (f" + {retry_count} retries" if retry_count else "")
+        )
 
         latest_activity_date: datetime | None = None
         retries_succeeded = 0
@@ -177,8 +188,13 @@ class BackupService:
             is_retry = activity_id in retry_activity_ids
 
             try:
-                logger.debug("[%d/%d] Processing activity %d%s", i, total, activity_id,
-                           " (retry)" if is_retry else "")
+                logger.debug(
+                    "[%d/%d] Processing activity %d%s",
+                    i,
+                    total,
+                    activity_id,
+                    " (retry)" if is_retry else "",
+                )
                 # Get detailed activity
                 detailed = self.strava.get_activity(activity_id)
                 activity = Activity.from_strava_activity(detailed)
@@ -193,7 +209,9 @@ class BackupService:
 
                 if dry_run:
                     status = "NEW" if is_new else "UPDATE"
-                    log(f"  [{i}/{total}] {status}: {activity.name} ({format_session_datetime(activity.start_date)})")
+                    log(
+                        f"  [{i}/{total}] {status}: {activity.name} ({format_session_datetime(activity.start_date)})"
+                    )
                     activities_synced += 1
                     if is_new:
                         activities_new += 1
@@ -212,12 +230,19 @@ class BackupService:
                         if streams:
                             _, manifest = save_tracking_data(session_dir, streams)
                             activity.has_gps = manifest.has_gps
-                            logger.debug("Saved tracking data (%d points, GPS=%s)",
-                                        manifest.row_count, manifest.has_gps)
+                            logger.debug(
+                                "Saved tracking data (%d points, GPS=%s)",
+                                manifest.row_count,
+                                manifest.has_gps,
+                            )
                             log(f"    Saved tracking data ({manifest.row_count} points)", 2)
                     except Exception as e:
-                        logger.warning("Failed to get streams for activity %d: %s",
-                                      activity.id, e, exc_info=True)
+                        logger.warning(
+                            "Failed to get streams for activity %d: %s",
+                            activity.id,
+                            e,
+                            exc_info=True,
+                        )
                         log(f"    Warning: Failed to get streams: {e}", 1)
 
                 # Fetch photos
@@ -231,14 +256,11 @@ class BackupService:
                             activity.photo_count = len(photos)
 
                             # Download photos
-                            downloaded = self._download_photos(
-                                session_dir, photos, log
-                            )
+                            downloaded = self._download_photos(session_dir, photos, log)
                             photos_downloaded += downloaded
                             logger.debug("Downloaded %d photos", downloaded)
                     except Exception as e:
-                        logger.warning("Failed to get photos for activity %d: %s",
-                                      activity.id, e)
+                        logger.warning("Failed to get photos for activity %d: %s", activity.id, e)
                         log(f"    Warning: Failed to get photos: {e}", 1)
 
                 # Fetch comments and kudos
@@ -274,12 +296,15 @@ class BackupService:
 
                 distance_km = activity.distance / 1000 if activity.distance else 0
                 retry_marker = " [RETRY OK]" if is_retry else ""
-                log(f"  [{i}/{total}] {activity.name} ({format_session_datetime(activity.start_date)}) - {distance_km:.1f} km{retry_marker}")
+                log(
+                    f"  [{i}/{total}] {activity.name} ({format_session_datetime(activity.start_date)}) - {distance_km:.1f} km{retry_marker}"
+                )
 
             except Exception as e:
                 error_msg = str(e)
-                logger.error("Error processing activity %d: %s",
-                           activity_id, error_msg, exc_info=True)
+                logger.error(
+                    "Error processing activity %d: %s", activity_id, error_msg, exc_info=True
+                )
 
                 # Add to retry queue (or update existing entry)
                 failure_entry = retry_queue.add_failure(activity_id, e)
@@ -288,17 +313,23 @@ class BackupService:
                 if is_retry:
                     retries_failed += 1
 
-                errors.append({
-                    "activity_id": str(activity_id),
-                    "error": error_msg,
-                    "failure_type": failure_type.value,
-                    "retry_count": failure_entry.retry_count,
-                    "next_retry": failure_entry.next_retry_after.isoformat() if failure_entry.next_retry_after else None,
-                })
+                errors.append(
+                    {
+                        "activity_id": str(activity_id),
+                        "error": error_msg,
+                        "failure_type": failure_type.value,
+                        "retry_count": failure_entry.retry_count,
+                        "next_retry": failure_entry.next_retry_after.isoformat()
+                        if failure_entry.next_retry_after
+                        else None,
+                    }
+                )
 
                 retry_info = ""
                 if failure_entry.next_retry_after:
-                    retry_info = f" (will retry after {failure_entry.next_retry_after.strftime('%H:%M:%S')})"
+                    retry_info = (
+                        f" (will retry after {failure_entry.next_retry_after.strftime('%H:%M:%S')})"
+                    )
                 elif failure_entry.is_permanently_failed():
                     retry_info = " (no more retries)"
 
@@ -330,8 +361,9 @@ class BackupService:
                                 _, manifest = save_tracking_data(session_dir, streams)
                                 activity.has_gps = manifest.has_gps
                         except Exception as e:
-                            logger.warning("Failed to get streams for activity %d: %s",
-                                          activity.id, e)
+                            logger.warning(
+                                "Failed to get streams for activity %d: %s", activity.id, e
+                            )
 
                     # Fetch photos
                     if include_photos:
@@ -343,8 +375,9 @@ class BackupService:
                                 activity.photo_count = len(photos)
                                 photos_downloaded += self._download_photos(session_dir, photos, log)
                         except Exception as e:
-                            logger.warning("Failed to get photos for activity %d: %s",
-                                          activity.id, e)
+                            logger.warning(
+                                "Failed to get photos for activity %d: %s", activity.id, e
+                            )
 
                     # Fetch comments and kudos
                     if include_comments:
@@ -370,24 +403,34 @@ class BackupService:
                     logger.info("Retry succeeded for activity %d", retry_activity_id)
 
                     distance_km = activity.distance / 1000 if activity.distance else 0
-                    log(f"  [RETRY] {activity.name} ({format_session_datetime(activity.start_date)}) - {distance_km:.1f} km [OK]")
+                    log(
+                        f"  [RETRY] {activity.name} ({format_session_datetime(activity.start_date)}) - {distance_km:.1f} km [OK]"
+                    )
 
                 except Exception as e:
                     error_msg = str(e)
-                    logger.error("Error processing retry activity %d: %s",
-                               retry_activity_id, error_msg, exc_info=True)
+                    logger.error(
+                        "Error processing retry activity %d: %s",
+                        retry_activity_id,
+                        error_msg,
+                        exc_info=True,
+                    )
 
                     # Update retry queue entry
                     failure_entry = retry_queue.add_failure(retry_activity_id, e)
                     retries_failed += 1
 
-                    errors.append({
-                        "activity_id": str(retry_activity_id),
-                        "error": error_msg,
-                        "failure_type": FailureType.from_error(e).value,
-                        "retry_count": failure_entry.retry_count,
-                        "next_retry": failure_entry.next_retry_after.isoformat() if failure_entry.next_retry_after else None,
-                    })
+                    errors.append(
+                        {
+                            "activity_id": str(retry_activity_id),
+                            "error": error_msg,
+                            "failure_type": FailureType.from_error(e).value,
+                            "retry_count": failure_entry.retry_count,
+                            "next_retry": failure_entry.next_retry_after.isoformat()
+                            if failure_entry.next_retry_after
+                            else None,
+                        }
+                    )
 
                     retry_info = ""
                     if failure_entry.next_retry_after:
@@ -428,17 +471,31 @@ class BackupService:
                 due = retry_queue.get_due_retries()
                 if not due and retry_queue.failed_activities:
                     next_retry = min(
-                        (f.next_retry_after for f in retry_queue.failed_activities if f.next_retry_after),
-                        default=None
+                        (
+                            f.next_retry_after
+                            for f in retry_queue.failed_activities
+                            if f.next_retry_after
+                        ),
+                        default=None,
                     )
                     if next_retry:
-                        log(f"  Next retry scheduled for: {next_retry.strftime('%Y-%m-%d %H:%M:%S')}", 1)
+                        log(
+                            f"  Next retry scheduled for: {next_retry.strftime('%Y-%m-%d %H:%M:%S')}",
+                            1,
+                        )
 
-        logger.info("Sync complete: %d activities (%d new, %d updated), %d photos, %d errors, "
-                   "%d retries succeeded, %d retries failed, %d pending",
-                   activities_synced, activities_new, activities_updated,
-                   photos_downloaded, len(errors), retries_succeeded, retries_failed,
-                   retry_queue.get_pending_count())
+        logger.info(
+            "Sync complete: %d activities (%d new, %d updated), %d photos, %d errors, "
+            "%d retries succeeded, %d retries failed, %d pending",
+            activities_synced,
+            activities_new,
+            activities_updated,
+            photos_downloaded,
+            len(errors),
+            retries_succeeded,
+            retries_failed,
+            retry_queue.get_pending_count(),
+        )
 
         return {
             "athlete": username,
@@ -687,20 +744,24 @@ class BackupService:
                 # Rate limit hit - stop processing to avoid data loss
                 logger.warning("Rate limit exceeded, stopping refresh: %s", e)
                 log("Rate limit exceeded - stopping to preserve data", 0)
-                errors.append({
-                    "session": session_key,
-                    "activity_id": activity.id,
-                    "error": f"Rate limit: {e}",
-                })
+                errors.append(
+                    {
+                        "session": session_key,
+                        "activity_id": activity.id,
+                        "error": f"Rate limit: {e}",
+                    }
+                )
                 break  # Stop processing more activities
 
             except Exception as e:
                 logger.warning("Failed to refresh social data for %s: %s", session_key, e)
-                errors.append({
-                    "session": session_key,
-                    "activity_id": activity.id,
-                    "error": str(e),
-                })
+                errors.append(
+                    {
+                        "session": session_key,
+                        "activity_id": activity.id,
+                        "error": str(e),
+                    }
+                )
 
         # Update sessions.tsv
         if activities_updated > 0 and not dry_run:
@@ -771,11 +832,13 @@ class BackupService:
             log("    Saved profile to athlete.json", 1)
         except Exception as e:
             logger.warning("Failed to save athlete profile: %s", e)
-            errors.append({
-                "username": athlete.username,
-                "error": str(e),
-                "type": "profile",
-            })
+            errors.append(
+                {
+                    "username": athlete.username,
+                    "error": str(e),
+                    "type": "profile",
+                }
+            )
 
         # Download avatar if profile_url is available
         if athlete.profile_url:
@@ -814,11 +877,13 @@ class BackupService:
 
             except Exception as e:
                 logger.warning("Failed to download avatar: %s", e)
-                errors.append({
-                    "username": athlete.username,
-                    "error": str(e),
-                    "type": "avatar",
-                })
+                errors.append(
+                    {
+                        "username": athlete.username,
+                        "error": str(e),
+                        "type": "avatar",
+                    }
+                )
 
         # Regenerate athletes.tsv with updated profile info
         try:
@@ -826,13 +891,213 @@ class BackupService:
             log("Updated athletes.tsv", 1)
         except Exception as e:
             logger.warning("Failed to update athletes.tsv: %s", e)
-            errors.append({
-                "error": str(e),
-                "type": "athletes_tsv",
-            })
+            errors.append(
+                {
+                    "error": str(e),
+                    "type": "athletes_tsv",
+                }
+            )
 
         return {
             "profiles_updated": profiles_updated,
             "avatars_downloaded": avatars_downloaded,
+            "errors": errors,
+        }
+
+    def check_and_fix(
+        self,
+        dry_run: bool = False,
+        log_callback: Callable[[str, int], None] | None = None,
+    ) -> dict[str, Any]:
+        """Check data integrity and fix missing items.
+
+        Iterates through all local sessions and verifies:
+        - Photos exist if has_photos=True and photo_count > 0
+        - Tracking data exists if has_gps=True
+        - Parquet files are readable
+
+        Missing data is re-fetched from Strava API.
+
+        Args:
+            dry_run: If True, only report what would be fixed.
+            log_callback: Optional callback for logging.
+
+        Returns:
+            Dictionary with check/fix results.
+        """
+        import pyarrow.parquet as pq
+
+        from strava_backup.lib.paths import (
+            get_athlete_dir,
+            iter_session_dirs,
+        )
+        from strava_backup.models.activity import load_activity
+
+        log = log_callback or (lambda _msg, _lvl: None)
+
+        logger.info("Running data integrity check")
+        log("Checking data integrity for all sessions", 0)
+
+        # Get athlete info
+        logger.debug("Fetching athlete info")
+        athlete = Athlete.from_strava_athlete(self.strava.get_athlete())
+        username = athlete.username
+
+        athlete_dir = get_athlete_dir(self.data_dir, username)
+        if not athlete_dir.exists():
+            log(f"No data found for athlete {username}", 1)
+            return {
+                "sessions_checked": 0,
+                "issues_found": 0,
+                "issues_fixed": 0,
+                "errors": [],
+            }
+
+        sessions_checked = 0
+        issues_found = 0
+        issues_fixed = 0
+        errors: list[dict[str, Any]] = []
+
+        issues_detail: list[dict[str, Any]] = []
+
+        log(f"Scanning sessions for {username}", 1)
+
+        for session_key, session_dir in iter_session_dirs(athlete_dir):
+            sessions_checked += 1
+
+            # Load activity metadata
+            activity = load_activity(session_dir)
+            if activity is None:
+                issues_found += 1
+                issues_detail.append({
+                    "session": session_key,
+                    "issue": "missing_info_json",
+                    "fixed": False,
+                })
+                log(f"  [{session_key}] Missing info.json", 1)
+                continue
+
+            session_issues: list[str] = []
+
+            # Check photos
+            if activity.has_photos and activity.photo_count and activity.photo_count > 0:
+                photos_dir = session_dir / "photos"
+                if not photos_dir.exists():
+                    session_issues.append("missing_photos_dir")
+                else:
+                    photo_files = list(photos_dir.glob("*.jpg")) + list(photos_dir.glob("*.png"))
+                    if len(photo_files) < activity.photo_count:
+                        session_issues.append(
+                            f"missing_photos({len(photo_files)}/{activity.photo_count})"
+                        )
+
+            # Check tracking data
+            if activity.has_gps:
+                tracking_file = session_dir / "tracking.parquet"
+                if not tracking_file.exists():
+                    session_issues.append("missing_tracking")
+                else:
+                    # Verify parquet is readable
+                    try:
+                        pq.read_table(tracking_file)
+                    except Exception:
+                        session_issues.append("corrupted_tracking")
+
+            if not session_issues:
+                continue
+
+            issues_found += len(session_issues)
+            log(f"  [{session_key}] Issues: {', '.join(session_issues)}", 1)
+
+            for issue in session_issues:
+                issues_detail.append({
+                    "session": session_key,
+                    "activity_id": activity.id,
+                    "issue": issue,
+                    "fixed": False,
+                })
+
+            if dry_run:
+                continue
+
+            # Attempt to fix issues
+            try:
+                fixed_issues: list[str] = []
+
+                # Re-fetch photos if missing
+                if any("photos" in i for i in session_issues):
+                    try:
+                        photos = self.strava.get_activity_photos(activity.id)
+                        if photos:
+                            activity.photos = photos
+                            downloaded = self._download_photos(
+                                session_dir, photos, lambda _m, _l: None
+                            )
+                            if downloaded > 0:
+                                fixed_issues.append(f"photos({downloaded})")
+                                log(f"    Fixed: Downloaded {downloaded} photos", 2)
+                    except Exception as e:
+                        logger.warning("Failed to re-fetch photos: %s", e)
+                        errors.append({
+                            "session": session_key,
+                            "issue": "photos",
+                            "error": str(e),
+                        })
+
+                # Re-fetch tracking data if missing/corrupted
+                if any("tracking" in i for i in session_issues):
+                    try:
+                        streams = self.strava.get_activity_streams(activity.id)
+                        if streams:
+                            _, manifest = save_tracking_data(session_dir, streams)
+                            activity.has_gps = manifest.has_gps
+                            fixed_issues.append("tracking")
+                            log(f"    Fixed: Saved tracking data ({manifest.row_count} points)", 2)
+                    except Exception as e:
+                        logger.warning("Failed to re-fetch tracking: %s", e)
+                        errors.append({
+                            "session": session_key,
+                            "issue": "tracking",
+                            "error": str(e),
+                        })
+
+                if fixed_issues:
+                    issues_fixed += len(fixed_issues)
+                    # Update activity info.json
+                    save_activity(self.data_dir, username, activity)
+
+                # Mark issues as fixed in detail
+                for detail in issues_detail:
+                    if detail["session"] == session_key and any(
+                        detail["issue"].startswith(f) for f in fixed_issues
+                    ):
+                        detail["fixed"] = True
+
+                # Rate limiting
+                time.sleep(0.2)
+
+            except Exception as e:
+                logger.error("Error fixing session %s: %s", session_key, e)
+                errors.append({
+                    "session": session_key,
+                    "error": str(e),
+                })
+
+        # Update sessions.tsv if fixes were made
+        if issues_fixed > 0 and not dry_run:
+            update_sessions_tsv(self.data_dir, username)
+            log("Updated sessions.tsv", 1)
+
+        log(
+            f"Check complete: {sessions_checked} sessions, "
+            f"{issues_found} issues found, {issues_fixed} fixed",
+            0,
+        )
+
+        return {
+            "sessions_checked": sessions_checked,
+            "issues_found": issues_found,
+            "issues_fixed": issues_fixed,
+            "issues": issues_detail,
             "errors": errors,
         }

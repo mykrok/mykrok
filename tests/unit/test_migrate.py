@@ -122,10 +122,7 @@ class TestMigrateCenterToStartCoords:
         athlete_dir = tmp_path / f"{ATHLETE_PREFIX}testuser"
         athlete_dir.mkdir()
 
-        original_content = (
-            "datetime\tname\tdistance_m\n"
-            "20251218T120000\tTest Run\t5000\n"
-        )
+        original_content = "datetime\tname\tdistance_m\n" "20251218T120000\tTest Run\t5000\n"
         sessions_tsv = athlete_dir / "sessions.tsv"
         sessions_tsv.write_text(original_content)
 
@@ -158,38 +155,46 @@ def create_fake_legacy_dataset(data_dir: Path) -> dict[str, Path]:
     session_dir.mkdir()
 
     info_json = session_dir / "info.json"
-    info_json.write_text(json.dumps({
-        "id": 12345678,
-        "name": "Morning Run",
-        "type": "Run",
-        "sport_type": "Run",
-        "start_date": "2025-12-18T12:00:00Z",
-        "start_date_local": "2025-12-18T07:00:00",
-        "timezone": "(GMT-05:00) America/New_York",
-        "distance": 5000.0,
-        "moving_time": 1800,
-        "elapsed_time": 1900,
-        "total_elevation_gain": 50.0,
-        "calories": 400,
-        "has_gps": True,
-        "has_photos": False,
-        "photo_count": 0,
-        "kudos_count": 5,
-        "comment_count": 2,
-        "athlete_count": 1,
-        "comments": [],
-        "kudos": [],
-    }))
+    info_json.write_text(
+        json.dumps(
+            {
+                "id": 12345678,
+                "name": "Morning Run",
+                "type": "Run",
+                "sport_type": "Run",
+                "start_date": "2025-12-18T12:00:00Z",
+                "start_date_local": "2025-12-18T07:00:00",
+                "timezone": "(GMT-05:00) America/New_York",
+                "distance": 5000.0,
+                "moving_time": 1800,
+                "elapsed_time": 1900,
+                "total_elevation_gain": 50.0,
+                "calories": 400,
+                "has_gps": True,
+                "has_photos": False,
+                "photo_count": 0,
+                "kudos_count": 5,
+                "comment_count": 2,
+                "athlete_count": 1,
+                "comments": [],
+                "kudos": [],
+            }
+        )
+    )
 
     # Create tracking.json manifest (no actual parquet, but manifest exists)
     tracking_json = session_dir / "tracking.json"
-    tracking_json.write_text(json.dumps({
-        "columns": ["time", "lat", "lng", "altitude"],
-        "row_count": 100,
-        "has_gps": True,
-        "has_hr": False,
-        "has_power": False,
-    }))
+    tracking_json.write_text(
+        json.dumps(
+            {
+                "columns": ["time", "lat", "lng", "altitude"],
+                "row_count": 100,
+                "has_gps": True,
+                "has_hr": False,
+                "has_power": False,
+            }
+        )
+    )
 
     # Create sessions.tsv with OLD center_lat/center_lng columns
     sessions_tsv = athlete_dir / "sessions.tsv"

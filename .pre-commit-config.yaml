@@ -1,0 +1,44 @@
+# Pre-commit hooks for strava-backup
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.3.0
+    hooks:
+      - id: codespell
+        args: [--ignore-words-list, "hist,nd,ba,elemnt,statics,pevent,readding,eacf,aache,decleration,coul,succesfull"]
+        exclude: |
+          (?x)^(
+            tests/e2e/fixtures/|
+            src/strava_backup/assets/|
+            docs/prompts/
+          )$
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        args: [--ignore-missing-imports, --no-warn-unused-ignores]
+        files: ^src/strava_backup/
+        additional_dependencies:
+          - types-requests
+          - click>=8.0

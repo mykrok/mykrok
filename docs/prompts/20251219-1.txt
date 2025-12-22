@@ -1,20 +1,20 @@
 immediate feedback from immediate changes:
 
-very good, besides that you ran it for december of the last year! I now did manual run for this december and it worked nicely! 
+very good, besides that you ran it for december of the last year! I now did manual run for this december and it worked nicely!
 
 - Add to templated README.md recommendation to install visidata with
-  pyarrow to view those parquet and other structured records files. 
+  pyarrow to view those parquet and other structured records files.
 
 - Spurious logs: even running strava-backup sync --help produces log file!
   that's undesired -- see so that running --help or --version does not
-  produce logs!  
+  produce logs!
 
 - log filenames and --after/--before options: use the same datetime formatting
    and use format like 20251202T222856 not 20251202-222856 as you do in
-  the logs now so no spaces/dashes (keep allowing for dates or date times). 
+  the logs now so no spaces/dashes (keep allowing for dates or date times).
 
 - "kudos" entries in info.json seems to lack athlete_id -- set to null,
-  investigate and fix.  
+  investigate and fix.
 
 - sub=yhalchenko/sessions.tsv issues:
 

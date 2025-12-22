@@ -401,9 +401,7 @@ class TestFullScreenSessionView:
         # Full session view should be visible
         page.wait_for_selector("#view-session.active", timeout=5000)
 
-    def test_full_session_view_shows_content(
-        self, demo_server: str, page: Page
-    ) -> None:
+    def test_full_session_view_shows_content(self, demo_server: str, page: Page) -> None:
         """Verify full-screen session view shows session content."""
         page.goto(f"{demo_server}/strava-backup.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
@@ -420,9 +418,7 @@ class TestFullScreenSessionView:
         assert session_name != "Loading..."
         assert len(session_name or "") > 0
 
-    def test_back_button_returns_to_sessions(
-        self, demo_server: str, page: Page
-    ) -> None:
+    def test_back_button_returns_to_sessions(self, demo_server: str, page: Page) -> None:
         """Verify back button returns to sessions view."""
         page.goto(f"{demo_server}/strava-backup.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
@@ -469,9 +465,7 @@ class TestFullScreenSessionView:
         assert session_name != "Activity Name"
         assert session_name != "Session Not Found"
 
-    def test_permalink_preserved_on_map_interaction(
-        self, demo_server: str, page: Page
-    ) -> None:
+    def test_permalink_preserved_on_map_interaction(self, demo_server: str, page: Page) -> None:
         """Verify session permalink is preserved when map loads."""
         page.goto(f"{demo_server}/strava-backup.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
@@ -512,9 +506,7 @@ class TestNavigation:
         page.wait_for_selector("#view-stats.active", timeout=5000)
         assert "#/stats" in page.url
 
-    def test_stats_tab_navigates_from_sessions(
-        self, demo_server: str, page: Page
-    ) -> None:
+    def test_stats_tab_navigates_from_sessions(self, demo_server: str, page: Page) -> None:
         """Verify clicking Stats tab from Sessions view navigates to Stats."""
         page.goto(f"{demo_server}/strava-backup.html#/sessions")
         page.wait_for_selector("#view-sessions.active", timeout=10000)
@@ -526,9 +518,7 @@ class TestNavigation:
         page.wait_for_selector("#view-stats.active", timeout=5000)
         assert "#/stats" in page.url
 
-    def test_map_from_stats_uses_reasonable_zoom(
-        self, demo_server: str, page: Page
-    ) -> None:
+    def test_map_from_stats_uses_reasonable_zoom(self, demo_server: str, page: Page) -> None:
         """Verify navigating to Map from Stats doesn't use extreme zoom levels."""
         # First go to stats with some zoom params in URL (simulating prior navigation)
         page.goto(f"{demo_server}/strava-backup.html#/stats?z=19&lat=18.5989&lng=15.4742")
@@ -551,9 +541,7 @@ class TestNavigation:
                 # Should be world view (3) or a reasonable default
                 assert zoom < 15, f"Zoom level {zoom} is too high for default navigation"
 
-    def test_sessions_tab_navigates_from_stats(
-        self, demo_server: str, page: Page
-    ) -> None:
+    def test_sessions_tab_navigates_from_stats(self, demo_server: str, page: Page) -> None:
         """Verify clicking Sessions tab from Stats view navigates properly."""
         page.goto(f"{demo_server}/strava-backup.html#/stats")
         page.wait_for_selector("#view-stats.active", timeout=10000)
@@ -565,9 +553,7 @@ class TestNavigation:
         page.wait_for_selector("#view-sessions.active", timeout=5000)
         assert "#/sessions" in page.url
 
-    def test_map_tab_navigates_from_sessions(
-        self, demo_server: str, page: Page
-    ) -> None:
+    def test_map_tab_navigates_from_sessions(self, demo_server: str, page: Page) -> None:
         """Verify clicking Map tab from Sessions view navigates properly."""
         page.goto(f"{demo_server}/strava-backup.html#/sessions")
         page.wait_for_selector("#view-sessions.active", timeout=10000)

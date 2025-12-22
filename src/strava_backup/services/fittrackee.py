@@ -181,22 +181,26 @@ class FitTrackeeExporter:
                 # Check if already exported
                 if not force and state.is_exported(session_key):
                     skipped += 1
-                    details.append({
-                        "ses": session_key,
-                        "status": "skipped",
-                        "reason": "already_exported",
-                    })
+                    details.append(
+                        {
+                            "ses": session_key,
+                            "status": "skipped",
+                            "reason": "already_exported",
+                        }
+                    )
                     continue
 
                 # Check for GPS data
                 manifest = load_tracking_manifest(session_dir)
                 if not manifest or not manifest.has_gps:
                     skipped += 1
-                    details.append({
-                        "ses": session_key,
-                        "status": "skipped",
-                        "reason": "no_gps",
-                    })
+                    details.append(
+                        {
+                            "ses": session_key,
+                            "status": "skipped",
+                            "reason": "no_gps",
+                        }
+                    )
                     log(f"  Skipping {session_key} (no GPS data)", 1)
                     continue
 
@@ -211,11 +215,13 @@ class FitTrackeeExporter:
                 if dry_run:
                     sport_id = self._get_sport_id(activity.type)
                     log(f"  Would export: {activity.name} ({session_key}) as sport_id={sport_id}")
-                    details.append({
-                        "ses": session_key,
-                        "status": "would_export",
-                        "sport_id": sport_id,
-                    })
+                    details.append(
+                        {
+                            "ses": session_key,
+                            "status": "would_export",
+                            "sport_id": sport_id,
+                        }
+                    )
                     continue
 
                 # Export to FitTrackee
@@ -227,20 +233,24 @@ class FitTrackeeExporter:
                     state.record_export(session_key, workout_id)
                     save_fittrackee_export_state(self.data_dir, username, state)
 
-                    details.append({
-                        "ses": session_key,
-                        "ft_workout_id": workout_id,
-                        "status": "exported",
-                    })
+                    details.append(
+                        {
+                            "ses": session_key,
+                            "ft_workout_id": workout_id,
+                            "status": "exported",
+                        }
+                    )
                     log(f"  Exported: {activity.name} ({session_key}) -> workout_id={workout_id}")
 
                 except Exception as e:
                     failed += 1
-                    details.append({
-                        "ses": session_key,
-                        "status": "failed",
-                        "error": str(e),
-                    })
+                    details.append(
+                        {
+                            "ses": session_key,
+                            "status": "failed",
+                            "error": str(e),
+                        }
+                    )
                     log(f"  Failed: {activity.name} ({session_key}) - {e}")
 
         return {
@@ -287,9 +297,7 @@ class FitTrackeeExporter:
 
         # Upload to FitTrackee
         files = {"file": ("activity.gpx", gpx_content.encode("utf-8"), "application/gpx+xml")}
-        data = {
-            "data": f'{{"sport_id": {sport_id}, "title": "{title}", "notes": "{notes}"}}'
-        }
+        data = {"data": f'{{"sport_id": {sport_id}, "title": "{title}", "notes": "{notes}"}}'}
 
         response = requests.post(
             f"{self.url}/api/workouts",
@@ -300,7 +308,9 @@ class FitTrackeeExporter:
         )
 
         if response.status_code not in (200, 201):
-            raise RuntimeError(f"FitTrackee upload failed: {response.status_code} - {response.text}")
+            raise RuntimeError(
+                f"FitTrackee upload failed: {response.status_code} - {response.text}"
+            )
 
         result = response.json()
 

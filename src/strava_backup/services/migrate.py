@@ -38,7 +38,7 @@ def migrate_athlete_prefixes(data_dir: Path, dry_run: bool = False) -> list[tupl
 
     for entry in data_dir.iterdir():
         if entry.is_dir() and entry.name.startswith(ATHLETE_PREFIX_LEGACY):
-            username = entry.name[len(ATHLETE_PREFIX_LEGACY):]
+            username = entry.name[len(ATHLETE_PREFIX_LEGACY) :]
             new_path = data_dir / f"{ATHLETE_PREFIX}{username}"
 
             if new_path.exists():
@@ -112,19 +112,21 @@ def generate_athletes_tsv(data_dir: Path) -> Path:
                     if sport:
                         activity_types.add(sport)
 
-        rows.append({
-            "username": username,
-            "firstname": athlete.firstname if athlete else "",
-            "lastname": athlete.lastname if athlete else "",
-            "city": athlete.city if athlete else "",
-            "country": athlete.country if athlete else "",
-            "session_count": session_count,
-            "first_activity": first_activity or "",
-            "last_activity": last_activity or "",
-            "total_distance_km": round(total_distance_m / 1000, 1),
-            "total_moving_time_h": round(total_moving_time_s / 3600, 1),
-            "activity_types": ",".join(sorted(activity_types)),
-        })
+        rows.append(
+            {
+                "username": username,
+                "firstname": athlete.firstname if athlete else "",
+                "lastname": athlete.lastname if athlete else "",
+                "city": athlete.city if athlete else "",
+                "country": athlete.country if athlete else "",
+                "session_count": session_count,
+                "first_activity": first_activity or "",
+                "last_activity": last_activity or "",
+                "total_distance_km": round(total_distance_m / 1000, 1),
+                "total_moving_time_h": round(total_moving_time_s / 3600, 1),
+                "activity_types": ",".join(sorted(activity_types)),
+            }
+        )
 
     # Write TSV
     fieldnames = [

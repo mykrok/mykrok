@@ -18,7 +18,7 @@ def run_cmd(
     cwd: Path | None = None,
     check: bool = True,
     capture: bool = False,
-) -> subprocess.CompletedProcess:
+) -> subprocess.CompletedProcess[Any]:
     """Run a command and optionally capture output."""
     kwargs: dict[str, Any] = {"cwd": cwd, "check": check}
     if capture:
@@ -130,12 +130,12 @@ def generate_demo_data(output_dir: Path, seed: int = 42) -> dict[str, Any]:
         tests_path = repo_root / "tests" / "e2e" / "fixtures"
         if tests_path.exists():
             sys.path.insert(0, str(tests_path))
-            from generate_fixtures import generate_fixtures  # type: ignore[import-not-found]
+            from generate_fixtures import generate_fixtures  # type: ignore[no-redef]
         else:
             raise ImportError(
                 "Cannot find generate_fixtures. "
                 "This command must be run from within the strava-backup repository."
-            )
+            ) from None
 
     random.seed(seed)
     generate_fixtures(output_dir)

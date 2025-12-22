@@ -305,7 +305,7 @@ def iter_athlete_dirs(data_dir: Path) -> Iterator[tuple[str, Path]]:
 
     for entry in data_dir.iterdir():
         if entry.is_dir() and entry.name.startswith(ATHLETE_PREFIX):
-            username = entry.name[len(ATHLETE_PREFIX):]
+            username = entry.name[len(ATHLETE_PREFIX) :]
             yield (username, entry)
 
 
@@ -350,7 +350,7 @@ def extract_username_from_path(path: Path) -> str | None:
     """
     for part in path.parts:
         if part.startswith(ATHLETE_PREFIX):
-            return part[len(ATHLETE_PREFIX):]
+            return part[len(ATHLETE_PREFIX) :]
     return None
 
 

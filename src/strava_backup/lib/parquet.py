@@ -31,19 +31,21 @@ def safe_remove_for_overwrite(path: Path) -> None:
 
 
 # Schema for tracking data (GPS and sensors)
-TRACKING_SCHEMA = pa.schema([
-    ("time", pa.float64()),           # Seconds from activity start
-    ("lat", pa.float64()),            # GPS latitude in decimal degrees
-    ("lng", pa.float64()),            # GPS longitude in decimal degrees
-    ("altitude", pa.float32()),       # Elevation in meters
-    ("distance", pa.float32()),       # Cumulative distance in meters
-    ("heartrate", pa.int16()),        # Heart rate in BPM
-    ("cadence", pa.int16()),          # Cadence (RPM or SPM)
-    ("watts", pa.int16()),            # Power in watts
-    ("temp", pa.float32()),           # Temperature in Celsius
-    ("velocity_smooth", pa.float32()),  # Smoothed velocity in m/s
-    ("grade_smooth", pa.float32()),   # Smoothed grade percentage
-])
+TRACKING_SCHEMA = pa.schema(
+    [
+        ("time", pa.float64()),  # Seconds from activity start
+        ("lat", pa.float64()),  # GPS latitude in decimal degrees
+        ("lng", pa.float64()),  # GPS longitude in decimal degrees
+        ("altitude", pa.float32()),  # Elevation in meters
+        ("distance", pa.float32()),  # Cumulative distance in meters
+        ("heartrate", pa.int16()),  # Heart rate in BPM
+        ("cadence", pa.int16()),  # Cadence (RPM or SPM)
+        ("watts", pa.int16()),  # Power in watts
+        ("temp", pa.float32()),  # Temperature in Celsius
+        ("velocity_smooth", pa.float32()),  # Smoothed velocity in m/s
+        ("grade_smooth", pa.float32()),  # Smoothed grade percentage
+    ]
+)
 
 
 def get_tracking_schema() -> pa.Schema:

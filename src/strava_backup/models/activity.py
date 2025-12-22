@@ -161,9 +161,13 @@ class Activity:
             distance=float(strava_activity.distance) if strava_activity.distance else 0.0,
             moving_time=_duration_to_seconds(strava_activity.moving_time),
             elapsed_time=_duration_to_seconds(strava_activity.elapsed_time),
-            total_elevation_gain=float(strava_activity.total_elevation_gain) if strava_activity.total_elevation_gain else None,
+            total_elevation_gain=float(strava_activity.total_elevation_gain)
+            if strava_activity.total_elevation_gain
+            else None,
             calories=strava_activity.calories,
-            average_speed=float(strava_activity.average_speed) if strava_activity.average_speed else None,
+            average_speed=float(strava_activity.average_speed)
+            if strava_activity.average_speed
+            else None,
             max_speed=float(strava_activity.max_speed) if strava_activity.max_speed else None,
             average_heartrate=strava_activity.average_heartrate,
             max_heartrate=strava_activity.max_heartrate,
@@ -196,7 +200,9 @@ class Activity:
             "type": self.type,
             "sport_type": self.sport_type,
             "start_date": self.start_date.isoformat() if self.start_date else None,
-            "start_date_local": self.start_date_local.isoformat() if self.start_date_local else None,
+            "start_date_local": self.start_date_local.isoformat()
+            if self.start_date_local
+            else None,
             "timezone": self.timezone,
             "distance": self.distance,
             "moving_time": self.moving_time,
@@ -447,29 +453,31 @@ def update_sessions_tsv(data_dir: Path, username: str) -> Path:
                         start_lat = str(round(coords[0][0], 6))
                         start_lng = str(round(coords[0][1], 6))
 
-            writer.writerow({
-                "datetime": session_key,
-                "type": activity.type,
-                "sport": activity.sport_type,
-                "name": activity.name,
-                "distance_m": activity.distance,
-                "moving_time_s": activity.moving_time,
-                "elapsed_time_s": activity.elapsed_time,
-                "elevation_gain_m": activity.total_elevation_gain or "",
-                "calories": activity.calories or "",
-                "avg_hr": activity.average_heartrate or "",
-                "max_hr": activity.max_heartrate or "",
-                "avg_watts": activity.average_watts or "",
-                "gear_id": activity.gear_id or "",
-                "athletes": activity.athlete_count,
-                "kudos_count": activity.kudos_count,
-                "comment_count": activity.comment_count,
-                "has_gps": "true" if activity.has_gps else "false",
-                "photos_path": photos_path,
-                "photo_count": activity.photo_count,
-                "start_lat": start_lat,
-                "start_lng": start_lng,
-            })
+            writer.writerow(
+                {
+                    "datetime": session_key,
+                    "type": activity.type,
+                    "sport": activity.sport_type,
+                    "name": activity.name,
+                    "distance_m": activity.distance,
+                    "moving_time_s": activity.moving_time,
+                    "elapsed_time_s": activity.elapsed_time,
+                    "elevation_gain_m": activity.total_elevation_gain or "",
+                    "calories": activity.calories or "",
+                    "avg_hr": activity.average_heartrate or "",
+                    "max_hr": activity.max_heartrate or "",
+                    "avg_watts": activity.average_watts or "",
+                    "gear_id": activity.gear_id or "",
+                    "athletes": activity.athlete_count,
+                    "kudos_count": activity.kudos_count,
+                    "comment_count": activity.comment_count,
+                    "has_gps": "true" if activity.has_gps else "false",
+                    "photos_path": photos_path,
+                    "photo_count": activity.photo_count,
+                    "start_lat": start_lat,
+                    "start_lng": start_lng,
+                }
+            )
 
     return sessions_path
 
@@ -499,7 +507,9 @@ def read_sessions_tsv(data_dir: Path, username: str) -> list[dict[str, Any]]:
             session["distance_m"] = float(row["distance_m"]) if row["distance_m"] else 0.0
             session["moving_time_s"] = int(row["moving_time_s"]) if row["moving_time_s"] else 0
             session["elapsed_time_s"] = int(row["elapsed_time_s"]) if row["elapsed_time_s"] else 0
-            session["elevation_gain_m"] = float(row["elevation_gain_m"]) if row["elevation_gain_m"] else None
+            session["elevation_gain_m"] = (
+                float(row["elevation_gain_m"]) if row["elevation_gain_m"] else None
+            )
             session["calories"] = int(row["calories"]) if row["calories"] else None
             session["avg_hr"] = float(row["avg_hr"]) if row["avg_hr"] else None
             session["max_hr"] = int(row["max_hr"]) if row["max_hr"] else None

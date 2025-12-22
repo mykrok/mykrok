@@ -53,6 +53,8 @@ devel = [
     "types-requests",
     "tox>=4.0",
     "tox-uv>=1.0",
+    "pre-commit>=3.0",
+    "codespell>=2.2",
 ]
 e2e = [
     "strava-backup[test]",

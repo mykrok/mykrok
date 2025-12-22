@@ -139,9 +139,7 @@ class TestStravaClientMocked:
             assert activities[0].id == 12345678901
             assert activities[0].name == "Morning Run"
 
-    def test_get_activity_streams(
-        self, mock_config: Config, sample_strava_streams: dict
-    ) -> None:
+    def test_get_activity_streams(self, mock_config: Config, sample_strava_streams: dict) -> None:
         """Test fetching activity streams."""
         from strava_backup.services.strava import StravaClient
 
@@ -391,8 +389,14 @@ class TestBackupServiceMocked:
 
             # Now set up new kudos/comments for refresh
             mock_strava.get_activity_comments.return_value = [
-                {"id": 1001, "text": "Great run!", "created_at": "2025-12-18T08:00:00",
-                 "athlete_id": 54321, "athlete_firstname": "Jane", "athlete_lastname": "Doe"},
+                {
+                    "id": 1001,
+                    "text": "Great run!",
+                    "created_at": "2025-12-18T08:00:00",
+                    "athlete_id": 54321,
+                    "athlete_firstname": "Jane",
+                    "athlete_lastname": "Doe",
+                },
             ]
             mock_strava.get_activity_kudos.return_value = [
                 {"athlete_id": 99999, "firstname": "John", "lastname": "Smith"},

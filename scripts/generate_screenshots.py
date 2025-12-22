@@ -102,16 +102,16 @@ def capture_screenshots(
         page.wait_for_selector(".leaflet-marker-icon", timeout=15000)
         # Wait for all markers to load and let map settle
         page.wait_for_timeout(3000)
-        screenshots.append(take_screenshot(
-            page, output_dir / "01-map-overview", "Map view with activity markers"
-        ))
+        screenshots.append(
+            take_screenshot(page, output_dir / "01-map-overview", "Map view with activity markers")
+        )
 
         # 2. Map View - Zoomed to activity cluster (California region)
         print("  2/9: Map view (zoomed)")
         # Wait for allMarkers to be populated
         page.wait_for_function(
             "window.MapView && window.MapView.allMarkers && window.MapView.allMarkers.length > 0",
-            timeout=15000
+            timeout=15000,
         )
         # Zoom to California region where multiple markers are clustered
         page.evaluate("""() => {
@@ -119,9 +119,9 @@ def capture_screenshots(
             window.mapInstance.setView([36.5, -119.5], 6);
         }""")
         page.wait_for_timeout(2000)
-        screenshots.append(take_screenshot(
-            page, output_dir / "02-map-zoomed", "Activities zoomed to fit"
-        ))
+        screenshots.append(
+            take_screenshot(page, output_dir / "02-map-zoomed", "Activities zoomed to fit")
+        )
 
         # 3. Map View - Marker popup
         print("  3/9: Map view (popup)")
@@ -145,9 +145,9 @@ def capture_screenshots(
         page.wait_for_timeout(1000)
         page.wait_for_selector(".leaflet-popup", timeout=10000)
         page.wait_for_timeout(500)
-        screenshots.append(take_screenshot(
-            page, output_dir / "03-map-popup", "Activity popup with details"
-        ))
+        screenshots.append(
+            take_screenshot(page, output_dir / "03-map-popup", "Activity popup with details")
+        )
 
         # 4. Sessions View - Table with all sessions
         print("  4/9: Sessions view")
@@ -155,17 +155,17 @@ def capture_screenshots(
         page.wait_for_selector("#view-sessions.active", timeout=5000)
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
         page.wait_for_timeout(500)
-        screenshots.append(take_screenshot(
-            page, output_dir / "04-sessions-list", "Sessions list with filters"
-        ))
+        screenshots.append(
+            take_screenshot(page, output_dir / "04-sessions-list", "Sessions list with filters")
+        )
 
         # 5. Sessions View - Filtered by type
         print("  5/9: Sessions view (filtered)")
         page.select_option("#type-filter", "Run")
         page.wait_for_timeout(500)
-        screenshots.append(take_screenshot(
-            page, output_dir / "05-sessions-filtered", "Sessions filtered by type"
-        ))
+        screenshots.append(
+            take_screenshot(page, output_dir / "05-sessions-filtered", "Sessions filtered by type")
+        )
 
         # Clear filter
         page.select_option("#type-filter", "")
@@ -185,9 +185,9 @@ def capture_screenshots(
             page.locator("#sessions-table tbody tr").first.click(force=True)
         page.wait_for_selector("#session-detail:not(.hidden)", timeout=10000)
         page.wait_for_timeout(1500)  # Wait for map to load
-        screenshots.append(take_screenshot(
-            page, output_dir / "06-session-detail", "Session detail panel"
-        ))
+        screenshots.append(
+            take_screenshot(page, output_dir / "06-session-detail", "Session detail panel")
+        )
 
         # 7. Full-screen Session View
         print("  7/9: Full-screen session view")
@@ -196,9 +196,9 @@ def capture_screenshots(
             expand_btn.click()
             page.wait_for_selector("#view-session.active", timeout=5000)
             page.wait_for_timeout(2000)  # Wait for content to load
-            screenshots.append(take_screenshot(
-                page, output_dir / "07-session-full", "Full-screen session view"
-            ))
+            screenshots.append(
+                take_screenshot(page, output_dir / "07-session-full", "Full-screen session view")
+            )
         else:
             print("    (skipped - expand button not found)")
 
@@ -207,17 +207,17 @@ def capture_screenshots(
         page.locator(".nav-tab[data-view='stats']").click()
         page.wait_for_selector("#view-stats.active", timeout=5000)
         page.wait_for_timeout(1000)  # Wait for charts to render
-        screenshots.append(take_screenshot(
-            page, output_dir / "08-stats-dashboard", "Statistics dashboard"
-        ))
+        screenshots.append(
+            take_screenshot(page, output_dir / "08-stats-dashboard", "Statistics dashboard")
+        )
 
         # 9. Stats View - Filtered by athlete
         print("  9/9: Stats view (filtered)")
         page.select_option("#athlete-selector", "alice")
         page.wait_for_timeout(500)
-        screenshots.append(take_screenshot(
-            page, output_dir / "09-stats-filtered", "Statistics by athlete"
-        ))
+        screenshots.append(
+            take_screenshot(page, output_dir / "09-stats-filtered", "Statistics by athlete")
+        )
 
         browser.close()
 
@@ -242,7 +242,9 @@ def capture_screenshots(
 
     total_size = sum(sizes)
     print(f"\nSaved {len(screenshots)} screenshots to {output_dir}")
-    print(f"Total size: {total_size / 1024:.1f} KB (avg: {total_size / len(screenshots) / 1024:.1f} KB each)")
+    print(
+        f"Total size: {total_size / 1024:.1f} KB (avg: {total_size / len(screenshots) / 1024:.1f} KB each)"
+    )
 
     # Return without sizes for compatibility
     return [(f, c) for f, c, _ in screenshots]
@@ -287,9 +289,7 @@ def generate_readme_section(screenshots: list[tuple[str, str]]) -> str:
 
 def main() -> int:
     """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Generate screenshots for documentation"
-    )
+    parser = argparse.ArgumentParser(description="Generate screenshots for documentation")
     parser.add_argument(
         "--output-dir",
         type=Path,

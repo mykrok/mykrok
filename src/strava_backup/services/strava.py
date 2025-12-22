@@ -273,14 +273,16 @@ class StravaClient:
                     athlete_lastname = getattr(athlete, "lastname", None)
 
                 created_at = getattr(c, "created_at", None)
-                result.append({
-                    "id": getattr(c, "id", None),
-                    "text": getattr(c, "text", None),
-                    "created_at": created_at.isoformat() if created_at else None,
-                    "athlete_id": athlete_id,
-                    "athlete_firstname": athlete_firstname,
-                    "athlete_lastname": athlete_lastname,
-                })
+                result.append(
+                    {
+                        "id": getattr(c, "id", None),
+                        "text": getattr(c, "text", None),
+                        "created_at": created_at.isoformat() if created_at else None,
+                        "athlete_id": athlete_id,
+                        "athlete_firstname": athlete_firstname,
+                        "athlete_lastname": athlete_lastname,
+                    }
+                )
             return result
         except (RateLimitExceeded, RateLimitTimeout) as e:
             raise StravaRateLimitError(str(e)) from e
@@ -311,11 +313,13 @@ class StravaClient:
             for k in kudos:
                 # Note: Strava API intentionally does not return athlete IDs
                 # for kudos (privacy). The id will always be None.
-                result.append({
-                    "athlete_id": None,  # API limitation - not available
-                    "firstname": getattr(k, "firstname", None),
-                    "lastname": getattr(k, "lastname", None),
-                })
+                result.append(
+                    {
+                        "athlete_id": None,  # API limitation - not available
+                        "firstname": getattr(k, "firstname", None),
+                        "lastname": getattr(k, "lastname", None),
+                    }
+                )
             return result
         except (RateLimitExceeded, RateLimitTimeout) as e:
             raise StravaRateLimitError(str(e)) from e

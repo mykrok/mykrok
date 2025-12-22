@@ -57,7 +57,9 @@ photos = false
             assert config.sync.photos is False
             assert str(config.data.directory) == "/custom/path"
 
-    def test_load_config_from_local_file(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_load_config_from_local_file(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         """Test loading configuration from local .strava-backup.toml file."""
         # Create local config file
         local_config = tmp_path / ".strava-backup.toml"

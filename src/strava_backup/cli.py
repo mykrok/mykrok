@@ -158,10 +158,10 @@ def main(
 
         # Set up logging
         # Console level based on verbosity, file always at DEBUG
-        console_level = logging.WARNING if quiet else (
-            logging.DEBUG if verbose >= 2 else
-            logging.INFO if verbose >= 1 else
-            logging.INFO
+        console_level = (
+            logging.WARNING
+            if quiet
+            else (logging.DEBUG if verbose >= 2 else logging.INFO if verbose >= 1 else logging.INFO)
         )
         setup_logging(
             config=ctx.config,
@@ -217,12 +217,14 @@ def auth(
             athlete = client.get_athlete()
             ctx.log(f"Already authenticated as {athlete.username}")
             if ctx.json_output:
-                ctx.output.update({
-                    "status": "success",
-                    "message": "Already authenticated",
-                    "athlete_id": athlete.id,
-                    "username": athlete.username,
-                })
+                ctx.output.update(
+                    {
+                        "status": "success",
+                        "message": "Already authenticated",
+                        "athlete_id": athlete.id,
+                        "username": athlete.username,
+                    }
+                )
                 ctx.output.output()
             return
         except Exception:
@@ -245,12 +247,14 @@ def auth(
         ctx.log(f"Token expires at: {token_info.expires_at}")
 
         if ctx.json_output:
-            ctx.output.update({
-                "status": "success",
-                "athlete_id": athlete.id,
-                "username": athlete.username,
-                "token_expires_at": token_info.expires_at,
-            })
+            ctx.output.update(
+                {
+                    "status": "success",
+                    "athlete_id": athlete.id,
+                    "username": athlete.username,
+                    "token_expires_at": token_info.expires_at,
+                }
+            )
             ctx.output.output()
 
     except ValueError as e:
@@ -268,9 +272,11 @@ def auth(
 @main.command()
 @click.option(
     "--what",
-    type=click.Choice(["recent", "full", "social", "athlete-profiles"], case_sensitive=False),
+    type=click.Choice(
+        ["recent", "full", "social", "athlete-profiles", "check-and-fix"], case_sensitive=False
+    ),
     default="recent",
-    help="What to sync: recent (default), full, social (kudos/comments), athlete-profiles (profile info & avatar)",
+    help="What to sync: recent (default), full, social, athlete-profiles, or check-and-fix",
 )
 @click.option(
     "--after",
@@ -335,6 +341,7 @@ def sync(
       full             Sync all activities from Strava (ignores last sync time)
       social           Only refresh kudos/comments for existing local activities
       athlete-profiles Refresh athlete profile info (name, location) and avatar photos
+      check-and-fix    Verify data integrity and re-fetch missing photos/tracking data
     """
     from strava_backup.services.backup import BackupService
 
@@ -363,14 +370,18 @@ def sync(
             )
 
             if ctx.json_output:
-                ctx.output.update({
-                    "status": "success",
-                    **result,
-                })
+                ctx.output.update(
+                    {
+                        "status": "success",
+                        **result,
+                    }
+                )
                 ctx.output.output()
             else:
-                ctx.log(f"\nUpdated {result['profiles_updated']} profile(s), "
-                       f"downloaded {result['avatars_downloaded']} avatar(s)")
+                ctx.log(
+                    f"\nUpdated {result['profiles_updated']} profile(s), "
+                    f"downloaded {result['avatars_downloaded']} avatar(s)"
+                )
                 if result.get("errors"):
                     ctx.log(f"Errors: {len(result['errors'])}")
             return
@@ -386,13 +397,39 @@ def sync(
             )
 
             if ctx.json_output:
-                ctx.output.update({
-                    "status": "success",
-                    **result,
-                })
+                ctx.output.update(
+                    {
+                        "status": "success",
+                        **result,
+                    }
+                )
                 ctx.output.output()
             else:
                 ctx.log(f"\nRefreshed social data for {result['activities_updated']} activities")
+                if result.get("errors"):
+                    ctx.log(f"Errors: {len(result['errors'])}")
+            return
+
+        # Handle check-and-fix mode (verify and repair missing data)
+        if what == "check-and-fix":
+            result = service.check_and_fix(
+                dry_run=dry_run,
+                log_callback=ctx.log if not ctx.json_output else None,
+            )
+
+            if ctx.json_output:
+                ctx.output.update(
+                    {
+                        "status": "success",
+                        **result,
+                    }
+                )
+                ctx.output.output()
+            else:
+                ctx.log(
+                    f"\nChecked {result['sessions_checked']} sessions: "
+                    f"{result['issues_found']} issues found, {result['issues_fixed']} fixed"
+                )
                 if result.get("errors"):
                     ctx.log(f"Errors: {len(result['errors'])}")
             return
@@ -412,14 +449,18 @@ def sync(
         )
 
         if ctx.json_output:
-            ctx.output.update({
-                "status": "success",
-                **result,
-            })
+            ctx.output.update(
+                {
+                    "status": "success",
+                    **result,
+                }
+            )
             ctx.output.output()
         else:
-            ctx.log(f"\nSynced {result['activities_synced']} activities "
-                   f"({result['activities_new']} new, {result['activities_updated']} updated)")
+            ctx.log(
+                f"\nSynced {result['activities_synced']} activities "
+                f"({result['activities_new']} new, {result['activities_updated']} updated)"
+            )
             if result.get("photos_downloaded", 0) > 0:
                 ctx.log(f"Downloaded {result['photos_downloaded']} photos")
             if result.get("errors"):
@@ -508,10 +549,12 @@ def gpx(
         )
 
         if ctx.json_output:
-            ctx.output.update({
-                "status": "success",
-                **result,
-            })
+            ctx.output.update(
+                {
+                    "status": "success",
+                    **result,
+                }
+            )
             ctx.output.output()
         else:
             ctx.log(f"\nExported {result['exported']} activities to {output_dir}")
@@ -709,8 +752,9 @@ def map_cmd(
                 ctx.log(f"Starting server at http://127.0.0.1:{port}")
                 serve_map(output_path, port=port)
             else:
-                ctx.log("To view: python -m http.server --directory "
-                        f"{config.data.directory} {port}")
+                ctx.log(
+                    "To view: python -m http.server --directory " f"{config.data.directory} {port}"
+                )
         else:
             # Standard mode: embed all data in HTML
             html = generate_map(
@@ -838,6 +882,7 @@ def demo(output: Path | None, port: int, no_serve: bool, seed: int) -> None:
     fixtures_path = Path(__file__).parent.parent.parent / "tests" / "e2e" / "fixtures"
     if fixtures_path.exists():
         import sys as _sys
+
         _sys.path.insert(0, str(fixtures_path))
         from generate_fixtures import generate_fixtures
     else:
@@ -874,6 +919,7 @@ def demo(output: Path | None, port: int, no_serve: bool, seed: int) -> None:
     else:
         # Start server and open browser
         import os
+
         os.chdir(output_dir)
 
         class QuietHandler(SimpleHTTPRequestHandler):
@@ -1107,10 +1153,12 @@ def fittrackee(
         )
 
         if ctx.json_output:
-            ctx.output.update({
-                "status": "success",
-                **result,
-            })
+            ctx.output.update(
+                {
+                    "status": "success",
+                    **result,
+                }
+            )
             ctx.output.output()
         else:
             ctx.log(f"\nExported {result['exported']} activities")
@@ -1160,10 +1208,12 @@ def create_datalad_dataset_cmd(ctx: Context, path: Path, force: bool) -> None:
         result = create_datalad_dataset(path, force=force)
 
         if ctx.json_output:
-            ctx.output.update({
-                "status": "success",
-                **result,
-            })
+            ctx.output.update(
+                {
+                    "status": "success",
+                    **result,
+                }
+            )
             ctx.output.output()
         else:
             ctx.log(f"Created DataLad dataset at: {result['path']}")
@@ -1351,7 +1401,11 @@ def retry_list(ctx: Context, show_all: bool) -> None:
             else:
                 total_pending += 1
                 status = "DUE" if entry.is_due_for_retry() else "WAITING"
-                next_retry = entry.next_retry_after.strftime("%Y-%m-%d %H:%M:%S") if entry.next_retry_after else "N/A"
+                next_retry = (
+                    entry.next_retry_after.strftime("%Y-%m-%d %H:%M:%S")
+                    if entry.next_retry_after
+                    else "N/A"
+                )
                 ctx.log(f"  [{status}] Activity {entry.activity_id}")
                 ctx.log(f"    Type: {entry.failure_type.value}")
                 ctx.log(f"    Error: {entry.error_message[:80]}...")
@@ -1363,11 +1417,13 @@ def retry_list(ctx: Context, show_all: bool) -> None:
         ctx.log(f"\nTotal: {total_pending} pending, {total_permanent} permanently failed")
 
     if ctx.json_output:
-        ctx.output.update({
-            "status": "success",
-            "pending_count": total_pending,
-            "permanent_count": total_permanent,
-        })
+        ctx.output.update(
+            {
+                "status": "success",
+                "pending_count": total_pending,
+                "permanent_count": total_permanent,
+            }
+        )
         ctx.output.output()
 
 
@@ -1443,10 +1499,12 @@ def retry_clear(
         ctx.log(f"Total cleared: {cleared_total}")
 
     if ctx.json_output:
-        ctx.output.update({
-            "status": "success",
-            "cleared_count": cleared_total,
-        })
+        ctx.output.update(
+            {
+                "status": "success",
+                "cleared_count": cleared_total,
+            }
+        )
         ctx.output.output()
 
 
@@ -1509,10 +1567,12 @@ def retry_now(ctx: Context, activity_id: int | None) -> None:
         ctx.log(f"Total reset: {reset_total} - run 'strava-backup sync' to retry")
 
     if ctx.json_output:
-        ctx.output.update({
-            "status": "success",
-            "reset_count": reset_total,
-        })
+        ctx.output.update(
+            {
+                "status": "success",
+                "reset_count": reset_total,
+            }
+        )
         ctx.output.output()
 
 

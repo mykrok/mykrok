@@ -82,16 +82,18 @@ def calculate_stats(
             if activity_type and activity.type.lower() != activity_type.lower():
                 continue
 
-            activities.append({
-                "date": session_date,
-                "type": activity.type,
-                "sport_type": activity.sport_type,
-                "distance": activity.distance or 0,
-                "moving_time": activity.moving_time or 0,
-                "elapsed_time": activity.elapsed_time or 0,
-                "elevation_gain": activity.total_elevation_gain or 0,
-                "calories": activity.calories or 0,
-            })
+            activities.append(
+                {
+                    "date": session_date,
+                    "type": activity.type,
+                    "sport_type": activity.sport_type,
+                    "distance": activity.distance or 0,
+                    "moving_time": activity.moving_time or 0,
+                    "elapsed_time": activity.elapsed_time or 0,
+                    "elevation_gain": activity.total_elevation_gain or 0,
+                    "calories": activity.calories or 0,
+                }
+            )
 
     # Calculate totals
     totals = _calculate_totals(activities)
@@ -121,8 +123,7 @@ def calculate_stats(
             monthly[month_key].append(act)
 
         result["by_month"] = {
-            month_key: _calculate_totals(acts)
-            for month_key, acts in sorted(monthly.items())
+            month_key: _calculate_totals(acts) for month_key, acts in sorted(monthly.items())
         }
 
     # Break down by type
@@ -132,8 +133,7 @@ def calculate_stats(
             by_activity_type[act["type"]].append(act)
 
         result["by_type"] = {
-            act_type: _calculate_totals(acts)
-            for act_type, acts in sorted(by_activity_type.items())
+            act_type: _calculate_totals(acts) for act_type, acts in sorted(by_activity_type.items())
         }
 
     return result
