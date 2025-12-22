@@ -4345,7 +4345,16 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                             html += `</div>`;
                         }}
                         if (self.filteredSessions.length > 50) {{
-                            html += `<div class="info-session-more"><a href="#/sessions">View all ${{self.filteredSessions.length}} sessions</a></div>`;
+                            // Build sessions URL with current filters
+                            const filters = FilterState.get();
+                            const params = new URLSearchParams();
+                            if (filters.type) params.set('t', filters.type);
+                            if (filters.dateFrom) params.set('from', filters.dateFrom);
+                            if (filters.dateTo) params.set('to', filters.dateTo);
+                            if (filters.search) params.set('q', filters.search);
+                            if (self.currentAthlete) params.set('a', self.currentAthlete);
+                            const sessionsUrl = params.toString() ? `#/sessions?${{params.toString()}}` : '#/sessions';
+                            html += `<div class="info-session-more"><a href="${{sessionsUrl}}">View all ${{self.filteredSessions.length}} sessions</a></div>`;
                         }}
                         html += `</div>`;
                         html += `<div class="info-resize-handle" title="Drag to resize"></div>`;
