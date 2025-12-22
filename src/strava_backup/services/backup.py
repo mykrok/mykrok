@@ -969,11 +969,13 @@ class BackupService:
             activity = load_activity(session_dir)
             if activity is None:
                 issues_found += 1
-                issues_detail.append({
-                    "session": session_key,
-                    "issue": "missing_info_json",
-                    "fixed": False,
-                })
+                issues_detail.append(
+                    {
+                        "session": session_key,
+                        "issue": "missing_info_json",
+                        "fixed": False,
+                    }
+                )
                 log(f"  [{session_key}] Missing info.json", 1)
                 continue
 
@@ -1010,12 +1012,14 @@ class BackupService:
             log(f"  [{session_key}] Issues: {', '.join(session_issues)}", 1)
 
             for issue in session_issues:
-                issues_detail.append({
-                    "session": session_key,
-                    "activity_id": activity.id,
-                    "issue": issue,
-                    "fixed": False,
-                })
+                issues_detail.append(
+                    {
+                        "session": session_key,
+                        "activity_id": activity.id,
+                        "issue": issue,
+                        "fixed": False,
+                    }
+                )
 
             if dry_run:
                 continue
@@ -1038,11 +1042,13 @@ class BackupService:
                                 log(f"    Fixed: Downloaded {downloaded} photos", 2)
                     except Exception as e:
                         logger.warning("Failed to re-fetch photos: %s", e)
-                        errors.append({
-                            "session": session_key,
-                            "issue": "photos",
-                            "error": str(e),
-                        })
+                        errors.append(
+                            {
+                                "session": session_key,
+                                "issue": "photos",
+                                "error": str(e),
+                            }
+                        )
 
                 # Re-fetch tracking data if missing/corrupted
                 if any("tracking" in i for i in session_issues):
@@ -1055,11 +1061,13 @@ class BackupService:
                             log(f"    Fixed: Saved tracking data ({manifest.row_count} points)", 2)
                     except Exception as e:
                         logger.warning("Failed to re-fetch tracking: %s", e)
-                        errors.append({
-                            "session": session_key,
-                            "issue": "tracking",
-                            "error": str(e),
-                        })
+                        errors.append(
+                            {
+                                "session": session_key,
+                                "issue": "tracking",
+                                "error": str(e),
+                            }
+                        )
 
                 if fixed_issues:
                     issues_fixed += len(fixed_issues)
@@ -1078,10 +1086,12 @@ class BackupService:
 
             except Exception as e:
                 logger.error("Error fixing session %s: %s", session_key, e)
-                errors.append({
-                    "session": session_key,
-                    "error": str(e),
-                })
+                errors.append(
+                    {
+                        "session": session_key,
+                        "error": str(e),
+                    }
+                )
 
         # Update sessions.tsv if fixes were made
         if issues_fixed > 0 and not dry_run:
