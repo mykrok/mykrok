@@ -2208,6 +2208,217 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             margin-bottom: 16px;
         }}
 
+        /* ===== Map Filter Bar (overlay) ===== */
+        .map-filter-container {{
+            position: absolute;
+            top: 8px;
+            left: 60px;
+            right: 60px;
+            z-index: 1000;
+            display: flex;
+            gap: 8px;
+            pointer-events: none;
+        }}
+
+        .map-filter-container > * {{
+            pointer-events: auto;
+        }}
+
+        .map-filter-bar {{
+            display: flex;
+            gap: 6px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            flex-wrap: wrap;
+            align-items: center;
+        }}
+
+        .map-filter-bar .filter-input,
+        .map-filter-bar .filter-select {{
+            padding: 6px 10px;
+            font-size: 13px;
+        }}
+
+        .map-filter-bar .filter-search {{
+            width: 140px;
+        }}
+
+        .map-filter-bar .filter-date {{
+            width: 115px;
+        }}
+
+        .map-filter-bar .filter-btn {{
+            padding: 6px 12px;
+            font-size: 13px;
+        }}
+
+        .map-filter-bar .filter-count {{
+            font-size: 12px;
+            color: #666;
+            padding: 0 8px;
+        }}
+
+        /* ===== Session List Panel ===== */
+        .session-list-panel {{
+            position: absolute;
+            top: 60px;
+            right: 8px;
+            width: 280px;
+            max-height: calc(100% - 80px);
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }}
+
+        .session-list-panel.collapsed .session-list-content {{
+            display: none;
+        }}
+
+        .session-list-header {{
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            border-bottom: 1px solid #e0e0e0;
+            background: #f8f8f8;
+        }}
+
+        .session-list-title {{
+            font-weight: 600;
+            font-size: 14px;
+            flex: 1;
+        }}
+
+        .session-list-count {{
+            font-size: 12px;
+            color: #666;
+            background: #e0e0e0;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-right: 8px;
+        }}
+
+        .session-list-toggle {{
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px 8px;
+            font-size: 12px;
+            color: #666;
+        }}
+
+        .session-list-content {{
+            flex: 1;
+            overflow-y: auto;
+            max-height: 400px;
+        }}
+
+        .session-list-items {{
+            padding: 4px;
+        }}
+
+        .session-list-item {{
+            padding: 10px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 4px;
+            background: #fff;
+            border: 1px solid #e8e8e8;
+        }}
+
+        .session-list-item:hover {{
+            background: #f5f5f5;
+            border-color: #fc4c02;
+        }}
+
+        .session-list-item-header {{
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+        }}
+
+        .session-list-item-type {{
+            font-size: 11px;
+            background: #e8e8e8;
+            padding: 1px 6px;
+            border-radius: 3px;
+        }}
+
+        .session-list-item-name {{
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }}
+
+        .session-list-item-stats {{
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }}
+
+        .session-list-more {{
+            width: 100%;
+            padding: 8px;
+            background: #f5f5f5;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            color: #fc4c02;
+        }}
+
+        .session-list-more:hover {{
+            background: #eee;
+        }}
+
+        /* Stats view session list */
+        .stats-session-panel {{
+            margin-top: 24px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }}
+
+        .stats-session-panel .session-list-content {{
+            max-height: 300px;
+        }}
+
+        @media (max-width: 768px) {{
+            .map-filter-container {{
+                left: 8px;
+                right: 8px;
+                top: 4px;
+            }}
+
+            .map-filter-bar {{
+                width: 100%;
+            }}
+
+            .map-filter-bar .filter-search {{
+                width: 100%;
+                min-width: 0;
+            }}
+
+            .session-list-panel {{
+                top: auto;
+                bottom: 60px;
+                left: 8px;
+                right: 8px;
+                width: auto;
+                max-height: 50vh;
+            }}
+        }}
+
         .summary-cards {{
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -2367,6 +2578,10 @@ def generate_lightweight_map(_data_dir: Path) -> str:
         <!-- Map View -->
         <div id="view-map" class="view active">
             <div id="map"></div>
+            <div class="map-filter-container">
+                <div id="map-filter-bar" class="filter-bar map-filter-bar"></div>
+            </div>
+            <div id="map-session-list" class="session-list-panel collapsed"></div>
             <div id="loading" class="loading">Loading sessions...</div>
         </div>
 
@@ -2421,14 +2636,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
         <!-- Stats View -->
         <div id="view-stats" class="view">
             <div class="stats-container">
-                <div class="stats-filters">
-                    <select id="year-filter" class="filter-select">
-                        <option value="">All Years</option>
-                    </select>
-                    <select id="stats-type-filter" class="filter-select">
-                        <option value="">All Types</option>
-                    </select>
-                </div>
+                <div id="stats-filter-bar" class="filter-bar stats-filters"></div>
                 <div class="summary-cards" id="summary-cards">
                     <div class="summary-card">
                         <div class="summary-value" id="total-sessions">-</div>
@@ -2457,6 +2665,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                         <canvas id="type-chart"></canvas>
                     </div>
                 </div>
+                <div id="stats-session-list" class="stats-session-panel"></div>
             </div>
         </div>
 
@@ -2573,6 +2782,378 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             }}
         }};
 
+        // ===== Shared Filter State =====
+        const FilterState = {{
+            state: {{
+                search: '',
+                type: '',
+                dateFrom: '',
+                dateTo: ''
+            }},
+            listeners: [],
+
+            get() {{
+                return {{ ...this.state }};
+            }},
+
+            set(newState, skipNotify = false) {{
+                const changed = Object.keys(newState).some(k => this.state[k] !== newState[k]);
+                if (changed) {{
+                    this.state = {{ ...this.state, ...newState }};
+                    if (!skipNotify) this.notify();
+                }}
+            }},
+
+            clear() {{
+                this.set({{ search: '', type: '', dateFrom: '', dateTo: '' }});
+            }},
+
+            onChange(callback) {{
+                this.listeners.push(callback);
+                return () => {{ this.listeners = this.listeners.filter(l => l !== callback); }};
+            }},
+
+            notify() {{
+                for (const listener of this.listeners) {{
+                    try {{ listener(this.state); }} catch (e) {{ console.error('FilterState listener error:', e); }}
+                }}
+            }},
+
+            // Sync with URL
+            syncToURL() {{
+                URLState.update({{
+                    search: this.state.search,
+                    type: this.state.type,
+                    dateFrom: this.state.dateFrom,
+                    dateTo: this.state.dateTo
+                }});
+            }},
+
+            syncFromURL() {{
+                const urlState = URLState.decode();
+                this.set({{
+                    search: urlState.search || '',
+                    type: urlState.type || '',
+                    dateFrom: urlState.dateFrom || '',
+                    dateTo: urlState.dateTo || ''
+                }}, true);  // Skip notify - caller will handle
+            }},
+
+            hasActiveFilters() {{
+                return this.state.search || this.state.type || this.state.dateFrom || this.state.dateTo;
+            }}
+        }};
+
+        // ===== Shared Filter Function =====
+        function applyFilters(sessions, filters, athlete = '') {{
+            return sessions.filter(s => {{
+                // Athlete filter (global, from header selector)
+                if (athlete && s.athlete !== athlete) return false;
+                // Search filter
+                if (filters.search && !s.name.toLowerCase().includes(filters.search.toLowerCase())) return false;
+                // Type filter
+                if (filters.type && s.type !== filters.type) return false;
+                // Date filters
+                if (filters.dateFrom) {{
+                    const fromDate = filters.dateFrom.replace(/-/g, '');
+                    if (s.datetime < fromDate) return false;
+                }}
+                if (filters.dateTo) {{
+                    const toDate = filters.dateTo.replace(/-/g, '');
+                    if (s.datetime.substring(0, 8) > toDate) return false;
+                }}
+                return true;
+            }});
+        }}
+
+        // ===== Shared FilterBar Component =====
+        const FilterBar = {{
+            containerId: null,
+            types: [],
+
+            render(containerId, options = {{}}) {{
+                this.containerId = containerId;
+                const container = document.getElementById(containerId);
+                if (!container) return;
+
+                const showSearch = options.showSearch !== false;
+                const showType = options.showType !== false;
+                const showDates = options.showDates !== false;
+                const showDatePresets = options.showDatePresets !== false;
+
+                const state = FilterState.get();
+
+                let html = '';
+                if (showSearch) {{
+                    html += `<input type="search" class="filter-input filter-search" placeholder="Search activities..." value="${{state.search}}">`;
+                }}
+                if (showType) {{
+                    html += `<select class="filter-select filter-type"><option value="">All Types</option></select>`;
+                }}
+                if (showDatePresets) {{
+                    html += `<select class="filter-select filter-date-preset">
+                        <option value="">Date Range</option>
+                        <option value="thisYear">This Year</option>
+                        <option value="last12m">Last 12 Months</option>
+                        <option value="last30d">Last 30 Days</option>
+                        <option value="thisMonth">This Month</option>
+                    </select>`;
+                }}
+                if (showDates) {{
+                    html += `<input type="date" class="filter-input filter-date filter-date-from" title="From date" value="${{state.dateFrom}}">`;
+                    html += `<input type="date" class="filter-input filter-date filter-date-to" title="To date" value="${{state.dateTo}}">`;
+                }}
+                html += `<button class="filter-btn filter-clear">Clear</button>`;
+                html += `<span class="filter-count"></span>`;
+
+                container.innerHTML = html;
+            }},
+
+            init(containerId) {{
+                const container = document.getElementById(containerId);
+                if (!container) return;
+
+                // Search input
+                const searchInput = container.querySelector('.filter-search');
+                if (searchInput) {{
+                    let debounceTimer;
+                    searchInput.addEventListener('input', (e) => {{
+                        clearTimeout(debounceTimer);
+                        debounceTimer = setTimeout(() => {{
+                            FilterState.set({{ search: e.target.value }});
+                            FilterState.syncToURL();
+                        }}, 300);
+                    }});
+                }}
+
+                // Type filter
+                const typeSelect = container.querySelector('.filter-type');
+                if (typeSelect) {{
+                    typeSelect.addEventListener('change', (e) => {{
+                        FilterState.set({{ type: e.target.value }});
+                        FilterState.syncToURL();
+                    }});
+                }}
+
+                // Date preset
+                const presetSelect = container.querySelector('.filter-date-preset');
+                if (presetSelect) {{
+                    presetSelect.addEventListener('change', (e) => {{
+                        const today = new Date();
+                        let dateFrom = '', dateTo = '';
+                        switch (e.target.value) {{
+                            case 'thisYear':
+                                dateFrom = `${{today.getFullYear()}}-01-01`;
+                                dateTo = today.toISOString().split('T')[0];
+                                break;
+                            case 'last12m':
+                                const last12m = new Date(today);
+                                last12m.setMonth(last12m.getMonth() - 12);
+                                dateFrom = last12m.toISOString().split('T')[0];
+                                dateTo = today.toISOString().split('T')[0];
+                                break;
+                            case 'last30d':
+                                const last30d = new Date(today);
+                                last30d.setDate(last30d.getDate() - 30);
+                                dateFrom = last30d.toISOString().split('T')[0];
+                                dateTo = today.toISOString().split('T')[0];
+                                break;
+                            case 'thisMonth':
+                                dateFrom = `${{today.getFullYear()}}-${{String(today.getMonth() + 1).padStart(2, '0')}}-01`;
+                                dateTo = today.toISOString().split('T')[0];
+                                break;
+                        }}
+                        FilterState.set({{ dateFrom, dateTo }});
+                        FilterState.syncToURL();
+                        // Update date inputs
+                        const fromInput = container.querySelector('.filter-date-from');
+                        const toInput = container.querySelector('.filter-date-to');
+                        if (fromInput) fromInput.value = dateFrom;
+                        if (toInput) toInput.value = dateTo;
+                    }});
+                }}
+
+                // Date from
+                const dateFromInput = container.querySelector('.filter-date-from');
+                if (dateFromInput) {{
+                    dateFromInput.addEventListener('change', (e) => {{
+                        FilterState.set({{ dateFrom: e.target.value }});
+                        FilterState.syncToURL();
+                        // Reset preset
+                        const preset = container.querySelector('.filter-date-preset');
+                        if (preset) preset.value = '';
+                    }});
+                }}
+
+                // Date to
+                const dateToInput = container.querySelector('.filter-date-to');
+                if (dateToInput) {{
+                    dateToInput.addEventListener('change', (e) => {{
+                        FilterState.set({{ dateTo: e.target.value }});
+                        FilterState.syncToURL();
+                        // Reset preset
+                        const preset = container.querySelector('.filter-date-preset');
+                        if (preset) preset.value = '';
+                    }});
+                }}
+
+                // Clear button
+                const clearBtn = container.querySelector('.filter-clear');
+                if (clearBtn) {{
+                    clearBtn.addEventListener('click', () => {{
+                        FilterState.clear();
+                        FilterState.syncToURL();
+                        this.syncFromState(containerId);
+                    }});
+                }}
+            }},
+
+            populateTypes(containerId, sessions) {{
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                const typeSelect = container.querySelector('.filter-type');
+                if (!typeSelect) return;
+
+                const types = [...new Set(sessions.map(s => s.type).filter(Boolean))].sort();
+                const currentValue = typeSelect.value;
+                typeSelect.innerHTML = '<option value="">All Types</option>';
+                for (const type of types) {{
+                    const option = document.createElement('option');
+                    option.value = type;
+                    option.textContent = type;
+                    typeSelect.appendChild(option);
+                }}
+                typeSelect.value = currentValue;
+            }},
+
+            syncFromState(containerId) {{
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                const state = FilterState.get();
+
+                const searchInput = container.querySelector('.filter-search');
+                if (searchInput) searchInput.value = state.search;
+
+                const typeSelect = container.querySelector('.filter-type');
+                if (typeSelect) typeSelect.value = state.type;
+
+                const dateFromInput = container.querySelector('.filter-date-from');
+                if (dateFromInput) dateFromInput.value = state.dateFrom;
+
+                const dateToInput = container.querySelector('.filter-date-to');
+                if (dateToInput) dateToInput.value = state.dateTo;
+            }},
+
+            updateCount(containerId, filteredCount, totalCount) {{
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                const countEl = container.querySelector('.filter-count');
+                if (countEl) {{
+                    if (FilterState.hasActiveFilters()) {{
+                        countEl.textContent = `${{filteredCount}} of ${{totalCount}}`;
+                        countEl.style.display = 'inline';
+                    }} else {{
+                        countEl.textContent = '';
+                        countEl.style.display = 'none';
+                    }}
+                }}
+            }}
+        }};
+
+        // ===== Session List Panel Component =====
+        const SessionListPanel = {{
+            containerId: null,
+            sessions: [],
+            onSessionClick: null,
+            displayLimit: 50,
+
+            render(containerId, options = {{}}) {{
+                this.containerId = containerId;
+                this.onSessionClick = options.onSessionClick || null;
+                const container = document.getElementById(containerId);
+                if (!container) return;
+
+                container.innerHTML = `
+                    <div class="session-list-header">
+                        <span class="session-list-title">Sessions</span>
+                        <span class="session-list-count">0</span>
+                        <button class="session-list-toggle" title="Toggle panel">▼</button>
+                    </div>
+                    <div class="session-list-content">
+                        <div class="session-list-items"></div>
+                        <button class="session-list-more" style="display: none;">Load more...</button>
+                    </div>
+                `;
+
+                // Toggle button
+                const toggle = container.querySelector('.session-list-toggle');
+                const content = container.querySelector('.session-list-content');
+                toggle.addEventListener('click', () => {{
+                    container.classList.toggle('collapsed');
+                    toggle.textContent = container.classList.contains('collapsed') ? '▲' : '▼';
+                }});
+
+                // Load more button
+                const moreBtn = container.querySelector('.session-list-more');
+                moreBtn.addEventListener('click', () => {{
+                    this.displayLimit += 50;
+                    this.updateList();
+                }});
+            }},
+
+            setSessions(sessions) {{
+                this.sessions = sessions;
+                this.displayLimit = 50;
+                this.updateList();
+            }},
+
+            updateList() {{
+                const container = document.getElementById(this.containerId);
+                if (!container) return;
+
+                const countEl = container.querySelector('.session-list-count');
+                if (countEl) countEl.textContent = this.sessions.length;
+
+                const itemsEl = container.querySelector('.session-list-items');
+                if (!itemsEl) return;
+
+                const toShow = this.sessions.slice(0, this.displayLimit);
+                itemsEl.innerHTML = toShow.map(s => {{
+                    const dateStr = s.datetime ? `${{s.datetime.substring(0,4)}}-${{s.datetime.substring(4,6)}}-${{s.datetime.substring(6,8)}}` : '';
+                    const distance = s.distance_m > 0 ? `${{(parseFloat(s.distance_m) / 1000).toFixed(1)}} km` : '';
+                    return `
+                        <div class="session-list-item" data-athlete="${{s.athlete}}" data-datetime="${{s.datetime}}">
+                            <div class="session-list-item-header">
+                                <span class="session-list-item-date">${{dateStr}}</span>
+                                <span class="session-list-item-type">${{s.type || ''}}</span>
+                            </div>
+                            <div class="session-list-item-name">${{s.name || 'Untitled'}}</div>
+                            <div class="session-list-item-stats">${{distance}}</div>
+                        </div>
+                    `;
+                }}).join('');
+
+                // Show/hide load more button
+                const moreBtn = container.querySelector('.session-list-more');
+                if (moreBtn) {{
+                    moreBtn.style.display = this.sessions.length > this.displayLimit ? 'block' : 'none';
+                }}
+
+                // Add click handlers
+                itemsEl.querySelectorAll('.session-list-item').forEach(item => {{
+                    item.addEventListener('click', () => {{
+                        const athlete = item.dataset.athlete;
+                        const datetime = item.dataset.datetime;
+                        if (this.onSessionClick) {{
+                            this.onSessionClick(athlete, datetime);
+                        }} else {{
+                            location.hash = `#/session/${{athlete}}/${{datetime}}`;
+                        }}
+                    }});
+                }});
+            }}
+        }};
+
         // ===== Router =====
         const Router = {{
             views: ['map', 'sessions', 'stats', 'session'],
@@ -2628,7 +3209,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     const selector = document.getElementById('athlete-selector');
                     if (selector) {{
                         selector.value = state.athlete;
-                        selector.dispatchEvent(new Event('change'));
+                        // Don't dispatch change event - we'll handle filtering below
                     }}
                 }}
 
@@ -2639,44 +3220,25 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                     }}
                 }}
 
-                // Apply session filters
-                if (state.view === 'sessions') {{
-                    if (state.search) {{
-                        const searchInput = document.getElementById('session-search');
-                        if (searchInput) {{
-                            searchInput.value = state.search;
-                            SessionsView.filters.search = state.search.toLowerCase();
-                        }}
-                    }}
-                    if (state.type) {{
-                        const typeFilter = document.getElementById('type-filter');
-                        if (typeFilter) {{
-                            typeFilter.value = state.type;
-                            SessionsView.filters.type = state.type;
-                        }}
-                    }}
-                    if (state.dateFrom) {{
-                        const dateFromInput = document.getElementById('date-from');
-                        if (dateFromInput) {{
-                            dateFromInput.value = state.dateFrom;
-                            SessionsView.filters.dateFrom = state.dateFrom;
-                        }}
-                    }}
-                    if (state.dateTo) {{
-                        const dateToInput = document.getElementById('date-to');
-                        if (dateToInput) {{
-                            dateToInput.value = state.dateTo;
-                            SessionsView.filters.dateTo = state.dateTo;
-                        }}
-                    }}
-                    // Trigger re-render after applying filters
-                    if (state.search || state.type || state.dateFrom || state.dateTo) {{
-                        SessionsView.applyFiltersAndRender();
-                    }}
+                // Sync shared FilterState from URL (applies to all views)
+                FilterState.syncFromURL();
+
+                // Sync all filter bars from shared state
+                FilterBar.syncFromState('map-filter-bar');
+                FilterBar.syncFromState('stats-filter-bar');
+                SessionsView.syncFiltersFromState();
+
+                // Trigger re-render for current view
+                if (state.view === 'map') {{
+                    MapView.applyFiltersAndUpdateUI();
+                }} else if (state.view === 'sessions') {{
+                    SessionsView.applyFiltersAndRender();
+                }} else if (state.view === 'stats') {{
+                    StatsView.calculate();
                 }}
 
                 // Open session detail if specified
-                if (state.session && state.athlete) {{
+                if (state.session && state.athlete && state.view === 'sessions') {{
                     setTimeout(() => {{
                         SessionsView.showDetail(state.athlete, state.session);
                     }}, 500);
@@ -2684,13 +3246,17 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             }},
 
             navigate(view) {{
-                // Preserve athlete when navigating
+                // Preserve athlete and filter state when navigating between views
                 const currentAthlete = document.getElementById('athlete-selector')?.value || '';
+                const filters = FilterState.get();
 
-                // Build new hash - don't preserve zoom/lat/lng when changing views
-                // as they are view-specific (map position shouldn't carry to stats/sessions)
+                // Build new hash with preserved filter state
                 const params = new URLSearchParams();
                 if (currentAthlete) params.set('a', currentAthlete);
+                if (filters.search) params.set('q', filters.search);
+                if (filters.type) params.set('t', filters.type);
+                if (filters.dateFrom) params.set('from', filters.dateFrom);
+                if (filters.dateTo) params.set('to', filters.dateTo);
                 const queryStr = params.toString();
                 const newHash = '#/' + view + (queryStr ? '?' + queryStr : '');
 
@@ -2820,10 +3386,61 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 document.getElementById('athlete-selector').addEventListener('change', (e) => {{
                     this.filterByAthlete(e.target.value);
                     URLState.update({{ athlete: e.target.value }});
+                    this.applyFiltersAndUpdateUI();
                 }});
+
+                // Initialize filter bar for map
+                FilterBar.render('map-filter-bar', {{
+                    showSearch: true,
+                    showType: true,
+                    showDatePresets: true,
+                    showDates: true
+                }});
+                FilterBar.init('map-filter-bar');
+
+                // Initialize session list panel for map
+                SessionListPanel.render('map-session-list', {{
+                    onSessionClick: (athlete, datetime) => {{
+                        location.hash = `#/session/${{athlete}}/${{datetime}}`;
+                    }}
+                }});
+
+                // Subscribe to filter changes
+                FilterState.onChange(() => this.applyFiltersAndUpdateUI());
 
                 // Start loading sessions
                 this.loadSessions();
+            }},
+
+            // Apply filters and update UI (markers, session list)
+            applyFiltersAndUpdateUI() {{
+                if (!this.allSessions.length) return;
+
+                const athlete = this.currentAthlete;
+                const filters = FilterState.get();
+                const filtered = applyFilters(this.allSessions, filters, athlete);
+
+                // Update marker visibility
+                // Note: data.session is the datetime string, not the session object
+                for (const data of this.allMarkers) {{
+                    const visible = filtered.some(s => s.athlete === data.athlete && s.datetime === data.session);
+                    if (data.marker._icon) {{
+                        data.marker._icon.style.display = visible ? '' : 'none';
+                    }}
+                    if (data.marker._shadow) {{
+                        data.marker._shadow.style.display = visible ? '' : 'none';
+                    }}
+                    // For cluster markers
+                    if (data.marker.setOpacity) {{
+                        data.marker.setOpacity(visible ? 1 : 0);
+                    }}
+                }}
+
+                // Update info panel and session list with filtered sessions sorted by date desc
+                const sortedFiltered = [...filtered].sort((a, b) => (b.datetime || '').localeCompare(a.datetime || ''));
+                SessionListPanel.setSessions(sortedFiltered);
+                FilterBar.updateCount('map-filter-bar', filtered.length, this.allSessions.length);
+                this.updateInfo();
             }},
 
             parseTSV(text) {{
@@ -3263,43 +3880,47 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             selectedSession: null,
 
             init() {{
-                // Set up filter event listeners with URL state updates
+                // Set up filter event listeners that update shared FilterState
                 let searchTimeout = null;
                 document.getElementById('session-search').addEventListener('input', (e) => {{
-                    this.filters.search = e.target.value.toLowerCase();
                     this.page = 1;
-                    this.applyFiltersAndRender();
-                    // Debounce URL update for search
+                    // Debounce search
                     clearTimeout(searchTimeout);
                     searchTimeout = setTimeout(() => {{
-                        URLState.update({{ search: e.target.value }});
-                    }}, 500);
+                        FilterState.set({{ search: e.target.value }});
+                        FilterState.syncToURL();
+                    }}, 300);
                 }});
 
                 document.getElementById('type-filter').addEventListener('change', (e) => {{
-                    this.filters.type = e.target.value;
                     this.page = 1;
-                    this.applyFiltersAndRender();
-                    URLState.update({{ type: e.target.value }});
+                    FilterState.set({{ type: e.target.value }});
+                    FilterState.syncToURL();
                 }});
 
                 document.getElementById('date-from').addEventListener('change', (e) => {{
-                    this.filters.dateFrom = e.target.value;
                     this.page = 1;
-                    this.applyFiltersAndRender();
-                    URLState.update({{ dateFrom: e.target.value }});
+                    FilterState.set({{ dateFrom: e.target.value }});
+                    FilterState.syncToURL();
                 }});
 
                 document.getElementById('date-to').addEventListener('change', (e) => {{
-                    this.filters.dateTo = e.target.value;
                     this.page = 1;
-                    this.applyFiltersAndRender();
-                    URLState.update({{ dateTo: e.target.value }});
+                    FilterState.set({{ dateTo: e.target.value }});
+                    FilterState.syncToURL();
                 }});
 
                 document.getElementById('clear-filters').addEventListener('click', () => {{
-                    this.clearFilters();
-                    URLState.update({{ search: '', type: '', session: '', dateFrom: '', dateTo: '' }});
+                    this.page = 1;
+                    FilterState.clear();
+                    FilterState.syncToURL();
+                    this.syncFiltersFromState();
+                }});
+
+                // Subscribe to FilterState changes
+                FilterState.onChange(() => {{
+                    this.syncFiltersFromState();
+                    this.applyFiltersAndRender();
                 }});
 
                 // Set up sortable headers
@@ -3350,6 +3971,8 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             setSessions(sessions) {{
                 this.sessions = sessions;
                 this.populateTypeFilter();
+                // Sync filter UI from shared state (loaded from URL)
+                this.syncFiltersFromState();
                 this.applyFiltersAndRender();
             }},
 
@@ -3367,6 +3990,17 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 }}
             }},
 
+            // Sync filter UI inputs from shared FilterState
+            syncFiltersFromState() {{
+                const state = FilterState.get();
+                document.getElementById('session-search').value = state.search;
+                document.getElementById('type-filter').value = state.type;
+                document.getElementById('date-from').value = state.dateFrom;
+                document.getElementById('date-to').value = state.dateTo;
+                // Also update internal filters object
+                this.filters = {{ ...state }};
+            }},
+
             clearFilters() {{
                 this.filters = {{ search: '', type: '', dateFrom: '', dateTo: '' }};
                 document.getElementById('session-search').value = '';
@@ -3379,19 +4013,10 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
             applyFiltersAndRender() {{
                 const currentAthlete = document.getElementById('athlete-selector').value;
+                const filters = FilterState.get();
 
-                this.filtered = this.sessions.filter(s => {{
-                    // Athlete filter
-                    if (currentAthlete && s.athlete !== currentAthlete) return false;
-                    // Search filter
-                    if (this.filters.search && !s.name.toLowerCase().includes(this.filters.search)) return false;
-                    // Type filter
-                    if (this.filters.type && s.type !== this.filters.type) return false;
-                    // Date filters
-                    if (this.filters.dateFrom && s.datetime < this.filters.dateFrom.replace(/-/g, '')) return false;
-                    if (this.filters.dateTo && s.datetime.substring(0, 8) > this.filters.dateTo.replace(/-/g, '')) return false;
-                    return true;
-                }});
+                // Use shared applyFilters function
+                this.filtered = applyFilters(this.sessions, filters, currentAthlete);
 
                 this.sort();
                 this.render();
@@ -4554,21 +5179,30 @@ def generate_lightweight_map(_data_dir: Path) -> str:
         // ===== Stats View Module =====
         const StatsView = {{
             sessions: [],
+            filtered: [],
             typeColors: {json.dumps(type_colors)},
-            filters: {{ year: '', type: '' }},
             monthlyChart: null,  // Chart.js instance
             typeChart: null,     // Chart.js instance
 
             init() {{
-                document.getElementById('year-filter').addEventListener('change', (e) => {{
-                    this.filters.year = e.target.value;
-                    this.calculate();
+                // Initialize filter bar for stats
+                FilterBar.render('stats-filter-bar', {{
+                    showSearch: true,
+                    showType: true,
+                    showDatePresets: true,
+                    showDates: true
+                }});
+                FilterBar.init('stats-filter-bar');
+
+                // Initialize session list panel for stats
+                SessionListPanel.render('stats-session-list', {{
+                    onSessionClick: (athlete, datetime) => {{
+                        location.hash = `#/session/${{athlete}}/${{datetime}}`;
+                    }}
                 }});
 
-                document.getElementById('stats-type-filter').addEventListener('change', (e) => {{
-                    this.filters.type = e.target.value;
-                    this.calculate();
-                }});
+                // Subscribe to filter changes
+                FilterState.onChange(() => this.calculate());
 
                 // Listen for athlete changes
                 document.getElementById('athlete-selector').addEventListener('change', () => {{
@@ -4608,47 +5242,21 @@ def generate_lightweight_map(_data_dir: Path) -> str:
 
             setSessions(sessions) {{
                 this.sessions = sessions;
-                this.populateFilters();
                 this.calculate();
-            }},
-
-            populateFilters() {{
-                const years = new Set();
-                const types = new Set();
-
-                for (const s of this.sessions) {{
-                    if (s.datetime && s.datetime.length >= 4) {{
-                        years.add(s.datetime.substring(0, 4));
-                    }}
-                    if (s.type) types.add(s.type);
-                }}
-
-                const yearSelect = document.getElementById('year-filter');
-                for (const year of [...years].sort().reverse()) {{
-                    const option = document.createElement('option');
-                    option.value = year;
-                    option.textContent = year;
-                    yearSelect.appendChild(option);
-                }}
-
-                const typeSelect = document.getElementById('stats-type-filter');
-                for (const type of [...types].sort()) {{
-                    const option = document.createElement('option');
-                    option.value = type;
-                    option.textContent = type;
-                    typeSelect.appendChild(option);
-                }}
             }},
 
             calculate() {{
                 const currentAthlete = document.getElementById('athlete-selector').value;
+                const filters = FilterState.get();
 
-                const filtered = this.sessions.filter(s => {{
-                    if (currentAthlete && s.athlete !== currentAthlete) return false;
-                    if (this.filters.year && (!s.datetime || !s.datetime.startsWith(this.filters.year))) return false;
-                    if (this.filters.type && s.type !== this.filters.type) return false;
-                    return true;
-                }});
+                // Use shared applyFilters function
+                const filtered = applyFilters(this.sessions, filters, currentAthlete);
+                this.filtered = filtered;
+
+                // Update session list panel
+                const sortedFiltered = [...filtered].sort((a, b) => (b.datetime || '').localeCompare(a.datetime || ''));
+                SessionListPanel.setSessions(sortedFiltered);
+                FilterBar.updateCount('stats-filter-bar', filtered.length, this.sessions.length);
 
                 // Calculate totals
                 const totals = {{
@@ -4864,6 +5472,19 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             // Pass full session data to views
             SessionsView.setSessions(this.allSessions);
             StatsView.setSessions(this.allSessions);
+
+            // Populate filter bar types for all views
+            FilterBar.populateTypes('map-filter-bar', this.allSessions);
+            FilterBar.populateTypes('stats-filter-bar', this.allSessions);
+
+            // Sync initial filter state from URL
+            FilterState.syncFromURL();
+            FilterBar.syncFromState('map-filter-bar');
+            FilterBar.syncFromState('stats-filter-bar');
+
+            // Apply initial filters
+            MapView.applyFiltersAndUpdateUI();
+
             // Hide loading overlay
             const overlay = document.getElementById('loading-overlay');
             if (overlay) {{
