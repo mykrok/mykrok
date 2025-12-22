@@ -1233,6 +1233,92 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             text-decoration: underline;
         }}
 
+        /* Map info panel with integrated session list */
+        .map-info-panel {{
+            min-width: 160px;
+            max-width: 280px;
+        }}
+
+        .info-header {{
+            margin-bottom: 4px;
+        }}
+
+        .info-stats {{
+            font-size: 13px;
+            margin-bottom: 4px;
+        }}
+
+        .info-sessions-toggle {{
+            color: #fc4c02;
+            cursor: pointer;
+            font-weight: 500;
+        }}
+
+        .info-sessions-toggle:hover {{
+            text-decoration: underline;
+        }}
+
+        .info-session-list {{
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 8px;
+            border-top: 1px solid #e0e0e0;
+            padding-top: 8px;
+        }}
+
+        .info-session-item {{
+            padding: 6px 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 4px;
+            border: 1px solid transparent;
+        }}
+
+        .info-session-item:hover {{
+            background: #f5f5f5;
+            border-color: #fc4c02;
+        }}
+
+        .info-session-date {{
+            font-size: 11px;
+            color: #666;
+        }}
+
+        .info-session-type {{
+            font-size: 10px;
+            background: #e8e8e8;
+            padding: 1px 4px;
+            border-radius: 3px;
+            margin-left: 4px;
+        }}
+
+        .info-session-name {{
+            font-size: 12px;
+            font-weight: 500;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }}
+
+        .info-session-more {{
+            text-align: center;
+            padding: 8px;
+            font-size: 12px;
+        }}
+
+        .info-session-more a {{
+            color: #fc4c02;
+        }}
+
+        .info-hint {{
+            font-size: 11px;
+            color: #888;
+            margin-top: 6px;
+            border-top: 1px solid #e0e0e0;
+            padding-top: 6px;
+        }}
+
         .legend {{
             line-height: 18px;
             color: #555;
@@ -2581,7 +2667,6 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             <div class="map-filter-container">
                 <div id="map-filter-bar" class="filter-bar map-filter-bar"></div>
             </div>
-            <div id="map-session-list" class="session-list-panel collapsed"></div>
             <div id="loading" class="loading">Loading sessions...</div>
         </div>
 
@@ -3308,6 +3393,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             loadedPhotos: new Set(),
             allMarkers: [],
             allSessions: [],
+            filteredSessions: [],  // Sessions after applying filters
             sessionsByAthlete: {{}},
             athleteStats: {{}},
             currentAthlete: '',
@@ -3315,6 +3401,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
             loadedTrackCount: 0,
             totalPhotos: 0,
             infoControl: null,
+            sessionListExpanded: false,
             AUTO_LOAD_ZOOM: 11,
             restoringFromURL: false,
 
@@ -3398,13 +3485,6 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 }});
                 FilterBar.init('map-filter-bar');
 
-                // Initialize session list panel for map
-                SessionListPanel.render('map-session-list', {{
-                    onSessionClick: (athlete, datetime) => {{
-                        location.hash = `#/session/${{athlete}}/${{datetime}}`;
-                    }}
-                }});
-
                 // Subscribe to filter changes
                 FilterState.onChange(() => this.applyFiltersAndUpdateUI());
 
@@ -3412,7 +3492,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 this.loadSessions();
             }},
 
-            // Apply filters and update UI (markers, session list)
+            // Apply filters and update UI (markers, info panel)
             applyFiltersAndUpdateUI() {{
                 if (!this.allSessions.length) return;
 
@@ -3420,25 +3500,27 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 const filters = FilterState.get();
                 const filtered = applyFilters(this.allSessions, filters, athlete);
 
+                // Store filtered sessions sorted by date desc
+                this.filteredSessions = [...filtered].sort((a, b) => (b.datetime || '').localeCompare(a.datetime || ''));
+
+                // Build a set of visible session keys for quick lookup
+                const visibleKeys = new Set(filtered.map(s => `${{s.athlete}}|${{s.datetime}}`));
+
                 // Update marker visibility
-                // Note: data.session is the datetime string, not the session object
                 for (const data of this.allMarkers) {{
-                    const visible = filtered.some(s => s.athlete === data.athlete && s.datetime === data.session);
+                    const key = `${{data.athlete}}|${{data.session}}`;
+                    const visible = visibleKeys.has(key);
+                    // Store visibility on the data object for later reference
+                    data.visible = visible;
                     if (data.marker._icon) {{
                         data.marker._icon.style.display = visible ? '' : 'none';
                     }}
                     if (data.marker._shadow) {{
                         data.marker._shadow.style.display = visible ? '' : 'none';
                     }}
-                    // For cluster markers
-                    if (data.marker.setOpacity) {{
-                        data.marker.setOpacity(visible ? 1 : 0);
-                    }}
                 }}
 
-                // Update info panel and session list with filtered sessions sorted by date desc
-                const sortedFiltered = [...filtered].sort((a, b) => (b.datetime || '').localeCompare(a.datetime || ''));
-                SessionListPanel.setSessions(sortedFiltered);
+                // Update info panel (which now includes session count and list)
                 FilterBar.updateCount('map-filter-bar', filtered.length, this.allSessions.length);
                 this.updateInfo();
             }},
@@ -3816,35 +3898,80 @@ def generate_lightweight_map(_data_dir: Path) -> str:
                 this.infoControl = L.control({{ position: 'topright' }});
                 const self = this;
                 this.infoControl.onAdd = function() {{
-                    const div = L.DomUtil.create('div', 'info');
+                    const div = L.DomUtil.create('div', 'info map-info-panel');
 
-                    // Calculate visible stats
-                    let visibleSessions = 0;
-                    for (const data of self.allMarkers) {{
-                        if (!self.currentAthlete || data.athlete === self.currentAthlete) {{
-                            visibleSessions++;
-                        }}
-                    }}
+                    // Use filtered sessions count
+                    const filteredCount = self.filteredSessions.length;
+                    const totalCount = self.allSessions.length;
+                    const hasFilter = FilterState.hasActiveFilters() || self.currentAthlete;
 
-                    let html = '<b>Activities</b>';
+                    let html = '<div class="info-header"><b>Activities</b>';
                     if (self.currentAthlete) {{
                         const color = self.athleteColors[self.currentAthlete] || '#333';
-                        html += `<br><span style="color:${{color}}">${{self.currentAthlete}}</span>`;
+                        html += ` <span style="color:${{color}}">${{self.currentAthlete}}</span>`;
                     }}
-                    html += `<br><a href="#/sessions" class="info-link">${{visibleSessions}} sessions</a>`;
+                    html += '</div>';
+
+                    // Session count with filter indicator
+                    const countText = hasFilter ? `${{filteredCount}} of ${{totalCount}}` : `${{filteredCount}}`;
+                    html += `<div class="info-stats">`;
+                    html += `<span class="info-sessions-toggle" title="Click to ${{self.sessionListExpanded ? 'collapse' : 'expand'}} session list">${{countText}} sessions ${{self.sessionListExpanded ? '▲' : '▼'}}</span>`;
                     if (self.loadedTrackCount > 0) {{
-                        html += `<br>${{self.loadedTrackCount}} tracks loaded`;
+                        html += `<br>${{self.loadedTrackCount}} tracks`;
                     }}
                     if (self.totalPhotos > 0) {{
-                        html += `<br>${{self.totalPhotos}} photos`;
+                        html += ` · ${{self.totalPhotos}} photos`;
                     }}
+                    html += `</div>`;
+
+                    // Collapsible session list
+                    if (self.sessionListExpanded && self.filteredSessions.length > 0) {{
+                        html += `<div class="info-session-list">`;
+                        const toShow = self.filteredSessions.slice(0, 20);
+                        for (const s of toShow) {{
+                            const dateStr = s.datetime ? `${{s.datetime.substring(0,4)}}-${{s.datetime.substring(4,6)}}-${{s.datetime.substring(6,8)}}` : '';
+                            const dist = s.distance_m > 0 ? ` · ${{(parseFloat(s.distance_m) / 1000).toFixed(1)}}km` : '';
+                            html += `<div class="info-session-item" data-athlete="${{s.athlete}}" data-datetime="${{s.datetime}}">`;
+                            html += `<span class="info-session-date">${{dateStr}}</span>`;
+                            html += `<span class="info-session-type">${{s.type || ''}}</span>`;
+                            html += `<div class="info-session-name">${{s.name || 'Untitled'}}${{dist}}</div>`;
+                            html += `</div>`;
+                        }}
+                        if (self.filteredSessions.length > 20) {{
+                            html += `<div class="info-session-more"><a href="#/sessions">View all ${{self.filteredSessions.length}} sessions</a></div>`;
+                        }}
+                        html += `</div>`;
+                    }}
+
+                    // Zoom hint
                     const zoom = self.map.getZoom();
                     if (zoom < self.AUTO_LOAD_ZOOM) {{
-                        html += `<br><small>Zoom in to auto-load<br>(current: ${{zoom}}, need: ${{self.AUTO_LOAD_ZOOM}})</small>`;
-                    }} else {{
-                        html += `<br><small>Click marker or pan to load</small>`;
+                        html += `<div class="info-hint">Zoom in to auto-load tracks</div>`;
                     }}
+
                     div.innerHTML = html;
+
+                    // Set up event listeners after DOM is ready
+                    setTimeout(() => {{
+                        // Toggle session list
+                        const toggle = div.querySelector('.info-sessions-toggle');
+                        if (toggle) {{
+                            toggle.addEventListener('click', (e) => {{
+                                e.preventDefault();
+                                self.sessionListExpanded = !self.sessionListExpanded;
+                                self.updateInfo();
+                            }});
+                        }}
+                        // Session item clicks
+                        div.querySelectorAll('.info-session-item').forEach(item => {{
+                            item.addEventListener('click', () => {{
+                                const athlete = item.dataset.athlete;
+                                const datetime = item.dataset.datetime;
+                                location.hash = `#/session/${{athlete}}/${{datetime}}`;
+                            }});
+                        }});
+                    }}, 0);
+
                     return div;
                 }};
                 this.infoControl.addTo(this.map);
