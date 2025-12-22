@@ -378,8 +378,11 @@ def create_datalad_dataset(
     try:
         subprocess.run(
             [
-                "git", "annex", "config",
-                "--set", "annex.addunlocked",
+                "git",
+                "annex",
+                "config",
+                "--set",
+                "annex.addunlocked",
                 "include=.strava-backup/config.toml",
             ],
             cwd=str(path),
@@ -426,8 +429,11 @@ def create_datalad_dataset(
     try:
         subprocess.run(
             [
-                "git", "annex", "metadata",
-                "-s", "distribution-restrictions=sensitive",
+                "git",
+                "annex",
+                "metadata",
+                "-s",
+                "distribution-restrictions=sensitive",
                 ".strava-backup/config.toml",
             ],
             cwd=str(path),

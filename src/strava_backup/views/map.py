@@ -153,17 +153,19 @@ def _collect_geotagged_photos(
                     except (ValueError, AttributeError):
                         pass  # Skip if can't parse timestamp
 
-                photos.append({
-                    "lat": location[0],
-                    "lng": location[1],
-                    "activity_name": activity.name,
-                    "activity_type": activity.type,
-                    "activity_date": session_date.strftime("%Y-%m-%d"),
-                    "photo_date": photo_created,
-                    "urls": photo.get("urls", {}),
-                    "local_path": local_path,
-                    "session_key": session_key,
-                })
+                photos.append(
+                    {
+                        "lat": location[0],
+                        "lng": location[1],
+                        "activity_name": activity.name,
+                        "activity_type": activity.type,
+                        "activity_date": session_date.strftime("%Y-%m-%d"),
+                        "photo_date": photo_created,
+                        "urls": photo.get("urls", {}),
+                        "local_path": local_path,
+                        "session_key": session_key,
+                    }
+                )
 
     return photos
 
@@ -233,13 +235,17 @@ def generate_map(
             if heatmap:
                 all_points.extend(coords)
             else:
-                routes.append({
-                    "name": activity.name,
-                    "type": activity.type,
-                    "date": session_date.strftime("%Y-%m-%d"),
-                    "distance_km": round(activity.distance / 1000, 2) if activity.distance else 0,
-                    "coords": coords,
-                })
+                routes.append(
+                    {
+                        "name": activity.name,
+                        "type": activity.type,
+                        "date": session_date.strftime("%Y-%m-%d"),
+                        "distance_km": round(activity.distance / 1000, 2)
+                        if activity.distance
+                        else 0,
+                        "coords": coords,
+                    }
+                )
 
     if heatmap:
         return _generate_heatmap_html(all_points, photos)
@@ -303,14 +309,16 @@ def _generate_routes_html(
     routes_json = []
     for route in routes:
         color = type_colors.get(route["type"], type_colors["Other"])
-        routes_json.append({
-            "name": route["name"],
-            "type": route["type"],
-            "date": route["date"],
-            "distance_km": route["distance_km"],
-            "coords": route["coords"],
-            "color": color,
-        })
+        routes_json.append(
+            {
+                "name": route["name"],
+                "type": route["type"],
+                "date": route["date"],
+                "distance_km": route["distance_km"],
+                "coords": route["coords"],
+                "color": color,
+            }
+        )
 
     # Photo count for info display
     photo_count = len(photos)
@@ -1095,7 +1103,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
         "Other": "#607D8B",
     }
 
-    return f'''<!DOCTYPE html>
+    return f"""<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
@@ -5652,7 +5660,7 @@ def generate_lightweight_map(_data_dir: Path) -> str:
         StatsView.init();
     </script>
 </body>
-</html>'''
+</html>"""
 
 
 def serve_map(

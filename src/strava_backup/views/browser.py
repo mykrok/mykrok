@@ -161,18 +161,24 @@ class ActivityBrowserHandler(http.server.BaseHTTPRequestHandler):
 
                 manifest = load_tracking_manifest(session_dir)
 
-                activities.append({
-                    "session_key": session_key,
-                    "username": username,
-                    "name": activity.name,
-                    "type": activity.type,
-                    "date": activity.start_date.strftime("%Y-%m-%d %H:%M") if activity.start_date else "",
-                    "distance_km": round(activity.distance / 1000, 2) if activity.distance else 0,
-                    "moving_time": activity.moving_time or 0,
-                    "has_gps": manifest.has_gps if manifest else False,
-                    "has_photos": activity.has_photos,
-                    "photo_count": activity.photo_count,
-                })
+                activities.append(
+                    {
+                        "session_key": session_key,
+                        "username": username,
+                        "name": activity.name,
+                        "type": activity.type,
+                        "date": activity.start_date.strftime("%Y-%m-%d %H:%M")
+                        if activity.start_date
+                        else "",
+                        "distance_km": round(activity.distance / 1000, 2)
+                        if activity.distance
+                        else 0,
+                        "moving_time": activity.moving_time or 0,
+                        "has_gps": manifest.has_gps if manifest else False,
+                        "has_photos": activity.has_photos,
+                        "photo_count": activity.photo_count,
+                    }
+                )
 
         # Sort by date descending
         activities.sort(key=lambda a: a["date"], reverse=True)
@@ -217,7 +223,11 @@ class ActivityBrowserHandler(http.server.BaseHTTPRequestHandler):
         for act in activities:
             time_str = f"{act['moving_time'] // 60}m {act['moving_time'] % 60}s"
             gps_badge = '<span class="badge gps">GPS</span>' if act["has_gps"] else ""
-            photo_badge = f'<span class="badge photo">{act["photo_count"]} photos</span>' if act["has_photos"] else ""
+            photo_badge = (
+                f'<span class="badge photo">{act["photo_count"]} photos</span>'
+                if act["has_photos"]
+                else ""
+            )
 
             rows.append(f"""
             <tr onclick="window.location='/activity/{act['session_key']}'">
@@ -305,8 +315,7 @@ class ActivityBrowserHandler(http.server.BaseHTTPRequestHandler):
         photos_html = ""
         if photos:
             photo_items = "".join(
-                f'<div class="photo"><img src="{p}" loading="lazy"></div>'
-                for p in photos
+                f'<div class="photo"><img src="{p}" loading="lazy"></div>' for p in photos
             )
             photos_html = f"""
             <h2>Photos ({len(photos)})</h2>

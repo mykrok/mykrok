@@ -88,17 +88,40 @@ LOCATIONS = [
 # Each letter is a list of (x, y) points that trace the letter shape
 LETTER_SHAPES = {
     "D": [
-        (0.0, 0.0), (0.0, 1.0), (0.5, 1.0), (0.7, 0.8), (0.7, 0.2), (0.5, 0.0), (0.0, 0.0),
+        (0.0, 0.0),
+        (0.0, 1.0),
+        (0.5, 1.0),
+        (0.7, 0.8),
+        (0.7, 0.2),
+        (0.5, 0.0),
+        (0.0, 0.0),
     ],
     "E": [
-        (0.7, 0.0), (0.0, 0.0), (0.0, 0.5), (0.5, 0.5), (0.0, 0.5), (0.0, 1.0), (0.7, 1.0),
+        (0.7, 0.0),
+        (0.0, 0.0),
+        (0.0, 0.5),
+        (0.5, 0.5),
+        (0.0, 0.5),
+        (0.0, 1.0),
+        (0.7, 1.0),
     ],
     "M": [
-        (0.0, 0.0), (0.0, 1.0), (0.35, 0.5), (0.7, 1.0), (0.7, 0.0),
+        (0.0, 0.0),
+        (0.0, 1.0),
+        (0.35, 0.5),
+        (0.7, 1.0),
+        (0.7, 0.0),
     ],
     "O": [
-        (0.35, 0.0), (0.1, 0.2), (0.0, 0.5), (0.1, 0.8), (0.35, 1.0),
-        (0.55, 0.8), (0.7, 0.5), (0.55, 0.2), (0.35, 0.0),
+        (0.35, 0.0),
+        (0.1, 0.2),
+        (0.0, 0.5),
+        (0.1, 0.8),
+        (0.35, 1.0),
+        (0.55, 0.8),
+        (0.7, 0.5),
+        (0.55, 0.2),
+        (0.35, 0.0),
     ],
 }
 
@@ -229,24 +252,16 @@ def track_to_parquet(track: list[dict], output_path: Path) -> None:
     }
 
     if "altitude" in track[0]:
-        columns["altitude"] = pa.array(
-            [p.get("altitude", 0) for p in track], type=pa.float32()
-        )
+        columns["altitude"] = pa.array([p.get("altitude", 0) for p in track], type=pa.float32())
 
     if "heartrate" in track[0]:
-        columns["heartrate"] = pa.array(
-            [p.get("heartrate", 0) for p in track], type=pa.int32()
-        )
+        columns["heartrate"] = pa.array([p.get("heartrate", 0) for p in track], type=pa.int32())
 
     if "cadence" in track[0]:
-        columns["cadence"] = pa.array(
-            [p.get("cadence", 0) for p in track], type=pa.int32()
-        )
+        columns["cadence"] = pa.array([p.get("cadence", 0) for p in track], type=pa.int32())
 
     if "watts" in track[0]:
-        columns["watts"] = pa.array(
-            [p.get("watts", 0) for p in track], type=pa.int32()
-        )
+        columns["watts"] = pa.array([p.get("watts", 0) for p in track], type=pa.int32())
 
     table = pa.table(columns)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -297,7 +312,9 @@ def generate_activity(
         max_watts = int(avg_watts * 1.3)
 
     # Activity names
-    time_of_day = "Morning" if start_date.hour < 12 else "Afternoon" if start_date.hour < 17 else "Evening"
+    time_of_day = (
+        "Morning" if start_date.hour < 12 else "Afternoon" if start_date.hour < 17 else "Evening"
+    )
     names = [
         f"{time_of_day} {activity_type}",
         f"{activity_type} workout",
@@ -309,7 +326,9 @@ def generate_activity(
     activity = {
         "id": activity_id,
         "name": random.choice(names),
-        "description": f"A great {activity_type.lower()} session!" if random.random() > 0.7 else None,
+        "description": f"A great {activity_type.lower()} session!"
+        if random.random() > 0.7
+        else None,
         "type": activity_type,
         "sport_type": params["sport"],
         "start_date": start_date.isoformat() + "Z",
@@ -328,7 +347,9 @@ def generate_activity(
         "max_watts": max_watts,
         "average_cadence": round(avg_cadence, 1) if avg_cadence else None,
         "gear_id": None,
-        "device_name": random.choice(["Garmin Forerunner 945", "Apple Watch", "Wahoo ELEMNT", None]),
+        "device_name": random.choice(
+            ["Garmin Forerunner 945", "Apple Watch", "Wahoo ELEMNT", None]
+        ),
         "trainer": False,
         "commute": False,
         "private": False,
@@ -341,7 +362,14 @@ def generate_activity(
         "has_photos": has_photos,
         "photo_count": random.randint(1, 5) if has_photos else 0,
         "comments": comments or [],
-        "kudos": [{"firstname": k.split()[0] if " " in k else k, "lastname": k.split()[1] if " " in k else "", "username": k.lower().replace(" ", "")} for k in (kudos_from or [])],
+        "kudos": [
+            {
+                "firstname": k.split()[0] if " " in k else k,
+                "lastname": k.split()[1] if " " in k else "",
+                "username": k.lower().replace(" ", ""),
+            }
+            for k in (kudos_from or [])
+        ],
         "laps": [],
         "segment_efforts": [],
         "photos": [],
@@ -398,10 +426,27 @@ def generate_fixtures(output_dir: Path) -> None:
 
     # Define session TSV columns
     sessions_columns = [
-        "datetime", "type", "sport", "name", "distance_m", "moving_time_s",
-        "elapsed_time_s", "elevation_gain_m", "calories", "avg_hr", "max_hr",
-        "avg_watts", "gear_id", "athletes", "kudos_count", "comment_count",
-        "has_gps", "photos_path", "photo_count", "start_lat", "start_lng",
+        "datetime",
+        "type",
+        "sport",
+        "name",
+        "distance_m",
+        "moving_time_s",
+        "elapsed_time_s",
+        "elevation_gain_m",
+        "calories",
+        "avg_hr",
+        "max_hr",
+        "avg_watts",
+        "gear_id",
+        "athletes",
+        "kudos_count",
+        "comment_count",
+        "has_gps",
+        "photos_path",
+        "photo_count",
+        "start_lat",
+        "start_lng",
     ]
 
     # Shared run datetime (both alice and bob did this together)
@@ -472,7 +517,8 @@ def generate_fixtures(output_dir: Path) -> None:
         if activity["has_gps"]:
             loc = random.choice(LOCATIONS)
             track = generate_gps_track(
-                loc[0], loc[1],
+                loc[0],
+                loc[1],
                 activity["distance"],
                 activity["moving_time"],
                 activity["type"],
@@ -557,7 +603,8 @@ def generate_fixtures(output_dir: Path) -> None:
         if activity["has_gps"]:
             loc = random.choice(LOCATIONS)
             track = generate_gps_track(
-                loc[0], loc[1],
+                loc[0],
+                loc[1],
                 activity["distance"],
                 activity["moving_time"],
                 activity["type"],

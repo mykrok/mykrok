@@ -98,7 +98,7 @@ class FailedActivity:
         max_delay = config["max_delay"]
 
         # Exponential backoff: base_delay * 2^retry_count
-        delay_seconds = min(base_delay * (2 ** self.retry_count), max_delay)
+        delay_seconds = min(base_delay * (2**self.retry_count), max_delay)
 
         return self.failed_at + timedelta(seconds=delay_seconds)
 
@@ -151,7 +151,9 @@ class FailedActivity:
             "error_message": self.error_message,
             "failed_at": self.failed_at.isoformat(),
             "retry_count": self.retry_count,
-            "next_retry_after": self.next_retry_after.isoformat() if self.next_retry_after else None,
+            "next_retry_after": self.next_retry_after.isoformat()
+            if self.next_retry_after
+            else None,
         }
 
     @classmethod
@@ -245,9 +247,7 @@ class RetryQueue:
             True if removed, False if not found.
         """
         original_len = len(self.failed_activities)
-        self.failed_activities = [
-            f for f in self.failed_activities if f.activity_id != activity_id
-        ]
+        self.failed_activities = [f for f in self.failed_activities if f.activity_id != activity_id]
         return len(self.failed_activities) < original_len
 
     def get_due_retries(self, now: datetime | None = None) -> list[FailedActivity]:
@@ -334,7 +334,9 @@ class SyncState:
         """
         return {
             "last_sync": self.last_sync.isoformat() if self.last_sync else None,
-            "last_activity_date": self.last_activity_date.isoformat() if self.last_activity_date else None,
+            "last_activity_date": self.last_activity_date.isoformat()
+            if self.last_activity_date
+            else None,
             "total_activities": self.total_activities,
         }
 
@@ -455,11 +457,13 @@ class FitTrackeeExportState:
         # Remove existing entry if present
         self.exports = [e for e in self.exports if e.ses != session_key]
 
-        self.exports.append(FitTrackeeExportEntry(
-            ses=session_key,
-            ft_workout_id=ft_workout_id,
-            exported_at=exported_at,
-        ))
+        self.exports.append(
+            FitTrackeeExportEntry(
+                ses=session_key,
+                ft_workout_id=ft_workout_id,
+                exported_at=exported_at,
+            )
+        )
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary.
