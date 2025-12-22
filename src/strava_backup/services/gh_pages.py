@@ -28,9 +28,40 @@ def run_cmd(
 
 
 def branch_exists(branch: str, cwd: Path | None = None) -> bool:
-    """Check if a git branch exists."""
+    """Check if a git branch exists locally."""
     result = run_cmd(
         ["git", "rev-parse", "--verify", branch],
+        cwd=cwd,
+        check=False,
+        capture=True,
+    )
+    return result.returncode == 0
+
+
+def remote_branch_exists(branch: str, remote: str = "origin", cwd: Path | None = None) -> bool:
+    """Check if a branch exists on remote."""
+    result = run_cmd(
+        ["git", "ls-remote", "--heads", remote, branch],
+        cwd=cwd,
+        check=False,
+        capture=True,
+    )
+    return result.returncode == 0 and bool(result.stdout.strip())
+
+
+def fetch_remote_branch(branch: str, remote: str = "origin", cwd: Path | None = None) -> bool:
+    """Fetch a branch from remote.
+
+    Args:
+        branch: Branch name to fetch.
+        remote: Remote name (default: origin).
+        cwd: Working directory.
+
+    Returns:
+        True if fetch succeeded.
+    """
+    result = run_cmd(
+        ["git", "fetch", remote, f"{branch}:{branch}"],
         cwd=cwd,
         check=False,
         capture=True,
@@ -69,7 +100,15 @@ def setup_worktree(
         if worktree_path.exists():
             shutil.rmtree(worktree_path)
 
-    is_new = not branch_exists(branch, cwd=repo_root)
+    # Check if branch exists locally
+    has_local = branch_exists(branch, cwd=repo_root)
+
+    # If not local, check remote and fetch if exists
+    if not has_local and remote_branch_exists(branch, cwd=repo_root):
+        fetch_remote_branch(branch, cwd=repo_root)
+        has_local = branch_exists(branch, cwd=repo_root)
+
+    is_new = not has_local
 
     if is_new:
         # Create orphan branch
