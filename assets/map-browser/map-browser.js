@@ -1070,7 +1070,13 @@ const MapView = {
                         color: color,
                         weight: weight,
                         opacity: 0.7
-                    }).addTo(this.tracksLayer);
+                    });
+
+                    // Only add to layer if session passes current filter
+                    const markerData = this.allMarkers.find(m => m.athlete === athlete && m.session === session);
+                    if (!markerData || markerData.visible !== false) {
+                        polyline.addTo(this.tracksLayer);
+                    }
 
                     this.tracksBySession[sessionKey] = polyline;
 
@@ -1194,11 +1200,15 @@ const MapView = {
         if (this.map.getZoom() < this.AUTO_LOAD_ZOOM) return;
 
         const mapBounds = this.map.getBounds();
-        for (const {marker, athlete, session, color, hasPhotos, sessionName} of this.allMarkers) {
-            if (mapBounds.contains(marker.getLatLng())) {
-                this.loadTrack(athlete, session, color);
-                if (hasPhotos) {
-                    this.loadPhotos(athlete, session, sessionName);
+        for (const data of this.allMarkers) {
+            // Only load tracks for markers that pass the current filter
+            // visible is undefined initially (before filters applied), treat as visible
+            // visible is explicitly false when filtered out
+            if (data.visible === false) continue;
+            if (mapBounds.contains(data.marker.getLatLng())) {
+                this.loadTrack(data.athlete, data.session, data.color);
+                if (data.hasPhotos) {
+                    this.loadPhotos(data.athlete, data.session, data.sessionName);
                 }
             }
         }
