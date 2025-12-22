@@ -534,16 +534,27 @@ class BackupService:
         for photo in photos:
             urls = photo.get("urls", {})
             if not urls:
+                log("    Skipping photo: no URLs in metadata", 1)
                 continue
 
-            # Get the largest available size
+            # Get the largest available size (prefer larger sizes)
             url = None
-            for size in ["2048", "1024", "600", "256"]:
+            # Try standard sizes first, then any available size
+            for size in ["2048", "1800", "1024", "600", "256"]:
                 if size in urls:
                     url = urls[size]
                     break
+            # Fallback: use any available URL
+            if not url and urls:
+                url = next(iter(urls.values()))
 
             if not url:
+                log("    Skipping photo: no usable URL found", 1)
+                continue
+
+            # Check for placeholder images (expired/deleted photos)
+            if "placeholder" in url.lower():
+                log("    Skipping photo: placeholder URL (original may have expired)", 1)
                 continue
 
             # Determine photo timestamp and filename
@@ -578,10 +589,10 @@ class BackupService:
                     f.write(response.content)
 
                 downloaded += 1
-                log(f"    Downloaded photo: {photo_path.name}", 2)
+                log(f"    Downloaded photo: {photo_path.name}", 1)
 
             except Exception as e:
-                log(f"    Warning: Failed to download photo: {e}", 1)
+                log(f"    Failed to download photo: {e}", 0)
 
             # Small delay to be nice to servers
             time.sleep(0.1)
@@ -928,7 +939,6 @@ class BackupService:
         import pyarrow.parquet as pq
 
         from strava_backup.lib.paths import (
-            get_athlete_dir,
             iter_session_dirs,
         )
         from strava_backup.models.activity import load_activity
@@ -938,20 +948,23 @@ class BackupService:
         logger.info("Running data integrity check")
         log("Checking data integrity for all sessions", 0)
 
-        # Get athlete info
-        logger.debug("Fetching athlete info")
-        athlete = Athlete.from_strava_athlete(self.strava.get_athlete())
-        username = athlete.username
-
-        athlete_dir = get_athlete_dir(self.data_dir, username)
-        if not athlete_dir.exists():
-            log(f"No data found for athlete {username}", 1)
+        # Find all athlete directories (athl=*)
+        athlete_dirs = list(self.data_dir.glob("athl=*"))
+        if not athlete_dirs:
+            log("No athlete data found", 0)
             return {
                 "sessions_checked": 0,
                 "issues_found": 0,
                 "issues_fixed": 0,
                 "errors": [],
             }
+
+        # For fixing, we need authentication to call Strava API
+        username = None
+        if not dry_run:
+            logger.debug("Fetching athlete info for API access")
+            athlete = Athlete.from_strava_athlete(self.strava.get_athlete())
+            username = athlete.username
 
         sessions_checked = 0
         issues_found = 0
@@ -960,143 +973,169 @@ class BackupService:
 
         issues_detail: list[dict[str, Any]] = []
 
-        log(f"Scanning sessions for {username}", 1)
-
-        for session_key, session_dir in iter_session_dirs(athlete_dir):
-            sessions_checked += 1
-
-            # Load activity metadata
-            activity = load_activity(session_dir)
-            if activity is None:
-                issues_found += 1
-                issues_detail.append(
-                    {
-                        "session": session_key,
-                        "issue": "missing_info_json",
-                        "fixed": False,
-                    }
-                )
-                log(f"  [{session_key}] Missing info.json", 1)
+        for athlete_dir in athlete_dirs:
+            # Extract username from directory name (athl=username)
+            dir_username = athlete_dir.name.split("=", 1)[1] if "=" in athlete_dir.name else None
+            if not dir_username:
                 continue
 
-            session_issues: list[str] = []
+            log(f"Scanning sessions for {dir_username}", 0)
 
-            # Check photos
-            if activity.has_photos and activity.photo_count and activity.photo_count > 0:
-                photos_dir = session_dir / "photos"
-                if not photos_dir.exists():
-                    session_issues.append("missing_photos_dir")
-                else:
-                    photo_files = list(photos_dir.glob("*.jpg")) + list(photos_dir.glob("*.png"))
-                    if len(photo_files) < activity.photo_count:
-                        session_issues.append(
-                            f"missing_photos({len(photo_files)}/{activity.photo_count})"
+            # For fixing, verify this is the authenticated athlete
+            if not dry_run and username and dir_username != username:
+                log(f"  Skipping (authenticated as {username})", 0)
+                continue
+
+            for session_key, session_dir in iter_session_dirs(athlete_dir):
+                sessions_checked += 1
+
+                # Load activity metadata
+                activity = load_activity(session_dir)
+                if activity is None:
+                    issues_found += 1
+                    issues_detail.append(
+                        {
+                            "session": session_key,
+                            "issue": "missing_info_json",
+                            "fixed": False,
+                        }
+                    )
+                    log(f"  [{session_key}] missing_info_json", 0)
+                    continue
+
+                session_issues: list[str] = []
+
+                # Check photos
+                if activity.has_photos and activity.photo_count and activity.photo_count > 0:
+                    photos_dir = session_dir / "photos"
+                    if not photos_dir.exists():
+                        session_issues.append("missing_photos_dir")
+                    else:
+                        photo_files = list(photos_dir.glob("*.jpg")) + list(
+                            photos_dir.glob("*.png")
                         )
-
-            # Check tracking data
-            if activity.has_gps:
-                tracking_file = session_dir / "tracking.parquet"
-                if not tracking_file.exists():
-                    session_issues.append("missing_tracking")
-                else:
-                    # Verify parquet is readable
-                    try:
-                        pq.read_table(tracking_file)
-                    except Exception:
-                        session_issues.append("corrupted_tracking")
-
-            if not session_issues:
-                continue
-
-            issues_found += len(session_issues)
-            log(f"  [{session_key}] Issues: {', '.join(session_issues)}", 1)
-
-            for issue in session_issues:
-                issues_detail.append(
-                    {
-                        "session": session_key,
-                        "activity_id": activity.id,
-                        "issue": issue,
-                        "fixed": False,
-                    }
-                )
-
-            if dry_run:
-                continue
-
-            # Attempt to fix issues
-            try:
-                fixed_issues: list[str] = []
-
-                # Re-fetch photos if missing
-                if any("photos" in i for i in session_issues):
-                    try:
-                        photos = self.strava.get_activity_photos(activity.id)
-                        if photos:
-                            activity.photos = photos
-                            downloaded = self._download_photos(
-                                session_dir, photos, lambda _m, _l: None
+                        if len(photo_files) < activity.photo_count:
+                            session_issues.append(
+                                f"missing_photos({len(photo_files)}/{activity.photo_count})"
                             )
-                            if downloaded > 0:
-                                fixed_issues.append(f"photos({downloaded})")
-                                log(f"    Fixed: Downloaded {downloaded} photos", 2)
-                    except Exception as e:
-                        logger.warning("Failed to re-fetch photos: %s", e)
-                        errors.append(
-                            {
-                                "session": session_key,
-                                "issue": "photos",
-                                "error": str(e),
-                            }
-                        )
 
-                # Re-fetch tracking data if missing/corrupted
-                if any("tracking" in i for i in session_issues):
-                    try:
-                        streams = self.strava.get_activity_streams(activity.id)
-                        if streams:
-                            _, manifest = save_tracking_data(session_dir, streams)
-                            activity.has_gps = manifest.has_gps
-                            fixed_issues.append("tracking")
-                            log(f"    Fixed: Saved tracking data ({manifest.row_count} points)", 2)
-                    except Exception as e:
-                        logger.warning("Failed to re-fetch tracking: %s", e)
-                        errors.append(
-                            {
-                                "session": session_key,
-                                "issue": "tracking",
-                                "error": str(e),
-                            }
-                        )
+                # Check tracking data
+                if activity.has_gps:
+                    tracking_file = session_dir / "tracking.parquet"
+                    if not tracking_file.exists():
+                        session_issues.append("missing_tracking")
+                    else:
+                        # Verify parquet is readable
+                        try:
+                            pq.read_table(tracking_file)
+                        except Exception:
+                            session_issues.append("corrupted_tracking")
 
-                if fixed_issues:
-                    issues_fixed += len(fixed_issues)
-                    # Update activity info.json
-                    save_activity(self.data_dir, username, activity)
+                if not session_issues:
+                    continue
 
-                # Mark issues as fixed in detail
-                for detail in issues_detail:
-                    if detail["session"] == session_key and any(
-                        detail["issue"].startswith(f) for f in fixed_issues
-                    ):
-                        detail["fixed"] = True
+                issues_found += len(session_issues)
+                # Log each issue at default level so users see them
+                for issue in session_issues:
+                    log(f"  [{session_key}] {issue}", 0)
 
-                # Rate limiting
-                time.sleep(0.2)
+                for issue in session_issues:
+                    issues_detail.append(
+                        {
+                            "session": session_key,
+                            "activity_id": activity.id,
+                            "issue": issue,
+                            "fixed": False,
+                        }
+                    )
 
-            except Exception as e:
-                logger.error("Error fixing session %s: %s", session_key, e)
-                errors.append(
-                    {
-                        "session": session_key,
-                        "error": str(e),
-                    }
-                )
+                if dry_run:
+                    continue
 
-        # Update sessions.tsv if fixes were made
-        if issues_fixed > 0 and not dry_run:
-            update_sessions_tsv(self.data_dir, username)
-            log("Updated sessions.tsv", 1)
+                # Attempt to fix issues
+                try:
+                    fixed_issues: list[str] = []
+
+                    # Re-fetch photos if missing
+                    if any("photos" in i for i in session_issues):
+                        try:
+                            # First try using existing photo metadata from info.json
+                            photos = activity.photos if activity.photos else []
+                            if not photos:
+                                # Fall back to API call
+                                log("    Fetching photo metadata from API...", 1)
+                                photos = self.strava.get_activity_photos(activity.id)
+                                if photos:
+                                    activity.photos = photos
+
+                            if photos:
+                                downloaded = self._download_photos(session_dir, photos, log)
+                                if downloaded > 0:
+                                    fixed_issues.append(f"photos({downloaded})")
+                                    log(f"    Fixed: Downloaded {downloaded} photos", 0)
+                                else:
+                                    log("    No new photos downloaded (URLs may have expired)", 0)
+                            else:
+                                log("    No photo metadata available", 0)
+                        except Exception as e:
+                            logger.warning("Failed to re-fetch photos: %s", e)
+                            log(f"    Error fetching photos: {e}", 0)
+                            errors.append(
+                                {
+                                    "session": session_key,
+                                    "issue": "photos",
+                                    "error": str(e),
+                                }
+                            )
+
+                    # Re-fetch tracking data if missing/corrupted
+                    if any("tracking" in i for i in session_issues):
+                        try:
+                            streams = self.strava.get_activity_streams(activity.id)
+                            if streams:
+                                _, manifest = save_tracking_data(session_dir, streams)
+                                activity.has_gps = manifest.has_gps
+                                fixed_issues.append("tracking")
+                                log(
+                                    f"    Fixed: Saved tracking data ({manifest.row_count} points)",
+                                    0,
+                                )
+                            else:
+                                log("    No stream data available from API", 0)
+                        except Exception as e:
+                            logger.warning("Failed to re-fetch tracking: %s", e)
+                            log(f"    Error fetching tracking: {e}", 0)
+                            errors.append(
+                                {
+                                    "session": session_key,
+                                    "issue": "tracking",
+                                    "error": str(e),
+                                }
+                            )
+
+                    if fixed_issues:
+                        issues_fixed += len(fixed_issues)
+                        # Update activity info.json
+                        save_activity(self.data_dir, dir_username, activity)
+
+                    # Mark issues as fixed in detail
+                    for detail in issues_detail:
+                        if detail["session"] == session_key and any(
+                            detail["issue"].startswith(f) for f in fixed_issues
+                        ):
+                            detail["fixed"] = True
+
+                    # Rate limiting
+                    time.sleep(0.2)
+
+                except Exception as e:
+                    logger.error("Error fixing session %s: %s", session_key, e)
+                    errors.append(
+                        {
+                            "session": session_key,
+                            "error": str(e),
+                        }
+                    )
 
         log(
             f"Check complete: {sessions_checked} sessions, "
