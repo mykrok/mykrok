@@ -2986,7 +2986,9 @@ const FullSessionView = {
                 const links = [...doc.querySelectorAll('a')];
                 const photoFiles = links
                     .map(a => a.getAttribute('href'))
-                    .filter(href => href && /\\.(jpg|jpeg|png|gif)$/i.test(href));
+                    // Filter for image files; strip trailing @ from symlinks (Python SimpleHTTPServer)
+                    .filter(href => href && /\.(jpg|jpeg|png|gif)(@)?$/i.test(href))
+                    .map(href => href.replace(/@$/, ''));
 
                 const grid = document.getElementById('full-session-photo-grid');
                 grid.innerHTML = photoFiles.map(file => `
