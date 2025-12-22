@@ -1013,9 +1013,7 @@ class BackupService:
         import os
 
         log("    Checking for related sessions with photos...", 0)
-        related = self._find_related_sessions(
-            activity, athlete_dir, current_session_key
-        )
+        related = self._find_related_sessions(activity, athlete_dir, current_session_key)
 
         if not related:
             log("    No related sessions found", 0)
@@ -1030,9 +1028,7 @@ class BackupService:
             if not rel_photos_dir.exists():
                 continue
 
-            photo_files = list(rel_photos_dir.glob("*.jpg")) + list(
-                rel_photos_dir.glob("*.png")
-            )
+            photo_files = list(rel_photos_dir.glob("*.jpg")) + list(rel_photos_dir.glob("*.png"))
             if not photo_files:
                 continue
 
@@ -1045,6 +1041,7 @@ class BackupService:
                 rel_activity.related_sessions.append(current_session_key)
                 # Save updated related_sessions
                 from strava_backup.models.activity import save_activity as _save_activity
+
                 _save_activity(self.data_dir, athlete_dir.name.split("=")[1], rel_activity)
 
             # Symlink photos that don't exist in current session
@@ -1225,7 +1222,9 @@ class BackupService:
                                 dl_result = self._download_photos(session_dir, photos, log)
                                 if dl_result["downloaded"] > 0:
                                     fixed_issues.append(f"photos({dl_result['downloaded']})")
-                                    log(f"    Fixed: Downloaded {dl_result['downloaded']} photos", 0)
+                                    log(
+                                        f"    Fixed: Downloaded {dl_result['downloaded']} photos", 0
+                                    )
                                 else:
                                     # Build informative message about why no photos downloaded
                                     parts = []
