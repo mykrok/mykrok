@@ -370,6 +370,13 @@ def generate_browser(_data_dir: Path) -> str:
             margin-left: 4px;
         }}
 
+        .info-session-photo {{
+            margin-left: 4px;
+            vertical-align: middle;
+            display: inline-flex;
+            align-items: center;
+        }}
+
         .info-session-name {{
             font-size: 12px;
             font-weight: 500;
@@ -1961,6 +1968,7 @@ def generate_browser(_data_dir: Path) -> str:
                                 <th data-sort="type" class="sortable">Type</th>
                                 <th data-sort="distance" class="sortable">Distance</th>
                                 <th data-sort="duration" class="sortable">Duration</th>
+                                <th data-sort="photos" class="sortable">Photos</th>
                             </tr>
                         </thead>
                         <tbody id="sessions-tbody"></tbody>

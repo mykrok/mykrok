@@ -1429,10 +1429,12 @@ const MapView = {
                     const dateStr = s.datetime ? `${s.datetime.substring(0,4)}-${s.datetime.substring(4,6)}-${s.datetime.substring(6,8)}` : '';
                     const dist = s.distance_m > 0 ? ` · ${(parseFloat(s.distance_m) / 1000).toFixed(1)}km` : '';
                     const typeColor = self.typeColors[s.type] || self.typeColors.Other;
+                    const photoCount = parseInt(s.photo_count) || 0;
+                    const photoIcon = photoCount > 0 ? `<span class="info-session-photo" title="${photoCount} photo${photoCount > 1 ? 's' : ''}"><svg width="12" height="12" viewBox="0 0 24 24" fill="#E91E63"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg></span>` : '';
                     html += `<div class="info-session-item" data-athlete="${s.athlete}" data-datetime="${s.datetime}">`;
                     html += '<div class="info-session-main">';
                     html += `<span class="info-session-date" data-date="${dateStr}" title="Click to filter to this date">${dateStr}</span>`;
-                    html += `<span class="info-session-type" style="color:${typeColor}">${s.type || ''}</span>`;
+                    html += `<span class="info-session-type" style="color:${typeColor}">${s.type || ''}</span>${photoIcon}`;
                     html += `<div class="info-session-name">${s.name || 'Untitled'}${dist}</div>`;
                     html += '</div>';
                     html += `<a href="#/session/${s.athlete}/${s.datetime}" class="info-session-link" title="View Activity">→</a>`;
@@ -1975,6 +1977,10 @@ const SessionsView = {
                     valA = parseInt(a.moving_time_s) || 0;
                     valB = parseInt(b.moving_time_s) || 0;
                     break;
+                case 'photos':
+                    valA = parseInt(a.photo_count) || 0;
+                    valB = parseInt(b.photo_count) || 0;
+                    break;
                 default:
                     valA = a[this.sortBy] || '';
                     valB = b[this.sortBy] || '';
@@ -2008,7 +2014,7 @@ const SessionsView = {
 
         if (pageData.length === 0) {
             const hasFilters = this.filters.search || this.filters.type || this.filters.dateFrom || this.filters.dateTo;
-            tbody.innerHTML = `<tr><td colspan="5">
+            tbody.innerHTML = `<tr><td colspan="6">
                 <div class="empty-state">
                     <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H9V5h6v2z"/></svg>
                     <h3>No sessions found</h3>
@@ -2021,6 +2027,7 @@ const SessionsView = {
                 const color = this.typeColors[s.type] || this.typeColors.Other || '#607D8B';
                 const distance = parseFloat(s.distance_m) || 0;
                 const duration = parseInt(s.moving_time_s) || 0;
+                const photos = parseInt(s.photo_count) || 0;
                 return `
                     <tr data-athlete="${s.athlete}" data-session="${s.datetime}">
                         <td>${this.formatDate(s.datetime)}</td>
@@ -2028,6 +2035,7 @@ const SessionsView = {
                         <td><span class="session-type" style="background:${color}20;color:${color}">${s.type || 'Other'}</span></td>
                         <td>${(distance / 1000).toFixed(2)} km</td>
                         <td>${this.formatDuration(duration)}</td>
+                        <td>${photos > 0 ? photos : '-'}</td>
                     </tr>
                 `;
             }).join('');
