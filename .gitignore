@@ -70,6 +70,8 @@ Thumbs.db
 data/
 demo-data/
 tests/e2e/fixtures/data/
+.gh-pages/
+.pki/
 *.log
 .env
 .env.*

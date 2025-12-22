@@ -7,6 +7,7 @@ Strava activity data.
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -1185,6 +1186,114 @@ def create_datalad_dataset_cmd(ctx: Context, path: Path, force: bool) -> None:
         sys.exit(1)
     except ImportError:
         ctx.error("DataLad is not installed. Install with: pip install datalad")
+        if ctx.json_output:
+            ctx.output.output()
+        sys.exit(1)
+
+
+@main.command("gh-pages")
+@click.option(
+    "--push",
+    is_flag=True,
+    help="Push gh-pages branch to origin after generating",
+)
+@click.option(
+    "--worktree",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Path for gh-pages worktree (default: .gh-pages)",
+)
+@click.option(
+    "--no-datalad",
+    is_flag=True,
+    help="Don't use datalad even if available",
+)
+@click.option(
+    "--seed",
+    type=int,
+    default=42,
+    help="Random seed for reproducible demo data (default: 42)",
+)
+@pass_context
+def gh_pages_cmd(
+    ctx: Context,
+    push: bool,
+    worktree: Path | None,
+    no_datalad: bool,
+    seed: int,
+) -> None:
+    """Generate GitHub Pages demo website.
+
+    Creates or updates a gh-pages branch with a live demo of the
+    strava-backup web frontend using reproducible synthetic data.
+
+    The demo includes:
+
+    \b
+    - Interactive map with activity markers
+    - Sessions list with filtering and search
+    - Session detail view with GPS track
+    - Statistics dashboard with charts
+
+    Example:
+
+    \b
+        # Generate locally (review before pushing)
+        strava-backup gh-pages
+
+        # Generate and push to GitHub
+        strava-backup gh-pages --push
+    """
+    from strava_backup.services.gh_pages import generate_gh_pages
+
+    # Find repo root (current directory or parent with .git)
+    repo_root = Path.cwd()
+    while repo_root != repo_root.parent:
+        if (repo_root / ".git").exists():
+            break
+        repo_root = repo_root.parent
+    else:
+        ctx.error("Not in a git repository")
+        sys.exit(1)
+
+    try:
+        ctx.log("Generating GitHub Pages demo...")
+
+        results = generate_gh_pages(
+            repo_root=repo_root,
+            worktree_path=worktree,
+            push=push,
+            use_datalad=not no_datalad,
+            seed=seed,
+        )
+
+        if ctx.json_output:
+            ctx.output.update(results)
+            ctx.output.output()
+        else:
+            if results["is_new_branch"]:
+                ctx.log("Created new gh-pages branch")
+            else:
+                ctx.log("Updated existing gh-pages branch")
+
+            if results["had_changes"]:
+                ctx.log("Committed changes to gh-pages")
+                if results["pushed"]:
+                    ctx.log("Pushed to origin")
+                else:
+                    ctx.log("Run with --push to deploy to GitHub Pages")
+            elif results["reset_log_only"]:
+                ctx.log("Only log files changed, no commit made")
+            else:
+                ctx.log("No changes to commit (demo is up to date)")
+
+    except RuntimeError as e:
+        ctx.error(str(e))
+        if ctx.json_output:
+            ctx.output.output()
+        sys.exit(1)
+    except subprocess.CalledProcessError as e:
+        ctx.error(f"Git command failed: {e}")
         if ctx.json_output:
             ctx.output.output()
         sys.exit(1)

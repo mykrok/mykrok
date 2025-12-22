@@ -2,6 +2,8 @@
 
 CLI tool to backup Strava activities with incremental sync, map visualization, and FitTrackee export.
 
+**[Live Demo](https://yarikoptic.github.io/strava-backup/)** - Try the web frontend with synthetic data
+
 ## Features
 
 - **Backup Activities**: Download all your Strava activities including metadata, GPS tracks, photos, comments, and kudos
