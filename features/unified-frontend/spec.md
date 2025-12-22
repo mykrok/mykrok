@@ -821,7 +821,10 @@ Current columns from `sessions.tsv`:
 datetime, type, sport, name, distance_m, moving_time_s, elapsed_time_s,
 elevation_gain_m, calories, avg_hr, max_hr, avg_watts, gear_id, athletes,
 kudos_count, comment_count, has_gps, photos_path, photo_count,
-center_lat, center_lng
+start_lat, start_lng
 ```
+
+Note: `start_lat`/`start_lng` replaced `center_lat`/`center_lng` in v0.2.0
+to use GPS start coordinates for more accurate map positioning.
 
 All columns needed for frontend features are already available.

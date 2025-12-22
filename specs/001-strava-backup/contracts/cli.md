@@ -78,6 +78,9 @@ Options:
   bug fixes or to capture new kudos/comments.
 - `athlete-profiles`: Refresh athlete profile information (name, location) and
   download avatar photos. Updates athletes.tsv with profile data.
+- `check-and-fix`: Verify data integrity and repair missing photos/tracking data.
+  Detects related sessions (same activity from different devices) and cross-links
+  photos between them. Use `--dry-run` to preview without making changes.
 
 **Exit Codes**:
 - 0: Success (activities synced)
@@ -265,6 +268,97 @@ Options:
 - 0: Success
 - 1: No activities to export
 - 2: Output write error
+
+---
+
+### `strava-backup create-browser`
+
+Generate interactive activity browser (static SPA).
+
+```
+strava-backup create-browser [OPTIONS]
+
+Options:
+  --serve              Start local HTTP server after generation
+  --port PORT          Server port (default: 8080)
+```
+
+Creates a single-page application (SPA) with:
+- Map view with activity markers and tracks
+- Sessions list with filtering and search
+- Statistics view with charts
+
+The browser loads data on demand from the data directory (athletes.tsv,
+sessions.tsv, tracking.parquet files).
+
+**Prerequisite**: Data directory must contain `athletes.tsv` (run `strava-backup sync` first).
+
+**Exit Codes**:
+- 0: Success
+- 1: Invalid data directory (missing athletes.tsv)
+
+---
+
+### `strava-backup gh-pages`
+
+Generate GitHub Pages demo website with synthetic data.
+
+```
+strava-backup gh-pages [OPTIONS]
+
+Options:
+  --push               Push gh-pages branch to origin after generating
+  --worktree PATH      Path for gh-pages worktree (default: .gh-pages)
+  --no-datalad         Don't use datalad even if available
+  --seed INT           Random seed for reproducible demo data (default: 42)
+```
+
+Creates or updates a gh-pages branch with a live demo of the
+strava-backup web frontend using reproducible synthetic data.
+
+**Exit Codes**:
+- 0: Success
+- 1: Git operation failed
+
+---
+
+### `strava-backup rebuild-sessions`
+
+Regenerate sessions.tsv from activity info.json files.
+
+```
+strava-backup rebuild-sessions [OPTIONS]
+
+Options:
+  --athlete USERNAME   Rebuild for specific athlete only
+```
+
+Scans all activity directories and regenerates sessions.tsv with
+current schema. Useful after schema changes or data corruption.
+
+**Exit Codes**:
+- 0: Success
+- 1: No activities found
+
+---
+
+### `strava-backup migrate`
+
+Run data migrations for schema changes.
+
+```
+strava-backup migrate [OPTIONS]
+
+Options:
+  --dry-run            Show what would be changed without modifying files
+```
+
+Available migrations:
+- Rename `center_lat`/`center_lng` to `start_lat`/`start_lng` in sessions.tsv
+
+**Exit Codes**:
+- 0: Success (or no migrations needed)
+- 1: Migration failed
 
 ---
 

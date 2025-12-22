@@ -763,3 +763,106 @@ Depends on full-screen session view (Phase 7) for optimal presentation.
 # Generate screenshots (saves to docs/screenshots/)
 tox -e screenshots
 ```
+
+---
+
+## ✅ DONE: Additional UX Improvements (v0.5.0 - v0.8.0)
+
+**Status**: Implemented across multiple releases
+
+### Map View Enhancements
+
+1. **Clickable Legend Filtering** (v0.5.0)
+   - Click activity type in legend to filter map markers
+   - Toggle visibility of specific activity types
+   - Visual feedback on active/inactive filters
+
+2. **Layers Control with Heatmap Toggle** (v0.5.0)
+   - Leaflet layers control for sessions/tracks/heatmap
+   - Toggle heatmap visualization on/off
+   - Persist layer state across view changes
+
+3. **Date Range Expand Buttons** (v0.6.0)
+   - Quick buttons to expand date range by week/month/year
+   - Integrated into FilterBar component
+
+4. **Date Navigation Buttons** (v0.5.0)
+   - Prev/next day buttons in filter bar
+   - Quick navigation through activity timeline
+
+5. **Clickable Dates in Popups** (v0.6.0)
+   - Click date in activity popup to filter by that date
+   - Quick filtering without using date pickers
+
+6. **Bold Selected Track** (v0.7.0)
+   - Highlight selected track with increased weight
+   - Better visibility when multiple tracks overlap
+
+7. **Version Display in Header** (v0.6.0)
+   - Show strava-backup version in map header
+   - Links to project repository
+
+### Sessions View Enhancements
+
+1. **Photo Indicators** (v0.8.0)
+   - Camera icon badge on sessions with photos
+   - Visual indicator in both table and activities panel
+
+2. **Color-coded Activity Type Labels** (v0.7.0)
+   - Activity type badges use type-specific colors
+   - Consistent with map marker colors
+
+3. **Resizable Activities Panel** (v0.5.0)
+   - Drag handle to resize panel width
+   - Scroll preservation during resize
+   - Touchpad compatibility for resize
+
+### Filter System
+
+1. **Unified FilterBar Component** (v0.5.0)
+   - DRY refactor: same component across Map, Sessions, Stats views
+   - Consistent filter behavior everywhere
+
+2. **Filter State Preservation** (v0.6.0)
+   - "View all sessions" link preserves current filters
+   - URL state management for filter parameters
+
+3. **Track Filter Visibility** (v0.8.0)
+   - Tracks respect date/type/search filters
+   - Only visible sessions load tracks on zoom
+
+### Infrastructure
+
+1. **JavaScript External Modules** (v0.7.0)
+   - Extracted JS to map-browser.js
+   - ESLint linting configuration
+   - Jest unit tests for JS code
+
+2. **REUSE 3.3 Licensing** (v0.7.0)
+   - REUSE.toml configuration
+   - License files in LICENSES/ directory
+   - Proper attribution for vendored libraries
+
+3. **Pre-commit Hooks** (v0.4.0)
+   - ruff for Python linting/formatting
+   - mypy for type checking
+   - codespell for spell checking
+
+---
+
+## Phase Summary: Implementation Status
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| Phase 1 | App Shell and Navigation | ✅ Complete |
+| Phase 2 | Athlete Selector | ✅ Complete |
+| Phase 3 | Sessions List View | ✅ Complete |
+| Phase 4 | Stats Dashboard | ✅ Complete |
+| Phase 5 | Cross-View Integration | ✅ Complete |
+| Phase 6 | Polish and Mobile | ✅ Complete |
+| Phase 7 | Permalinks/Deep Linking | ✅ Complete |
+| Phase 7b | Full-Screen Session View | ✅ Complete |
+| Phase 8 | Data Streams Visualization | ✅ Complete |
+| Phase 8b | Unified Charting (Chart.js) | ✅ Complete |
+| Phase 9 | Screenshots Automation | ✅ Complete |
+| Post-release | UX Improvements (v0.5-v0.8) | ✅ Complete |
