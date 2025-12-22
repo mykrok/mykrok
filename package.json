@@ -1,0 +1,28 @@
+{
+  "name": "strava-backup",
+  "version": "0.1.0",
+  "description": "JavaScript frontend for strava-backup activity browser",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "eslint src/strava_backup/assets/map-browser/",
+    "lint:fix": "eslint src/strava_backup/assets/map-browser/ --fix",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch"
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "roots": [
+      "<rootDir>/tests/js"
+    ],
+    "moduleFileExtensions": ["js", "mjs"],
+    "transform": {},
+    "testMatch": ["**/*.test.js"]
+  }
+}

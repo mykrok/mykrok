@@ -81,3 +81,4 @@ tests/e2e/fixtures/data/
 token.json
 credentials.json
 *_token.json
+node_modules/
