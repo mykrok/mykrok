@@ -1059,24 +1059,20 @@ class BackupService:
                     # Re-fetch photos if missing
                     if any("photos" in i for i in session_issues):
                         try:
-                            # First try using existing photo metadata from info.json
-                            photos = activity.photos if activity.photos else []
-                            if not photos:
-                                # Fall back to API call
-                                log("    Fetching photo metadata from API...", 1)
-                                photos = self.strava.get_activity_photos(activity.id)
-                                if photos:
-                                    activity.photos = photos
-
+                            # Always fetch fresh photo metadata from API
+                            # (stored URLs in info.json may have expired)
+                            log("    Fetching fresh photo URLs from API...", 0)
+                            photos = self.strava.get_activity_photos(activity.id)
                             if photos:
+                                activity.photos = photos
                                 downloaded = self._download_photos(session_dir, photos, log)
                                 if downloaded > 0:
                                     fixed_issues.append(f"photos({downloaded})")
                                     log(f"    Fixed: Downloaded {downloaded} photos", 0)
                                 else:
-                                    log("    No new photos downloaded (URLs may have expired)", 0)
+                                    log("    No photos downloaded (may be placeholders)", 0)
                             else:
-                                log("    No photo metadata available", 0)
+                                log("    API returned no photo metadata", 0)
                         except Exception as e:
                             logger.warning("Failed to re-fetch photos: %s", e)
                             log(f"    Error fetching photos: {e}", 0)
