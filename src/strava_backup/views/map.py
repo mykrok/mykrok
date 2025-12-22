@@ -346,6 +346,13 @@ def generate_browser(_data_dir: Path) -> str:
         .info-session-date {{
             font-size: 11px;
             color: #666;
+            cursor: pointer;
+            padding: 1px 3px;
+            border-radius: 3px;
+        }}
+        .info-session-date:hover {{
+            background: #e8e8e8;
+            color: #333;
         }}
 
         .info-session-type {{
@@ -3346,7 +3353,7 @@ def generate_browser(_data_dir: Path) -> str:
                             const dist = s.distance_m > 0 ? ` · ${{(parseFloat(s.distance_m) / 1000).toFixed(1)}}km` : '';
                             html += `<div class="info-session-item" data-athlete="${{s.athlete}}" data-datetime="${{s.datetime}}">`;
                             html += `<div class="info-session-main">`;
-                            html += `<span class="info-session-date">${{dateStr}}</span>`;
+                            html += `<span class="info-session-date" data-date="${{dateStr}}" title="Click to filter to this date">${{dateStr}}</span>`;
                             html += `<span class="info-session-type">${{s.type || ''}}</span>`;
                             html += `<div class="info-session-name">${{s.name || 'Untitled'}}${{dist}}</div>`;
                             html += `</div>`;
@@ -3441,13 +3448,28 @@ def generate_browser(_data_dir: Path) -> str:
                                 self.updateInfo();
                             }});
                         }}
+                        // Date clicks - filter to that specific date
+                        div.querySelectorAll('.info-session-date').forEach(dateEl => {{
+                            dateEl.addEventListener('click', (e) => {{
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const date = dateEl.dataset.date;
+                                if (date) {{
+                                    FilterState.set({{ dateFrom: date, dateTo: date }});
+                                    FilterState.syncToURL();
+                                }}
+                            }});
+                        }});
+
                         // Session item clicks - zoom to session on map
                         div.querySelectorAll('.info-session-item').forEach(item => {{
-                            // Click on main area zooms to session
+                            // Click on main area (except date) zooms to session
                             const mainArea = item.querySelector('.info-session-main');
                             if (mainArea) {{
                                 mainArea.style.cursor = 'pointer';
                                 mainArea.addEventListener('click', (e) => {{
+                                    // Don't zoom if clicking on the date
+                                    if (e.target.classList.contains('info-session-date')) return;
                                     e.preventDefault();
                                     e.stopPropagation();
                                     const athlete = item.dataset.athlete;
