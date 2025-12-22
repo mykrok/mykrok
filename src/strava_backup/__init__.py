@@ -12,6 +12,6 @@ except ImportError:
     __version__ = "0.0.0.dev0+unknown"
 
 __author__ = "strava_backup contributors"
-__license__ = "MIT"
+__license__ = "Apache-2.0"
 
 __all__ = ["__version__"]

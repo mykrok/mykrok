@@ -166,7 +166,7 @@ No violations identified. Design follows all constitution principles.
 - Config file for persistent settings
 
 ### Principle III: FOSS Principles ✅ VERIFIED
-- All researched dependencies confirmed Apache-2.0 or MIT licensed
+- All researched dependencies confirmed Apache-2.0 licensed
 - stravalib, PyArrow, requests, DuckDB, Leaflet - all FOSS
 - No external services required after OAuth setup
 

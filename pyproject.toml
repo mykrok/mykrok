@@ -7,7 +7,7 @@ name = "strava-backup"
 dynamic = ["version"]
 description = "CLI tool to backup Strava activities with incremental sync, map visualization, and FitTrackee export"
 readme = "README.md"
-license = "MIT"
+license = "Apache-2.0"
 requires-python = ">=3.10"
 keywords = ["strava", "backup", "fitness", "gpx", "fittrackee"]
 authors = [
@@ -17,7 +17,7 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
     "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",

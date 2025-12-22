@@ -431,4 +431,4 @@ strava-backup sync --full
 
 ## License
 
-MIT
+Apache 2.0
