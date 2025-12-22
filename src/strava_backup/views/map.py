@@ -1612,6 +1612,18 @@ def generate_browser(_data_dir: Path) -> str:
             text-decoration: underline;
         }}
 
+        .popup-date-link {{
+            color: #666;
+            text-decoration: none;
+            cursor: pointer;
+            border-bottom: 1px dashed #999;
+        }}
+
+        .popup-date-link:hover {{
+            color: #2196F3;
+            border-bottom-color: #2196F3;
+        }}
+
         /* ===== Session List Panel ===== */
         .session-list-panel {{
             position: absolute;
@@ -2249,6 +2261,9 @@ def generate_browser(_data_dir: Path) -> str:
                 if (showDates) {{
                     const navDisabled = !state.dateFrom || !state.dateTo ? 'disabled' : '';
                     html += `<div class="date-nav-group">`;
+                    html += `<button type="button" class="date-nav-btn date-nav-btn--expand-prev" title="Expand range backward" aria-label="Expand date range backward" ${{navDisabled}}>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 12L6 8l4-4"/><path d="M3 4v8"/></svg>
+                    </button>`;
                     html += `<button type="button" class="date-nav-btn date-nav-btn--prev" title="Previous period" aria-label="Move date range backward" ${{navDisabled}}>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 12L6 8l4-4"/></svg>
                     </button>`;
@@ -2256,6 +2271,9 @@ def generate_browser(_data_dir: Path) -> str:
                     html += `<input type="date" class="filter-input filter-date filter-date-to" title="To date" value="${{state.dateTo}}">`;
                     html += `<button type="button" class="date-nav-btn date-nav-btn--next" title="Next period" aria-label="Move date range forward" ${{navDisabled}}>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12l4-4-4-4"/></svg>
+                    </button>`;
+                    html += `<button type="button" class="date-nav-btn date-nav-btn--expand-next" title="Expand range forward" aria-label="Expand date range forward" ${{navDisabled}}>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12l4-4-4-4"/><path d="M13 4v8"/></svg>
                     </button>`;
                     html += `</div>`;
                 }}
@@ -2404,6 +2422,67 @@ def generate_browser(_data_dir: Path) -> str:
                     nextBtn.addEventListener('click', () => navigateDates('next'));
                 }}
 
+                // Date expansion buttons
+                const expandPrevBtn = container.querySelector('.date-nav-btn--expand-prev');
+                const expandNextBtn = container.querySelector('.date-nav-btn--expand-next');
+
+                const expandDateRange = (direction) => {{
+                    const state = FilterState.get();
+                    if (!state.dateFrom || !state.dateTo) return;
+
+                    const fromDate = new Date(state.dateFrom);
+                    const toDate = new Date(state.dateTo);
+                    const dayMs = 24 * 60 * 60 * 1000;
+                    const intervalMs = toDate - fromDate;
+                    const intervalDays = Math.round(intervalMs / dayMs);
+
+                    // Determine expansion amount based on current interval:
+                    // ~1 day (0-2 days) -> expand by 3 days (to ~1 week)
+                    // ~1 week (3-10 days) -> expand by 2 weeks (to ~1 month)
+                    // ~1 month (11-45 days) -> expand by 5 months (to ~6 months)
+                    // ~6 months (46-200 days) -> expand by 6 months (to ~1 year)
+                    // >200 days -> expand by 1 year
+                    let expandDays;
+                    if (intervalDays <= 2) {{
+                        expandDays = 3;
+                    }} else if (intervalDays <= 10) {{
+                        expandDays = 14;
+                    }} else if (intervalDays <= 45) {{
+                        expandDays = 150;
+                    }} else if (intervalDays <= 200) {{
+                        expandDays = 180;
+                    }} else {{
+                        expandDays = 365;
+                    }}
+
+                    if (direction === 'prev') {{
+                        fromDate.setTime(fromDate.getTime() - expandDays * dayMs);
+                    }} else {{
+                        toDate.setTime(toDate.getTime() + expandDays * dayMs);
+                    }}
+
+                    const newFrom = fromDate.toISOString().split('T')[0];
+                    const newTo = toDate.toISOString().split('T')[0];
+
+                    FilterState.set({{ dateFrom: newFrom, dateTo: newTo }});
+                    FilterState.syncToURL();
+
+                    // Update inputs
+                    if (dateFromInput) dateFromInput.value = newFrom;
+                    if (dateToInput) dateToInput.value = newTo;
+
+                    // Reset preset dropdown
+                    const preset = container.querySelector('.filter-date-preset');
+                    if (preset) preset.value = '';
+                }};
+
+                if (expandPrevBtn) {{
+                    expandPrevBtn.addEventListener('click', () => expandDateRange('prev'));
+                }}
+                if (expandNextBtn) {{
+                    expandNextBtn.addEventListener('click', () => expandDateRange('next'));
+                }}
+
                 // Clear button
                 const clearBtn = container.querySelector('.filter-clear');
                 if (clearBtn) {{
@@ -2459,8 +2538,13 @@ def generate_browser(_data_dir: Path) -> str:
                 const hasBothDates = state.dateFrom && state.dateTo;
                 const prevBtn = container.querySelector('.date-nav-btn--prev');
                 const nextBtn = container.querySelector('.date-nav-btn--next');
+                const expandPrevBtn = container.querySelector('.date-nav-btn--expand-prev');
+                const expandNextBtn = container.querySelector('.date-nav-btn--expand-next');
                 if (prevBtn) prevBtn.disabled = !hasBothDates;
                 if (nextBtn) nextBtn.disabled = !hasBothDates;
+                // Expand buttons should be active only when nav buttons are active
+                if (expandPrevBtn) expandPrevBtn.disabled = !hasBothDates;
+                if (expandNextBtn) expandNextBtn.disabled = !hasBothDates;
             }},
 
             updateCount(containerId, filteredCount, totalCount) {{
@@ -2966,6 +3050,16 @@ def generate_browser(_data_dir: Path) -> str:
                 }}
             }},
 
+            filterByDate(dateStr) {{
+                // Filter activities to a specific date (YYYY-MM-DD format)
+                if (dateStr) {{
+                    FilterState.set({{ dateFrom: dateStr, dateTo: dateStr }});
+                    FilterState.syncToURL();
+                    // Update filter bar inputs so date navigation works
+                    FilterBar.syncFromState('map-filter-bar');
+                }}
+            }},
+
             focusSessionInList(athlete, session) {{
                 // Ensure the list is expanded
                 if (!this.sessionListExpanded) {{
@@ -3152,12 +3246,13 @@ def generate_browser(_data_dir: Path) -> str:
                         const imgSrc = localPath || previewUrl;
                         const linkHref = localPath || fullUrl;
 
+                        const photoDateForFilter = `${{session.substring(0, 4)}}-${{session.substring(4, 6)}}-${{session.substring(6, 8)}}`;
                         marker.bindPopup(`
                             <div class="photo-popup">
                                 ${{imgSrc ? `<a href="${{linkHref}}" target="_blank"><img src="${{imgSrc}}" alt="Photo"></a>` : '<p>No image available</p>'}}
                                 <div class="photo-meta">
                                     <strong>${{sessionName}}</strong><br>
-                                    ${{session.substring(0, 8)}}
+                                    <a href="javascript:void(0)" class="popup-date-link" onclick="MapView.filterByDate('${{photoDateForFilter}}')" title="Filter to this date">${{session.substring(0, 8)}}</a>
                                     <div class="popup-links">
                                         <a href="javascript:void(0)" class="popup-zoom-link" onclick="MapView.zoomToSession('${{athlete}}', '${{session}}')">Zoom in</a>
                                         <a href="#/session/${{athlete}}/${{session}}" class="popup-activity-link">View Activity →</a>
@@ -3165,6 +3260,11 @@ def generate_browser(_data_dir: Path) -> str:
                                 </div>
                             </div>
                         `, {{ maxWidth: 350 }});
+
+                        // Focus this activity in the Activities list when photo is clicked
+                        marker.on('click', () => {{
+                            this.focusSessionInList(athlete, session);
+                        }});
 
                         marker.addTo(this.photosLayer);
                         this.photosBySession[sessionKey].push(marker);
@@ -3294,10 +3394,12 @@ def generate_browser(_data_dir: Path) -> str:
                                 }}
 
                                 const photoInfo = hasPhotos ? `<br>Photos: ${{photoCount}}` : '';
+                                const dateForFilter = session.datetime ? `${{session.datetime.substring(0, 4)}}-${{session.datetime.substring(4, 6)}}-${{session.datetime.substring(6, 8)}}` : '';
+                                const dateDisplay = session.datetime?.substring(0, 8) || '';
                                 marker.bindPopup(`
                                     <b>${{session.name || 'Activity'}}</b><br>
                                     Type: ${{type}}<br>
-                                    Date: ${{session.datetime?.substring(0, 8) || ''}}${{photoInfo}}<br>
+                                    Date: <a href="javascript:void(0)" class="popup-date-link" onclick="MapView.filterByDate('${{dateForFilter}}')" title="Filter to this date">${{dateDisplay}}</a>${{photoInfo}}<br>
                                     Distance: ${{(parseFloat(session.distance_m || 0) / 1000).toFixed(2)}} km
                                     <div class="popup-links">
                                         <a href="javascript:void(0)" class="popup-zoom-link" onclick="MapView.zoomToSession('${{username}}', '${{session.datetime}}')">Zoom in</a>
