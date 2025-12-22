@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.5.0 (2025-12-22)
+
+#### 🚀 Features
+
+- Add clickable legend filtering for activity types on map
+- Add Layers control with heatmap toggle
+- Add resizable Activities panel with drag handle
+- Add date navigation buttons (prev/next day) in filter bar
+
+#### 🔧 Improvements
+
+- Unify FilterBar component across all 3 views (Map, Sessions, Stats) - DRY refactor
+- Improve Activities panel UX: scroll preservation, resize support, touchpad compatibility
+- Improve zoom animation and map interaction
+- Point README.md to gh-pages demo site
+
+#### 🐛 Bug Fixes
+
+- Fix Stats view crash when charts have no data
+- Fix heatmap stability issues
+
+#### 📝 Documentation
+
+- Add CHANGELOG.md in Intuit Auto format
+
+#### Authors: 1
+
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 ## v0.4.0 (2025-12-22)
 
 #### 🚀 Features
