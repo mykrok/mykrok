@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.9.1 (2025-12-23)
+
+#### 🐛 Bug Fixes
+
+- Fix missing photo-viewer-utils.js asset (caused JavaScript error on page load)
+
+#### Authors: 1
+
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 ## v0.9.0 (2025-12-22)
 
 #### 🚀 Features
