@@ -110,13 +110,27 @@ athletes.tsv
 
 Since this is a static file app served without a backend, use hash routing:
 
+**Basic Routes**:
 - `#/map` - Map view (default)
-- `#/map?athletes=alice,bob` - Map filtered to specific athletes
+- `#/map?a=alice` - Map filtered to specific athlete
 - `#/sessions` - Sessions list
-- `#/sessions?athlete=alice` - Sessions for specific athlete
-- `#/sessions/{datetime}` - Session detail
+- `#/sessions?a=alice` - Sessions for specific athlete
+- `#/session/{athlete}/{datetime}` - Full session detail view
 - `#/stats` - Statistics dashboard
 - `#/stats?year=2024` - Stats for specific year
+
+**Permalink Parameters for Sharing**:
+
+Map view supports additional parameters to share specific views:
+- `#/map?track={athlete}/{datetime}` - Focus and load track for a specific session
+- `#/map?popup={athlete}/{datetime}/{photoIndex}` - Open PhotoViewer on a specific photo
+- `#/map?z=14&lat=40.7&lng=-74.0` - Specific map position and zoom
+
+Session view supports photo permalinks:
+- `#/session/{athlete}/{datetime}?photo={index}` - Open PhotoViewer at specific photo
+
+All parameters can be combined for a complete shareable state:
+- `#/map?a=alice&from=2024-01-01&to=2024-12-31&track=alice/20241218T063000`
 
 ---
 
@@ -550,10 +564,96 @@ function findSharedSessions(datetime) {
 2. Remote URLs: From `info.json` photos array
 
 **Photo Display**:
-- Map popup: Thumbnail (600px size)
+- Map popup: Thumbnail (600px size) with navigation controls
 - Session detail: Grid of thumbnails
-- Click thumbnail: Lightbox with full resolution
-- Lightbox: Swipe/arrow navigation between photos
+- Click thumbnail: Opens PhotoViewer modal
+- PhotoViewer: Full-screen modal with navigation between photos
+
+### 6.5 PhotoViewer Component
+
+**Purpose**: Unified photo viewing experience across all views (session detail, map popups)
+
+**Layout (Modal)**:
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                                                        [×] [↗]      │
+│                                                                     │
+│                                                                     │
+│    [<]              [PHOTO IMAGE]                           [>]     │
+│                                                                     │
+│                                                                     │
+│                         3 of 10                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Components**:
+
+1. **Modal Container**
+   - Full viewport overlay with semi-transparent backdrop
+   - Centered photo display
+   - Click backdrop to close
+
+2. **Navigation Buttons**
+   - Previous (`<`) and Next (`>`) buttons on sides
+   - Disabled state at sequence ends (no looping)
+   - Arrow key support (Left/Right)
+
+3. **Photo Counter**
+   - Format: "X of Y" (e.g., "3 of 10")
+   - Updates on navigation
+
+4. **Close Button**
+   - Top-right corner
+   - Escape key also closes
+
+5. **Open in New Tab**
+   - Icon button to open full resolution in new tab
+
+**Click Zones**:
+- Left half of image → Previous photo
+- Right half of image → Next photo
+- Enables single-handed navigation on mobile
+
+**Map Popup Navigation**:
+```
+┌────────────────────────────────────────┐
+│           [PHOTO THUMBNAIL]            │
+├────────────────────────────────────────┤
+│    [<]      2 of 5           [>]       │
+├────────────────────────────────────────┤
+│  Activity Name                         │
+│  Date | Zoom in | View session         │
+└────────────────────────────────────────┘
+```
+
+- Navigation row appears below photo in popups
+- Counter shows position in sequence
+- Prev/Next buttons disabled at ends
+- Click photo to open in PhotoViewer modal
+
+**Keyboard Support**:
+- `←` (Left Arrow): Previous photo
+- `→` (Right Arrow): Next photo
+- `Escape`: Close modal
+
+**Styling**:
+```css
+.photo-viewer-modal {
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.photo-viewer-prev:disabled,
+.photo-viewer-next:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+```
+
+**States**:
+- At first photo: Previous button disabled
+- At last photo: Next button disabled
+- Single photo: Both buttons disabled, no navigation row
 
 ---
 
@@ -727,8 +827,13 @@ Invalid Data:
 - Tab order: Header -> Nav -> Main content
 - Arrow keys: Navigate within tables/lists
 - Enter: Activate buttons, open details
-- Escape: Close modals/panels
+- Escape: Close modals/panels (including PhotoViewer)
 - Focus indicators: Visible outline on interactive elements
+
+**PhotoViewer Shortcuts**:
+- Left Arrow (←): Previous photo
+- Right Arrow (→): Next photo
+- Escape: Close viewer
 
 ### Screen Reader Support
 

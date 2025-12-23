@@ -1,6 +1,168 @@
 import { parquetReadObjects } from '../hyparquet/index.js';
 import { getExpansionDays } from './date-utils.js';
 import { parseTSV } from './tsv-utils.js';
+import {
+    canGoPrev as canGoPrevUtil,
+    canGoNext as canGoNextUtil,
+    getPrevIndex,
+    getNextIndex,
+    formatPhotoCounter,
+    getClickDirection
+} from './photo-viewer-utils.js';
+
+// ===== Photo Viewer Modal =====
+const PhotoViewer = {
+    photos: [],
+    currentIndex: 0,
+    modal: null,
+
+    init() {
+        // Create modal container
+        this.modal = document.createElement('div');
+        this.modal.className = 'photo-viewer-modal';
+        this.modal.innerHTML = `
+            <div class="photo-viewer-overlay"></div>
+            <div class="photo-viewer-content">
+                <button class="photo-viewer-close" title="Close (Esc)">&times;</button>
+                <button class="photo-viewer-prev" title="Previous (←)">&#8249;</button>
+                <div class="photo-viewer-image-container">
+                    <img class="photo-viewer-image" src="" alt="Photo">
+                </div>
+                <button class="photo-viewer-next" title="Next (→)">&#8250;</button>
+                <div class="photo-viewer-footer">
+                    <span class="photo-viewer-counter">1 of 1</span>
+                    <button class="photo-viewer-open" title="Open in new tab">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        `;
+        this.modal.style.display = 'none';
+        document.body.appendChild(this.modal);
+
+        // Event listeners
+        this.modal.querySelector('.photo-viewer-overlay').addEventListener('click', () => this.close());
+        this.modal.querySelector('.photo-viewer-close').addEventListener('click', () => this.close());
+        this.modal.querySelector('.photo-viewer-prev').addEventListener('click', () => this.prev());
+        this.modal.querySelector('.photo-viewer-next').addEventListener('click', () => this.next());
+        this.modal.querySelector('.photo-viewer-open').addEventListener('click', () => this.openInNewTab());
+
+        // Click on image: left half = prev, right half = next
+        this.modal.querySelector('.photo-viewer-image-container').addEventListener('click', (e) => {
+            if (this.photos.length <= 1) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const direction = getClickDirection(clickX, rect.width);
+            if (direction === 'prev') {
+                this.prev();
+            } else {
+                this.next();
+            }
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (this.modal.style.display === 'none') return;
+            if (e.key === 'Escape') this.close();
+            else if (e.key === 'ArrowLeft') this.prev();
+            else if (e.key === 'ArrowRight') this.next();
+        });
+    },
+
+    // Context for URL tracking
+    context: null,  // { athlete, datetime, source: 'session'|'map' }
+
+    open(photos, startIndex = 0, context = null) {
+        if (!photos || photos.length === 0) return;
+        this.photos = photos;
+        this.currentIndex = startIndex;
+        this.context = context;
+        this.updateDisplay();
+        this.modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        this.updateURL();
+    },
+
+    close() {
+        this.modal.style.display = 'none';
+        document.body.style.overflow = '';
+        this.clearURL();
+        this.context = null;
+    },
+
+    prev() {
+        if (!this.canGoPrev()) return;
+        this.currentIndex = getPrevIndex(this.currentIndex, this.photos.length);
+        this.updateDisplay();
+        this.updateURL();
+    },
+
+    next() {
+        if (!this.canGoNext()) return;
+        this.currentIndex = getNextIndex(this.currentIndex, this.photos.length);
+        this.updateDisplay();
+        this.updateURL();
+    },
+
+    updateURL() {
+        if (!this.context) return;
+        const { athlete, datetime, source } = this.context;
+        if (source === 'session') {
+            // Session view: #/session/athlete/datetime?photo=index
+            URLState.updateSessionPhoto(athlete, datetime, this.currentIndex);
+        } else if (source === 'map') {
+            // Map view: update popup parameter
+            URLState.update({ popup: `${athlete}/${datetime}/${this.currentIndex}` });
+        }
+    },
+
+    clearURL() {
+        if (!this.context) return;
+        const { athlete, datetime, source } = this.context;
+        if (source === 'session') {
+            // Remove photo param from session URL
+            URLState.updateSessionPhoto(athlete, datetime, null);
+        } else if (source === 'map') {
+            // Remove popup param from map URL
+            URLState.update({ popup: '' });
+        }
+    },
+
+    canGoPrev() {
+        return canGoPrevUtil(this.currentIndex, this.photos.length);
+    },
+
+    canGoNext() {
+        return canGoNextUtil(this.currentIndex, this.photos.length);
+    },
+
+    updateDisplay() {
+        const photo = this.photos[this.currentIndex];
+        const img = this.modal.querySelector('.photo-viewer-image');
+        const counter = this.modal.querySelector('.photo-viewer-counter');
+        const prevBtn = this.modal.querySelector('.photo-viewer-prev');
+        const nextBtn = this.modal.querySelector('.photo-viewer-next');
+
+        img.src = photo.src;
+        counter.textContent = formatPhotoCounter(this.currentIndex, this.photos.length);
+
+        // Show/hide and enable/disable nav buttons
+        const hasMultiple = this.photos.length > 1;
+        prevBtn.style.display = hasMultiple ? 'flex' : 'none';
+        nextBtn.style.display = hasMultiple ? 'flex' : 'none';
+        prevBtn.disabled = !this.canGoPrev();
+        nextBtn.disabled = !this.canGoNext();
+    },
+
+    openInNewTab() {
+        const photo = this.photos[this.currentIndex];
+        if (photo && photo.fullUrl) {
+            window.open(photo.fullUrl, '_blank');
+        }
+    }
+};
 
 // ===== URL State Manager =====
 const URLState = {
@@ -16,6 +178,10 @@ const URLState = {
         if (state.type) params.set('t', state.type);
         if (state.dateFrom) params.set('from', state.dateFrom);
         if (state.dateTo) params.set('to', state.dateTo);
+        // Track selection on map: track=athlete/datetime
+        if (state.track) params.set('track', state.track);
+        // Photo popup on map: popup=athlete/datetime/photoIndex
+        if (state.popup) params.set('popup', state.popup);
         const queryStr = params.toString();
         return '#/' + state.view + (queryStr ? '?' + queryStr : '');
     },
@@ -35,8 +201,34 @@ const URLState = {
             search: params.get('q') || '',
             type: params.get('t') || '',
             dateFrom: params.get('from') || '',
-            dateTo: params.get('to') || ''
+            dateTo: params.get('to') || '',
+            // Track selection on map: track=athlete/datetime
+            track: params.get('track') || '',
+            // Photo popup on map: popup=athlete/datetime/photoIndex
+            popup: params.get('popup') || ''
         };
+    },
+
+    // Decode session URL with photo parameter: #/session/athlete/datetime?photo=index
+    decodeSession(hash) {
+        const parts = hash.split('/');
+        if (parts.length < 3) return null;
+        const athlete = parts[1];
+        const datetimePart = parts[2];
+        const [datetime, queryStr] = datetimePart.split('?');
+        const params = new URLSearchParams(queryStr || '');
+        return {
+            athlete,
+            datetime,
+            photo: params.get('photo') ? parseInt(params.get('photo')) : null
+        };
+    },
+
+    // Update session URL with photo index
+    updateSessionPhoto(athlete, datetime, photoIndex) {
+        const base = `#/session/${athlete}/${datetime}`;
+        const newHash = photoIndex !== null ? `${base}?photo=${photoIndex}` : base;
+        history.replaceState(null, '', newHash);
     },
 
     // Update URL without triggering navigation
@@ -585,12 +777,15 @@ const Router = {
         const parts = hash.split('/');
         const view = parts[0].split('?')[0];
 
-        // Handle full-screen session route: #/session/athlete/datetime
+        // Handle full-screen session route: #/session/athlete/datetime?photo=index
         if (view === 'session' && parts.length >= 3) {
             const athlete = parts[1];
-            const datetime = parts[2].split('?')[0];
+            const datetimePart = parts[2];
+            const [datetime, queryStr] = datetimePart.split('?');
+            const params = new URLSearchParams(queryStr || '');
+            const photoIndex = params.get('photo') ? parseInt(params.get('photo')) : null;
             this.showView('session');
-            FullSessionView.show(athlete, datetime);
+            FullSessionView.show(athlete, datetime, photoIndex);
             return;
         }
 
@@ -643,6 +838,73 @@ const Router = {
             setTimeout(() => {
                 SessionsView.showDetail(state.athlete, state.session);
             }, 500);
+        }
+
+        // Restore track selection on map view
+        if (state.track && state.view === 'map') {
+            const [trackAthlete, trackDatetime] = state.track.split('/');
+            if (trackAthlete && trackDatetime) {
+                // Store pending restore and start retry loop
+                this.pendingTrackRestore = { athlete: trackAthlete, datetime: trackDatetime };
+                this.restoreTrackFromURL(trackAthlete, trackDatetime);
+            }
+        }
+
+        // Restore photo popup on map view
+        if (state.popup && state.view === 'map') {
+            const popupParts = state.popup.split('/');
+            if (popupParts.length >= 3) {
+                const [popupAthlete, popupDatetime, popupPhotoIndex] = popupParts;
+                // Store pending restore and start retry loop
+                this.pendingPopupRestore = { athlete: popupAthlete, datetime: popupDatetime, photoIndex: parseInt(popupPhotoIndex) };
+                this.restorePhotoPopupFromURL(popupAthlete, popupDatetime, parseInt(popupPhotoIndex));
+            }
+        }
+    },
+
+    // Pending track/popup to restore after data loads
+    pendingTrackRestore: null,
+    pendingPopupRestore: null,
+
+    restoreTrackFromURL(athlete, datetime, retryCount = 0) {
+        // Find the marker for this session
+        const markerData = MapView.allMarkers.find(
+            m => m.athlete === athlete && m.session === datetime
+        );
+        if (markerData) {
+            // Load track and photos
+            MapView.loadTrack(athlete, datetime, markerData.color);
+            if (markerData.hasPhotos) {
+                MapView.loadPhotos(athlete, datetime, markerData.sessionName);
+            }
+            MapView.focusSessionInList(athlete, datetime);
+            // Zoom to the marker
+            MapView.map.setView(markerData.marker.getLatLng(), 14);
+            this.pendingTrackRestore = null;
+        } else if (retryCount < 10) {
+            // Data might not be loaded yet, retry
+            console.log(`Track restore: waiting for data (attempt ${retryCount + 1}/10)...`);
+            setTimeout(() => this.restoreTrackFromURL(athlete, datetime, retryCount + 1), 500);
+        } else {
+            console.warn('Could not find session for track restore:', athlete, datetime);
+            this.pendingTrackRestore = null;
+        }
+    },
+
+    restorePhotoPopupFromURL(athlete, datetime, photoIndex, retryCount = 0) {
+        const sessionKey = `${athlete}/${datetime}`;
+        const photos = MapView.photosBySession[sessionKey];
+        if (photos && photos.length > photoIndex) {
+            // Open PhotoViewer with the specified photo
+            MapView.openPhotoViewer(sessionKey, photoIndex);
+            this.pendingPopupRestore = null;
+        } else if (retryCount < 15) {
+            // Photos might not be loaded yet, retry
+            console.log(`Photo restore: waiting for photos (attempt ${retryCount + 1}/15)...`);
+            setTimeout(() => this.restorePhotoPopupFromURL(athlete, datetime, photoIndex, retryCount + 1), 500);
+        } else {
+            console.warn('Could not find photos for popup restore:', sessionKey, photoIndex);
+            this.pendingPopupRestore = null;
         }
     },
 
@@ -714,8 +976,8 @@ const MapView = {
     loadedTracks: new Set(),
     loadingTracks: new Set(),
     loadedPhotos: new Set(),
-    tracksBySession: {},  // Map of "athlete|session" -> polyline layer
-    photosBySession: {},  // Map of "athlete|session" -> array of photo markers
+    tracksBySession: {},  // Map of "athlete/session" -> polyline layer
+    photosBySession: {},  // Map of "athlete/session" -> array of photo markers
     allMarkers: [],
     allSessions: [],
     filteredSessions: [],  // Sessions after applying filters
@@ -855,12 +1117,12 @@ const MapView = {
         this.filteredSessions = [...filtered].sort((a, b) => (b.datetime || '').localeCompare(a.datetime || ''));
 
         // Build a set of visible session keys for quick lookup
-        const visibleKeys = new Set(filtered.map(s => `${s.athlete}|${s.datetime}`));
+        const visibleKeys = new Set(filtered.map(s => `${s.athlete}/${s.datetime}`));
 
         // Update marker visibility by adding/removing from layer
         // This is the proper Leaflet way to show/hide markers
         for (const data of this.allMarkers) {
-            const key = `${data.athlete}|${data.session}`;
+            const key = `${data.athlete}/${data.session}`;
             const visible = visibleKeys.has(key);
             data.visible = visible;
 
@@ -931,8 +1193,11 @@ const MapView = {
     zoomToSession(athlete, session) {
         const markerData = this.allMarkers.find(m => m.athlete === athlete && m.session === session);
         if (markerData && markerData.marker) {
+            // Close any open popup before zooming to new session
+            this.map.closePopup();
+
             // Get the track bounds if available, otherwise use marker location
-            const sessionKey = `${athlete}|${session}`;
+            const sessionKey = `${athlete}/${session}`;
             const track = this.tracksBySession[sessionKey];
 
             // Reset previous selected track to normal weight
@@ -956,6 +1221,12 @@ const MapView = {
                 this.loadTrack(athlete, session, markerData.color);
                 this.selectedTrackKey = sessionKey;
             }
+
+            // Update URL with selected track, clear stale popup
+            URLState.update({
+                track: sessionKey,
+                popup: ''  // Clear popup when zooming to different session
+            });
         }
     },
 
@@ -1061,7 +1332,7 @@ const MapView = {
                 }
                 if (coords.length > 0) {
                     // Store reference for filtering
-                    const sessionKey = `${athlete}|${session}`;
+                    const sessionKey = `${athlete}/${session}`;
 
                     // Use bold weight if this is the selected track
                     const weight = this.selectedTrackKey === sessionKey ? 6 : 3;
@@ -1088,6 +1359,8 @@ const MapView = {
             this.loadingTracks.delete(trackKey);
         }
     },
+
+    sessionPhotoData: {},  // Store photo arrays for PhotoViewer: sessionKey -> [{src, fullUrl}, ...]
 
     async loadPhotos(athlete, session, sessionName) {
         const photoKey = `${athlete}/${session}`;
@@ -1125,16 +1398,13 @@ const MapView = {
             const photos = info.photos || [];
 
             // Initialize array for this session's photos
-            const sessionKey = `${athlete}|${session}`;
+            const sessionKey = `${athlete}/${session}`;
             this.photosBySession[sessionKey] = [];
+            this.sessionPhotoData[sessionKey] = [];
 
+            // First pass: build photo data array for PhotoViewer
+            const photoDataList = [];
             for (const photo of photos) {
-                const locationRaw = photo.location;
-                if (!locationRaw || !locationRaw[0] || !locationRaw[0][1]) continue;
-
-                const [lat, lng] = locationRaw[0][1];
-                if (lat == null || lng == null) continue;
-
                 const urls = photo.urls || {};
                 const previewUrl = urls['600'] || urls['256'] || urls['1024'] || urls['2048'] || Object.values(urls)[0] || '';
                 const fullUrl = urls['2048'] || urls['1024'] || urls['600'] || Object.values(urls)[0] || '';
@@ -1146,6 +1416,28 @@ const MapView = {
                     localPath = `athl=${athlete}/ses=${session}/photos/${dt}.jpg`;
                 }
 
+                const locationRaw = photo.location;
+                const hasLocation = locationRaw && locationRaw[0] && locationRaw[0][1];
+                const [lat, lng] = hasLocation ? locationRaw[0][1] : [null, null];
+
+                photoDataList.push({
+                    src: localPath || previewUrl,
+                    fullUrl: localPath || fullUrl,
+                    lat,
+                    lng,
+                    hasLocation: lat != null && lng != null
+                });
+            }
+
+            this.sessionPhotoData[sessionKey] = photoDataList;
+            const totalPhotos = photoDataList.length;
+
+            // Second pass: create markers for photos with location
+            let photoIndex = 0;
+            for (const photoData of photoDataList) {
+                const currentIndex = photoIndex++;
+                if (!photoData.hasLocation) continue;
+
                 const photoIcon = L.divIcon({
                     html: '<div class="photo-icon" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;">' +
                           '<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>' +
@@ -1155,14 +1447,25 @@ const MapView = {
                     iconAnchor: [14, 14]
                 });
 
-                const marker = L.marker([lat, lng], { icon: photoIcon });
-                const imgSrc = localPath || previewUrl;
-                const linkHref = localPath || fullUrl;
-
+                const marker = L.marker([photoData.lat, photoData.lng], { icon: photoIcon });
                 const photoDateForFilter = `${session.substring(0, 4)}-${session.substring(4, 6)}-${session.substring(6, 8)}`;
+
+                // Build navigation buttons
+                const navPrev = currentIndex > 0
+                    ? `<button class="photo-nav-btn" onclick="MapView.showPhotoAtIndex('${sessionKey}', ${currentIndex - 1})" title="Previous photo">&#8249;</button>`
+                    : '<button class="photo-nav-btn" disabled>&#8249;</button>';
+                const navNext = currentIndex < totalPhotos - 1
+                    ? `<button class="photo-nav-btn" onclick="MapView.showPhotoAtIndex('${sessionKey}', ${currentIndex + 1})" title="Next photo">&#8250;</button>`
+                    : '<button class="photo-nav-btn" disabled>&#8250;</button>';
+
                 marker.bindPopup(`
                     <div class="photo-popup">
-                        ${imgSrc ? `<a href="${linkHref}" target="_blank"><img src="${imgSrc}" alt="Photo"></a>` : '<p>No image available</p>'}
+                        ${photoData.src ? `<img src="${photoData.src}" alt="Photo" style="cursor:pointer" onclick="MapView.openPhotoViewer('${sessionKey}', ${currentIndex})">` : '<p>No image available</p>'}
+                        <div class="photo-nav-row">
+                            ${navPrev}
+                            <span class="photo-counter">${currentIndex + 1} / ${totalPhotos}</span>
+                            ${navNext}
+                        </div>
                         <div class="photo-meta">
                             <strong>${sessionName}</strong><br>
                             <a href="javascript:void(0)" class="popup-date-link" onclick="MapView.filterByDate('${photoDateForFilter}')" title="Filter to this date">${session.substring(0, 8)}</a>
@@ -1180,13 +1483,43 @@ const MapView = {
                 });
 
                 marker.addTo(this.photosLayer);
-                this.photosBySession[sessionKey].push(marker);
+                this.photosBySession[sessionKey].push({ marker, index: currentIndex });
                 this.totalPhotos++;
             }
 
             this.updateInfo();
         } catch (e) {
             console.warn(`Failed to load photos for ${photoKey}:`, e);
+        }
+    },
+
+    // Navigate to a specific photo in the map popup
+    showPhotoAtIndex(sessionKey, index) {
+        const photoMarkers = this.photosBySession[sessionKey];
+        if (!photoMarkers) return;
+
+        // Find the marker with this index
+        const entry = photoMarkers.find(p => p.index === index);
+        if (entry && entry.marker) {
+            // Close current popup, open the new one
+            this.map.closePopup();
+            entry.marker.openPopup();
+            // Optionally pan to the marker
+            this.map.panTo(entry.marker.getLatLng());
+        }
+    },
+
+    // Open PhotoViewer with all photos from a session
+    openPhotoViewer(sessionKey, startIndex) {
+        const photos = this.sessionPhotoData[sessionKey];
+        if (photos && photos.length > 0) {
+            // sessionKey format: "athlete/datetime"
+            const [athlete, datetime] = sessionKey.split('/');
+            PhotoViewer.open(photos, startIndex, {
+                athlete,
+                datetime,
+                source: 'map'
+            });
         }
     },
 
@@ -1331,12 +1664,19 @@ const MapView = {
                         });
 
                         marker.on('click', () => {
+                            // Close any open popup before loading new track
+                            this.map.closePopup();
                             this.loadTrack(username, session.datetime, color);
                             if (hasPhotos) {
                                 this.loadPhotos(username, session.datetime, session.name || 'Activity');
                             }
                             // Focus this activity in the Activities list
                             this.focusSessionInList(username, session.datetime);
+                            // Update URL with selected track, clear stale popup
+                            URLState.update({
+                                track: `${username}/${session.datetime}`,
+                                popup: ''  // Clear popup when selecting new track
+                            });
                         });
 
                         marker.addTo(this.sessionsLayer);
@@ -2458,12 +2798,14 @@ const FullSessionView = {
     map: null,
     currentAthlete: null,
     currentSession: null,
+    pendingPhotoIndex: null,  // Photo index to open after photos load
     retryCount: 0,
     maxRetries: 10,
 
-    show(athlete, datetime) {
+    show(athlete, datetime, photoIndex = null) {
         this.currentAthlete = athlete;
         this.currentSession = datetime;
+        this.pendingPhotoIndex = photoIndex;
 
         // Find session data
         const sessions = MapView.sessionsByAthlete?.[athlete] || [];
@@ -2476,7 +2818,7 @@ const FullSessionView = {
                 console.log('Session data not loaded yet, retrying... (' + this.retryCount + '/' + this.maxRetries + ')');
                 document.getElementById('full-session-name').textContent = 'Loading...';
                 document.getElementById('full-session-meta').textContent = 'Please wait while data loads';
-                setTimeout(() => this.show(athlete, datetime), 500);
+                setTimeout(() => this.show(athlete, datetime, this.pendingPhotoIndex), 500);
                 return;
             } else {
                 console.warn('Session not found after retries:', athlete, datetime);
@@ -2971,9 +3313,12 @@ const FullSessionView = {
         }
     },
 
+    sessionPhotos: [],  // Store photos for PhotoViewer
+
     async loadPhotos(athlete, datetime, session) {
         const container = document.getElementById('full-session-photos');
         const photoCount = parseInt(session?.photo_count) || 0;
+        this.sessionPhotos = [];
 
         if (photoCount === 0) {
             container.innerHTML = '';
@@ -3001,8 +3346,8 @@ const FullSessionView = {
                 return;
             }
 
-            const grid = document.getElementById('full-session-photo-grid');
-            grid.innerHTML = photos.map(photo => {
+            // Build photo data array for PhotoViewer
+            this.sessionPhotos = photos.map(photo => {
                 const urls = photo.urls || {};
                 const thumbUrl = urls['600'] || urls['256'] || Object.values(urls)[0] || '';
                 const fullUrl = urls['2048'] || urls['1024'] || urls['600'] || thumbUrl;
@@ -3015,17 +3360,44 @@ const FullSessionView = {
                     localPath = `athl=${athlete}/ses=${datetime}/photos/${dt}.jpg`;
                 }
 
-                const src = localPath || thumbUrl;
-                const href = localPath || fullUrl;
+                return {
+                    src: localPath || thumbUrl,
+                    fullUrl: localPath || fullUrl
+                };
+            }).filter(p => p.src);
 
-                return src ? `
-                    <div class="photo-item">
-                        <img src="${src}"
-                             onclick="window.open('${href}', '_blank')"
-                             alt="Activity photo">
-                    </div>
-                ` : '';
-            }).join('');
+            const grid = document.getElementById('full-session-photo-grid');
+            grid.innerHTML = this.sessionPhotos.map((photo, index) => `
+                <div class="photo-item">
+                    <img src="${photo.src}"
+                         data-index="${index}"
+                         alt="Activity photo">
+                </div>
+            `).join('');
+
+            // Add click handlers for PhotoViewer
+            const self = this;
+            grid.querySelectorAll('img').forEach(img => {
+                img.style.cursor = 'pointer';
+                img.addEventListener('click', () => {
+                    const index = parseInt(img.dataset.index);
+                    PhotoViewer.open(self.sessionPhotos, index, {
+                        athlete: self.currentAthlete,
+                        datetime: self.currentSession,
+                        source: 'session'
+                    });
+                });
+            });
+
+            // Open PhotoViewer if URL had photo index parameter
+            if (this.pendingPhotoIndex !== null && this.pendingPhotoIndex < this.sessionPhotos.length) {
+                PhotoViewer.open(this.sessionPhotos, this.pendingPhotoIndex, {
+                    athlete: this.currentAthlete,
+                    datetime: this.currentSession,
+                    source: 'session'
+                });
+                this.pendingPhotoIndex = null;
+            }
         } catch (e) {
             console.warn('Failed to load photos:', e);
             container.innerHTML = '';
@@ -3455,8 +3827,10 @@ MapView.loadSessions = async function() {
 };
 
 Router.init();
+PhotoViewer.init();
 MapView.init();
 SessionsView.init();
 StatsView.init();
 // Export to window for onclick handlers in popups
 window.MapView = MapView;
+window.PhotoViewer = PhotoViewer;
