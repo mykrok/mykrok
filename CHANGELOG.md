@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.9.0 (2025-12-22)
+
+#### 🚀 Features
+
+- Add PhotoViewer component with keyboard navigation (←/→/Escape)
+- Add permalink support for sharing map views, tracks, and photos
+- Add photo navigation in map popups (prev/next buttons)
+- Add multi-athlete authentication plan (features/multi-athlete/plan.md)
+
+#### 🐛 Bug Fixes
+
+- Fix session view photos to load from info.json (works on servers without directory listing)
+- Fix URL state handling and date filtering consistency
+- Fix popup/track URL parameters clearing on new selection
+
+#### 🔧 Improvements
+
+- Add validation to create-browser: require athletes.tsv
+- Add unit tests for backup logic (related sessions, photo recovery)
+- Update CLI contract and quickstart.md to match implementation
+- Add favicon.svg to prevent 404 errors
+
+#### Authors: 1
+
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 ## v0.8.0 (2025-12-22)
 
 #### 🚀 Features
