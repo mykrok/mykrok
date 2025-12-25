@@ -394,6 +394,74 @@ def update_gitattributes_paths(dataset_dir: Path, dry_run: bool = False) -> bool
     return False
 
 
+def update_dataset_template_files(dataset_dir: Path, dry_run: bool = False) -> list[str]:
+    """Update README.md, Makefile, and .gitignore to use new mykrok naming.
+
+    Replaces references to strava-backup with mykrok in dataset template files.
+
+    Args:
+        dataset_dir: Dataset root directory.
+        dry_run: If True, only report what would be done.
+
+    Returns:
+        List of updated file names.
+    """
+    updated_files: list[str] = []
+
+    # Define replacements for each file type
+    # Order matters - more specific patterns first
+    replacements = [
+        # Config directory path
+        (r"\.strava-backup/", ".mykrok/"),
+        (r"\.strava-backup", ".mykrok"),
+        # CLI command (but not the directory)
+        (r"strava-backup sync", "mykrok sync"),
+        (r"strava-backup auth", "mykrok auth"),
+        (r'"strava-backup sync"', '"mykrok sync"'),
+        (r'"strava-backup sync --full"', '"mykrok sync --full"'),
+        # Comments and headers
+        (r"# Strava Backup\b", "# MyKrok Activity Backup"),
+        (r"Strava Backup Makefile", "MyKrok Activity Backup Makefile"),
+        (r"Strava Backup Commands", "MyKrok Commands"),
+        (r"Strava Backup Dataset", "MyKrok Activity Backup Dataset"),
+        # Commit messages in Makefile
+        (r'"Sync new Strava activities"', '"Sync new activities"'),
+        (r'"Full Strava sync"', '"Full activity sync"'),
+    ]
+
+    for filename in ["README.md", "Makefile", ".gitignore"]:
+        filepath = dataset_dir / filename
+        if not filepath.exists():
+            continue
+
+        content = filepath.read_text(encoding="utf-8")
+        original_content = content
+
+        # Check if any replacements are needed
+        needs_update = False
+        for pattern, _ in replacements:
+            if re.search(pattern, content):
+                needs_update = True
+                break
+
+        if not needs_update:
+            continue
+
+        if dry_run:
+            updated_files.append(filename)
+            continue
+
+        # Apply all replacements
+        for pattern, replacement in replacements:
+            content = re.sub(pattern, replacement, content)
+
+        if content != original_content:
+            filepath.write_text(content, encoding="utf-8")
+            updated_files.append(filename)
+
+    return updated_files
+
+
 def run_full_migration(
     data_dir: Path,
     dry_run: bool = False,
@@ -402,11 +470,12 @@ def run_full_migration(
 
     1. Migrate config directory from .strava-backup to .mykrok
     2. Update .gitattributes to use new .mykrok path
-    3. Rename sub= directories to athl=
-    4. Update Makefile and README.md to use athl=
-    5. Add .gitattributes rule for log files (route to git-annex)
-    6. Migrate center_lat/center_lng columns to start_lat/start_lng
-    7. Generate athletes.tsv
+    3. Update README.md, Makefile, .gitignore to use mykrok naming
+    4. Rename sub= directories to athl=
+    5. Update Makefile and README.md to use athl= prefix
+    6. Add .gitattributes rule for log files (route to git-annex)
+    7. Migrate center_lat/center_lng columns to start_lat/start_lng
+    8. Generate athletes.tsv
 
     Note: start_lat/start_lng columns are now included by default when
     sessions.tsv is regenerated via update_sessions_tsv().
@@ -422,6 +491,7 @@ def run_full_migration(
         "config_dir_migrated": None,
         "config_file_migrated": None,
         "gitattributes_paths_updated": False,
+        "template_files_updated": [],
         "prefix_renames": [],
         "dataset_files_updated": [],
         "log_gitattributes_added": False,
@@ -447,22 +517,27 @@ def run_full_migration(
         dataset_dir, dry_run=dry_run
     )
 
-    # 3. Migrate prefixes
+    # 3. Update README.md, Makefile, .gitignore to use mykrok naming
+    results["template_files_updated"] = update_dataset_template_files(
+        dataset_dir, dry_run=dry_run
+    )
+
+    # 4. Migrate prefixes
     if needs_migration(data_dir):
         renames = migrate_athlete_prefixes(data_dir, dry_run=dry_run)
         results["prefix_renames"] = [(str(old), str(new)) for old, new in renames]
 
-    # 4. Update Makefile and README.md in dataset root
+    # 5. Update Makefile and README.md in dataset root (sub= -> athl=)
     results["dataset_files_updated"] = update_dataset_files(dataset_dir, dry_run=dry_run)
 
-    # 5. Add log file gitattributes rule
+    # 6. Add log file gitattributes rule
     results["log_gitattributes_added"] = add_log_gitattributes_rule(dataset_dir, dry_run=dry_run)
 
     if not dry_run:
-        # 6. Migrate center_* columns to start_* columns
+        # 7. Migrate center_* columns to start_* columns
         results["coords_columns_migrated"] = migrate_center_to_start_coords(data_dir)
 
-        # 7. Generate athletes.tsv
+        # 8. Generate athletes.tsv
         athletes_path = generate_athletes_tsv(data_dir)
         results["athletes_tsv"] = str(athletes_path)
 

@@ -14,6 +14,7 @@ from mykrok.services.migrate import (
     migrate_center_to_start_coords,
     migrate_config_directory,
     run_full_migration,
+    update_dataset_template_files,
     update_gitattributes_paths,
 )
 
@@ -207,6 +208,85 @@ class TestUpdateGitattributesPaths:
 
 
 @pytest.mark.ai_generated
+class TestUpdateDatasetTemplateFiles:
+    """Tests for update_dataset_template_files function."""
+
+    def test_updates_readme_references(self, tmp_path: Path) -> None:
+        """Test updating strava-backup references in README.md."""
+        readme = tmp_path / "README.md"
+        readme.write_text(
+            "# Strava Backup Dataset\n\n"
+            "Edit `.strava-backup/config.toml` and run `strava-backup auth`.\n"
+        )
+
+        result = update_dataset_template_files(tmp_path)
+
+        assert "README.md" in result
+        content = readme.read_text()
+        assert "MyKrok" in content
+        assert ".mykrok/config.toml" in content
+        assert "mykrok auth" in content
+        assert ".strava-backup" not in content
+        assert "strava-backup" not in content
+
+    def test_updates_makefile_references(self, tmp_path: Path) -> None:
+        """Test updating strava-backup references in Makefile."""
+        makefile = tmp_path / "Makefile"
+        makefile.write_text(
+            "# Strava Backup Makefile\n"
+            "sync:\n"
+            '\tdatalad run -m "Sync new Strava activities" "strava-backup sync"\n'
+        )
+
+        result = update_dataset_template_files(tmp_path)
+
+        assert "Makefile" in result
+        content = makefile.read_text()
+        assert "MyKrok" in content
+        assert "mykrok sync" in content
+        assert '"Sync new activities"' in content
+        assert "strava-backup" not in content
+
+    def test_updates_gitignore_references(self, tmp_path: Path) -> None:
+        """Test updating strava-backup references in .gitignore."""
+        gitignore = tmp_path / ".gitignore"
+        gitignore.write_text(
+            "# Strava Backup\n"
+            "# Note: .strava-backup/config.toml is tracked\n"
+        )
+
+        result = update_dataset_template_files(tmp_path)
+
+        assert ".gitignore" in result
+        content = gitignore.read_text()
+        assert "MyKrok" in content
+        assert ".mykrok/config.toml" in content
+        assert ".strava-backup" not in content
+
+    def test_skips_if_no_legacy_references(self, tmp_path: Path) -> None:
+        """Test skipping files without legacy references."""
+        readme = tmp_path / "README.md"
+        original = "# MyKrok Dataset\n\nAlready updated.\n"
+        readme.write_text(original)
+
+        result = update_dataset_template_files(tmp_path)
+
+        assert result == []
+        assert readme.read_text() == original
+
+    def test_dry_run_does_not_modify(self, tmp_path: Path) -> None:
+        """Test dry run mode doesn't modify files."""
+        readme = tmp_path / "README.md"
+        original = "# Strava Backup Dataset\n"
+        readme.write_text(original)
+
+        result = update_dataset_template_files(tmp_path, dry_run=True)
+
+        assert "README.md" in result
+        assert readme.read_text() == original
+
+
+@pytest.mark.ai_generated
 class TestMigrateCenterToStartCoords:
     """Tests for migrate_center_to_start_coords function."""
 
@@ -266,6 +346,83 @@ class TestMigrateCenterToStartCoords:
         """Test handling empty data directory."""
         result = migrate_center_to_start_coords(tmp_path)
         assert result == 0
+
+
+def create_legacy_datalad_dataset(dataset_dir: Path) -> dict[str, Path]:
+    """Create a fake DataLad dataset with old strava-backup naming.
+
+    Simulates a dataset created before the rename to mykrok, with:
+    - .strava-backup/ config directory
+    - Old README.md with "Strava Backup" references
+    - Old Makefile with "Strava" references
+    - Old .gitignore with "Strava Backup" comment
+    - Old .gitattributes with .strava-backup/config.toml
+
+    Returns:
+        Dictionary with paths to created files.
+    """
+    # Create .strava-backup config directory (old naming)
+    config_dir = dataset_dir / ".strava-backup"
+    config_dir.mkdir(parents=True)
+
+    config_file = config_dir / "config.toml"
+    config_file.write_text(
+        '[strava]\nclient_id = "12345"\nclient_secret = "secret"\n\n'
+        '[data]\ndirectory = ".."\n'
+    )
+
+    # Create old README.md
+    readme_file = dataset_dir / "README.md"
+    readme_file.write_text(
+        "# Strava Backup Dataset\n\n"
+        "This is a DataLad dataset for backing up Strava activities.\n\n"
+        "## Setup\n\n"
+        "1. Edit `.strava-backup/config.toml` with your credentials\n"
+        "2. Run `strava-backup auth`\n"
+    )
+
+    # Create old Makefile
+    makefile = dataset_dir / "Makefile"
+    makefile.write_text(
+        "# Strava Backup Makefile\n"
+        "# ======================\n\n"
+        "sync:\n"
+        '\tdatalad run -m "Sync new Strava activities" \\\n'
+        '\t\t-o "athl=*" \\\n'
+        '\t\t"strava-backup sync"\n\n'
+        "sync-full:\n"
+        '\tdatalad run -m "Full Strava sync" \\\n'
+        '\t\t-o "athl=*" \\\n'
+        '\t\t"strava-backup sync --full"\n\n'
+        "help:\n"
+        '\t@echo "Strava Backup Commands:"\n'
+    )
+
+    # Create old .gitignore
+    gitignore = dataset_dir / ".gitignore"
+    gitignore.write_text(
+        "# Strava Backup\n"
+        "# Note: .strava-backup/config.toml is tracked by git-annex\n"
+        "*.pyc\n"
+        "__pycache__/\n"
+    )
+
+    # Create old .gitattributes
+    gitattributes = dataset_dir / ".gitattributes"
+    gitattributes.write_text(
+        "# Force .strava-backup/config.toml to be tracked by git-annex\n"
+        ".strava-backup/config.toml annex.largefiles=anything\n"
+        "*.log annex.largefiles=anything\n"
+    )
+
+    return {
+        "config_dir": config_dir,
+        "config_file": config_file,
+        "readme_file": readme_file,
+        "makefile": makefile,
+        "gitignore": gitignore,
+        "gitattributes": gitattributes,
+    }
 
 
 def create_fake_legacy_dataset(data_dir: Path) -> dict[str, Path]:
@@ -440,3 +597,56 @@ class TestRunFullMigration:
         content = gitattributes.read_text()
         assert ".mykrok/config.toml" in content
         assert ".strava-backup/config.toml" not in content
+
+    def test_full_migration_removes_all_strava_backup_references(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that migration removes all strava-backup references from dataset files.
+
+        This test creates a complete legacy dataset with old naming and verifies
+        that after migration, no strava-backup references remain in:
+        - .gitattributes
+        - .gitignore
+        - README.md
+        - Makefile
+        """
+        # Create complete legacy dataset
+        legacy_files = create_legacy_datalad_dataset(tmp_path)
+
+        # Verify old references exist before migration
+        assert ".strava-backup" in legacy_files["gitattributes"].read_text()
+        assert "strava-backup" in legacy_files["readme_file"].read_text().lower()
+        assert "strava-backup" in legacy_files["makefile"].read_text()
+        assert ".strava-backup" in legacy_files["gitignore"].read_text()
+
+        # Run migration
+        results = run_full_migration(tmp_path)
+
+        # Verify config directory was renamed
+        assert results["config_dir_migrated"] is not None
+        assert not legacy_files["config_dir"].exists()
+        assert (tmp_path / ".mykrok").exists()
+
+        # Check NO strava-backup references remain in any file
+        files_to_check = [
+            (".gitattributes", tmp_path / ".gitattributes"),
+            (".gitignore", tmp_path / ".gitignore"),
+            ("README.md", tmp_path / "README.md"),
+            ("Makefile", tmp_path / "Makefile"),
+        ]
+
+        remaining_references = []
+        for name, path in files_to_check:
+            if path.exists():
+                content = path.read_text()
+                # Check for various forms of the old name
+                if ".strava-backup" in content:
+                    remaining_references.append(f"{name}: contains '.strava-backup'")
+                if "strava-backup" in content and ".strava-backup" not in content:
+                    # CLI command reference like "strava-backup sync"
+                    remaining_references.append(f"{name}: contains 'strava-backup' command")
+
+        assert not remaining_references, (
+            "Legacy references remain after migration:\n"
+            + "\n".join(f"  - {ref}" for ref in remaining_references)
+        )
