@@ -2,7 +2,7 @@
 """Generate screenshots of the unified frontend for documentation.
 
 This script uses Playwright to automate a browser walkthrough of the
-strava-backup web interface, capturing screenshots at key points.
+MyKrok web interface, capturing screenshots at key points.
 These screenshots are saved to docs/screenshots/ for use in README.md.
 
 Usage:
@@ -44,10 +44,10 @@ def generate_demo_data(output_dir: Path) -> None:
 
 def generate_html(data_dir: Path) -> Path:
     """Generate the HTML file and copy assets."""
-    from strava_backup.views.map import copy_assets_to_output, generate_lightweight_map
+    from mykrok.views.map import copy_assets_to_output, generate_lightweight_map
 
     html = generate_lightweight_map(data_dir)
-    html_path = data_dir / "strava-backup.html"
+    html_path = data_dir / "mykrok.html"
     html_path.write_text(html, encoding="utf-8")
     copy_assets_to_output(data_dir)
     print(f"Generated HTML at {html_path}")
@@ -107,7 +107,7 @@ def capture_screenshots(
 
         # 1. Map View - Initial view with markers
         print("  1/9: Map view (overview)")
-        page.goto(f"{base_url}/strava-backup.html#/map", wait_until="networkidle")
+        page.goto(f"{base_url}/mykrok.html#/map", wait_until="networkidle")
         # Wait for the page to fully load
         page.wait_for_timeout(2000)
         # Check if map container exists
@@ -359,7 +359,7 @@ def main() -> int:
     # Create temp directory for demo data
     import tempfile
 
-    with tempfile.TemporaryDirectory(prefix="strava-screenshots-") as tmpdir:
+    with tempfile.TemporaryDirectory(prefix="mykrok-screenshots-") as tmpdir:
         data_dir = Path(tmpdir)
 
         # Generate demo data and HTML

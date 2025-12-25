@@ -2,7 +2,7 @@ import globals from "globals";
 
 export default [
   {
-    files: ["src/strava_backup/assets/map-browser/**/*.js"],
+    files: ["src/mykrok/assets/map-browser/**/*.js"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",

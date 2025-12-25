@@ -33,4 +33,4 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Generate and deploy gh-pages
-        run: strava-backup gh-pages --push --no-datalad
+        run: mykrok gh-pages --push --no-datalad

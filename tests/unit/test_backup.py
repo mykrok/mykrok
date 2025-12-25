@@ -15,7 +15,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from strava_backup.models.activity import Activity
+from mykrok.models.activity import Activity
 
 
 @pytest.fixture
@@ -157,7 +157,7 @@ class TestFindRelatedSessions:
         create_session_on_disk(athlete_dir, "20240115T100500", related_activity)
 
         # Import and test
-        from strava_backup.services.backup import BackupService
+        from mykrok.services.backup import BackupService
 
         with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
             service = BackupService.__new__(BackupService)
@@ -195,7 +195,7 @@ class TestFindRelatedSessions:
         )
         create_session_on_disk(athlete_dir, "20240115T110000", unrelated_activity)
 
-        from strava_backup.services.backup import BackupService
+        from mykrok.services.backup import BackupService
 
         with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
             service = BackupService.__new__(BackupService)
@@ -232,7 +232,7 @@ class TestFindRelatedSessions:
         )
         create_session_on_disk(athlete_dir, "20240115T100100", ride_activity)
 
-        from strava_backup.services.backup import BackupService
+        from mykrok.services.backup import BackupService
 
         with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
             service = BackupService.__new__(BackupService)
@@ -269,7 +269,7 @@ class TestFindRelatedSessions:
         )
         create_session_on_disk(athlete_dir, "20240115T100100", long_activity)
 
-        from strava_backup.services.backup import BackupService
+        from mykrok.services.backup import BackupService
 
         with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
             service = BackupService.__new__(BackupService)
@@ -297,7 +297,7 @@ class TestFindRelatedSessions:
         )
         create_session_on_disk(athlete_dir, "20240115T100000", activity)
 
-        from strava_backup.services.backup import BackupService
+        from mykrok.services.backup import BackupService
 
         with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
             service = BackupService.__new__(BackupService)
@@ -345,7 +345,7 @@ class TestRecoverPhotosFromRelated:
             athlete_dir, "20240115T100500", related_activity, create_photos=True
         )
 
-        from strava_backup.services.backup import BackupService
+        from mykrok.services.backup import BackupService
 
         with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
             service = BackupService.__new__(BackupService)
@@ -394,7 +394,7 @@ class TestRecoverPhotosFromRelated:
             athlete_dir, "20240115T100000", main_activity, create_photos=False
         )
 
-        from strava_backup.services.backup import BackupService
+        from mykrok.services.backup import BackupService
 
         with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
             service = BackupService.__new__(BackupService)

@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.0.0 (2025-12-23)
+
+#### 🎉 Project Rename
+
+- Rename project from "strava-backup" to "MyKrok" (Ukrainian "мій крок" = "my step")
+- CLI command changed from `strava-backup` to `mykrok`
+- Config directory changed from `.strava-backup/` to `.mykrok/`
+- Package name changed from `strava-backup` to `mykrok`
+- GitHub organization: https://github.com/mykrok/mykrok
+
+#### 🔄 Migration
+
+Legacy configuration paths are still supported for backward compatibility:
+- `.strava-backup/config.toml` → `.mykrok/config.toml`
+- `.strava-backup.toml` → `.mykrok/config.toml`
+- `STRAVA_BACKUP_CONFIG` env var → `MYKROK_CONFIG`
+- `STRAVA_BACKUP_DATA_DIR` env var → `MYKROK_DATA_DIR`
+
+#### Authors: 1
+
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 ## v0.9.1 (2025-12-23)
 
 #### 🐛 Bug Fixes

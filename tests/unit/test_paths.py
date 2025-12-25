@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from strava_backup.lib.paths import (
+from mykrok.lib.paths import (
     format_session_datetime,
     get_athlete_dir,
     get_session_dir,

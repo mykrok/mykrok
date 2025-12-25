@@ -37,11 +37,11 @@ def demo_data(tmp_path_factory: pytest.TempPathFactory) -> Path:
 @pytest.fixture(scope="module")
 def demo_server(demo_data: Path) -> Generator[str, None, None]:
     """Start HTTP server serving demo data."""
-    from strava_backup.views.map import copy_assets_to_output, generate_browser
+    from mykrok.views.map import copy_assets_to_output, generate_browser
 
     # Generate HTML and copy assets
     html = generate_browser(demo_data)
-    html_path = demo_data / "strava-backup.html"
+    html_path = demo_data / "mykrok.html"
     html_path.write_text(html, encoding="utf-8")
     copy_assets_to_output(demo_data)
 
@@ -70,7 +70,7 @@ class TestAppLaunch:
 
     def test_app_loads(self, demo_server: str, page: Page) -> None:
         """Verify the app loads without errors."""
-        page.goto(f"{demo_server}/strava-backup.html")
+        page.goto(f"{demo_server}/mykrok.html")
 
         # Check title/header
         assert "Strava Backup" in page.locator(".app-logo").text_content()
@@ -86,7 +86,7 @@ class TestAppLaunch:
 
     def test_favicon_loads(self, demo_server: str, page: Page) -> None:
         """Verify favicon doesn't 404."""
-        page.goto(f"{demo_server}/strava-backup.html")
+        page.goto(f"{demo_server}/mykrok.html")
 
         # Check favicon link exists (we have 2: assets path and root path)
         favicon = page.locator('link[rel="icon"]')
@@ -94,7 +94,7 @@ class TestAppLaunch:
 
     def test_athlete_selector_shows_all(self, demo_server: str, page: Page) -> None:
         """Verify athlete selector shows all athletes."""
-        page.goto(f"{demo_server}/strava-backup.html")
+        page.goto(f"{demo_server}/mykrok.html")
 
         # Wait for data to load
         page.wait_for_selector("#athlete-selector")
@@ -118,7 +118,7 @@ class TestMapView:
 
     def test_map_renders(self, demo_server: str, page: Page) -> None:
         """Verify map container renders."""
-        page.goto(f"{demo_server}/strava-backup.html#/map")
+        page.goto(f"{demo_server}/mykrok.html#/map")
         page.wait_for_selector("#map")
 
         # Check leaflet map initialized
@@ -126,7 +126,7 @@ class TestMapView:
 
     def test_markers_appear(self, demo_server: str, page: Page) -> None:
         """Verify session markers appear on map."""
-        page.goto(f"{demo_server}/strava-backup.html#/map")
+        page.goto(f"{demo_server}/mykrok.html#/map")
 
         # Wait for markers to load (they're loaded async)
         page.wait_for_selector(".leaflet-marker-icon", timeout=10000)
@@ -137,7 +137,7 @@ class TestMapView:
 
     def test_marker_popup(self, demo_server: str, page: Page) -> None:
         """Verify clicking marker opens popup."""
-        page.goto(f"{demo_server}/strava-backup.html#/map")
+        page.goto(f"{demo_server}/mykrok.html#/map")
         page.wait_for_selector(".leaflet-marker-icon", timeout=10000)
 
         # Wait for map to settle before clicking
@@ -162,7 +162,7 @@ class TestSessionsView:
 
     def test_sessions_list_loads(self, demo_server: str, page: Page) -> None:
         """Verify sessions list shows all sessions."""
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
 
         # Wait for table to load
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
@@ -173,7 +173,7 @@ class TestSessionsView:
 
     def test_sessions_count_matches(self, demo_server: str, page: Page) -> None:
         """Verify sessions count matches expected."""
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
 
         # With "All Athletes" selected, should show 15 sessions
@@ -182,7 +182,7 @@ class TestSessionsView:
 
     def test_search_filter(self, demo_server: str, page: Page) -> None:
         """Verify search filter works."""
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
 
         # Search for "Run" using the unified FilterBar search input
@@ -199,7 +199,7 @@ class TestSessionsView:
 
     def test_type_filter(self, demo_server: str, page: Page) -> None:
         """Verify type filter works."""
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
 
         # Select "Ride" type using the unified FilterBar type select
@@ -219,7 +219,7 @@ class TestSessionsView:
 
     def test_session_detail_opens(self, demo_server: str, page: Page) -> None:
         """Verify clicking session opens detail panel."""
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
 
         # Click first session
@@ -236,7 +236,7 @@ class TestStatsView:
 
     def test_stats_loads(self, demo_server: str, page: Page) -> None:
         """Verify stats view loads with data."""
-        page.goto(f"{demo_server}/strava-backup.html#/stats")
+        page.goto(f"{demo_server}/mykrok.html#/stats")
 
         # Wait for stats to calculate
         page.wait_for_selector(".summary-card", timeout=10000)
@@ -247,7 +247,7 @@ class TestStatsView:
 
     def test_stats_shows_totals(self, demo_server: str, page: Page) -> None:
         """Verify stats shows correct totals."""
-        page.goto(f"{demo_server}/strava-backup.html#/stats")
+        page.goto(f"{demo_server}/mykrok.html#/stats")
         page.wait_for_selector(".summary-card", timeout=10000)
 
         # Find activities card
@@ -258,7 +258,7 @@ class TestStatsView:
 
     def test_charts_render(self, demo_server: str, page: Page) -> None:
         """Verify charts render."""
-        page.goto(f"{demo_server}/strava-backup.html#/stats")
+        page.goto(f"{demo_server}/mykrok.html#/stats")
         page.wait_for_selector(".chart-container canvas", timeout=10000)
 
         # Should have chart canvases
@@ -272,7 +272,7 @@ class TestAthleteFiltering:
 
     def test_filter_to_alice(self, demo_server: str, page: Page) -> None:
         """Verify filtering to alice shows only her sessions."""
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
 
         # Select alice
@@ -287,7 +287,7 @@ class TestAthleteFiltering:
 
     def test_filter_to_bob(self, demo_server: str, page: Page) -> None:
         """Verify filtering to bob shows only his sessions."""
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
 
         # Select bob
@@ -307,7 +307,7 @@ class TestSessionDetail:
 
     def test_detail_shows_stats(self, demo_server: str, page: Page) -> None:
         """Verify detail panel shows stats."""
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
 
         # Click first session
@@ -319,7 +319,7 @@ class TestSessionDetail:
 
     def test_detail_shows_map(self, demo_server: str, page: Page) -> None:
         """Verify detail panel shows map for GPS sessions."""
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
 
         # Find a session with GPS (Run or Ride should have GPS)
@@ -338,7 +338,7 @@ class TestSessionDetail:
 
     def test_view_on_map_button(self, demo_server: str, page: Page) -> None:
         """Verify 'View on Map' button navigates to map view."""
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
 
         # Click first session
@@ -360,7 +360,7 @@ class TestSharedRun:
     def test_shared_run_exists(self, demo_server: str, page: Page) -> None:
         """Verify shared run session exists for both athletes."""
         # Check alice has the shared run
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
 
         page.select_option("#athlete-selector", "alice")
@@ -391,7 +391,7 @@ class TestFullScreenSessionView:
 
     def test_expand_button_opens_full_view(self, demo_server: str, page: Page) -> None:
         """Verify expand button opens full-screen session view."""
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
 
         # Click first session to open detail panel
@@ -410,7 +410,7 @@ class TestFullScreenSessionView:
 
     def test_full_session_view_shows_content(self, demo_server: str, page: Page) -> None:
         """Verify full-screen session view shows session content."""
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
 
         # Click first session and expand
@@ -427,7 +427,7 @@ class TestFullScreenSessionView:
 
     def test_back_button_returns_to_sessions(self, demo_server: str, page: Page) -> None:
         """Verify back button returns to sessions view."""
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
 
         # Navigate to full session view
@@ -447,7 +447,7 @@ class TestFullScreenSessionView:
     def test_direct_permalink_loads(self, demo_server: str, page: Page) -> None:
         """Verify direct permalink URL loads the session."""
         # First get a valid session URL
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
 
         page.locator("#sessions-table tbody tr").first.click()
@@ -459,7 +459,7 @@ class TestFullScreenSessionView:
         session_url = page.url
 
         # Navigate away
-        page.goto(f"{demo_server}/strava-backup.html#/map")
+        page.goto(f"{demo_server}/mykrok.html#/map")
         page.wait_for_selector("#view-map.active")
 
         # Navigate directly to the session URL
@@ -474,7 +474,7 @@ class TestFullScreenSessionView:
 
     def test_permalink_preserved_on_map_interaction(self, demo_server: str, page: Page) -> None:
         """Verify session permalink is preserved when map loads."""
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
 
         # Navigate to full session view
@@ -503,7 +503,7 @@ class TestNavigation:
 
     def test_stats_tab_navigates_from_map(self, demo_server: str, page: Page) -> None:
         """Verify clicking Stats tab from Map view navigates to Stats."""
-        page.goto(f"{demo_server}/strava-backup.html#/map")
+        page.goto(f"{demo_server}/mykrok.html#/map")
         page.wait_for_selector("#view-map.active", timeout=10000)
 
         # Click Stats tab
@@ -515,7 +515,7 @@ class TestNavigation:
 
     def test_stats_tab_navigates_from_sessions(self, demo_server: str, page: Page) -> None:
         """Verify clicking Stats tab from Sessions view navigates to Stats."""
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
         page.wait_for_selector("#view-sessions.active", timeout=10000)
 
         # Click Stats tab
@@ -528,7 +528,7 @@ class TestNavigation:
     def test_map_from_stats_uses_reasonable_zoom(self, demo_server: str, page: Page) -> None:
         """Verify navigating to Map from Stats doesn't use extreme zoom levels."""
         # First go to stats with some zoom params in URL (simulating prior navigation)
-        page.goto(f"{demo_server}/strava-backup.html#/stats?z=19&lat=18.5989&lng=15.4742")
+        page.goto(f"{demo_server}/mykrok.html#/stats?z=19&lat=18.5989&lng=15.4742")
         page.wait_for_selector("#view-stats.active", timeout=10000)
 
         # Click Map tab
@@ -550,7 +550,7 @@ class TestNavigation:
 
     def test_sessions_tab_navigates_from_stats(self, demo_server: str, page: Page) -> None:
         """Verify clicking Sessions tab from Stats view navigates properly."""
-        page.goto(f"{demo_server}/strava-backup.html#/stats")
+        page.goto(f"{demo_server}/mykrok.html#/stats")
         page.wait_for_selector("#view-stats.active", timeout=10000)
 
         # Click Sessions tab
@@ -562,7 +562,7 @@ class TestNavigation:
 
     def test_map_tab_navigates_from_sessions(self, demo_server: str, page: Page) -> None:
         """Verify clicking Map tab from Sessions view navigates properly."""
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
         page.wait_for_selector("#view-sessions.active", timeout=10000)
 
         # Click Map tab
@@ -579,7 +579,7 @@ class TestDateNavigation:
 
     def test_date_nav_buttons_disabled_without_dates(self, demo_server: str, page: Page) -> None:
         """Verify date nav buttons are disabled when no dates set."""
-        page.goto(f"{demo_server}/strava-backup.html#/map")
+        page.goto(f"{demo_server}/mykrok.html#/map")
         page.wait_for_selector(".map-filter-bar", timeout=10000)
 
         # Both nav buttons should be disabled initially
@@ -593,7 +593,7 @@ class TestDateNavigation:
         self, demo_server: str, page: Page
     ) -> None:
         """Bug #1: Date nav buttons should enable immediately when preset selected."""
-        page.goto(f"{demo_server}/strava-backup.html#/map")
+        page.goto(f"{demo_server}/mykrok.html#/map")
         page.wait_for_selector(".map-filter-bar", timeout=10000)
 
         # Select "This Year" preset
@@ -609,7 +609,7 @@ class TestDateNavigation:
 
     def test_date_inputs_show_full_year(self, demo_server: str, page: Page) -> None:
         """Bug #2: Date inputs should be wide enough to show full year (YYYY-MM-DD)."""
-        page.goto(f"{demo_server}/strava-backup.html#/map")
+        page.goto(f"{demo_server}/mykrok.html#/map")
         page.wait_for_selector(".map-filter-bar", timeout=10000)
 
         # Select a date preset to populate the inputs
@@ -630,7 +630,7 @@ class TestDateNavigation:
 
     def test_sessions_view_has_date_nav_buttons(self, demo_server: str, page: Page) -> None:
         """Bug #4: Sessions view should also have date navigation buttons."""
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
         page.wait_for_selector("#sessions-table", timeout=10000)
 
         # Should have prev/next date nav buttons within sessions filter bar
@@ -648,7 +648,7 @@ class TestActivitiesInfoPanel:
 
     def test_activities_list_item_has_zoom_and_link(self, demo_server: str, page: Page) -> None:
         """Bug #3: Activities list items should have zoom and arrow link to view."""
-        page.goto(f"{demo_server}/strava-backup.html#/map")
+        page.goto(f"{demo_server}/mykrok.html#/map")
         page.wait_for_selector(".leaflet-container", timeout=10000)
 
         # Wait for sessions to load
@@ -694,7 +694,7 @@ class TestFilterBarConsistency:
 
     def test_map_filter_bar_structure(self, demo_server: str, page: Page) -> None:
         """Verify map filter bar has all expected elements."""
-        page.goto(f"{demo_server}/strava-backup.html#/map")
+        page.goto(f"{demo_server}/mykrok.html#/map")
         page.wait_for_selector(".map-filter-bar", timeout=10000)
 
         bar = page.locator(".map-filter-bar")
@@ -709,7 +709,7 @@ class TestFilterBarConsistency:
 
     def test_sessions_filter_bar_structure(self, demo_server: str, page: Page) -> None:
         """Verify sessions filter bar has same elements as map."""
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
         page.wait_for_selector("#sessions-filter-bar", timeout=10000)
 
         bar = page.locator("#sessions-filter-bar")
@@ -724,7 +724,7 @@ class TestFilterBarConsistency:
 
     def test_stats_filter_bar_structure(self, demo_server: str, page: Page) -> None:
         """Verify stats filter bar has same elements as map."""
-        page.goto(f"{demo_server}/strava-backup.html#/stats")
+        page.goto(f"{demo_server}/mykrok.html#/stats")
         page.wait_for_selector("#stats-filter-bar", timeout=10000)
 
         bar = page.locator("#stats-filter-bar")
@@ -747,7 +747,7 @@ class TestPhotoViewer:
     ) -> None:
         """Verify PhotoViewer opens when clicking photo in session view."""
         # Navigate to a session with photos (fixtures generate photos)
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
 
         # Click on a row to open session detail
@@ -783,7 +783,7 @@ class TestPhotoViewer:
     ) -> None:
         """Verify PhotoViewer prev/next buttons work correctly."""
         # Navigate to full session view
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
         page.locator("#sessions-table tbody tr").first.click()
         page.wait_for_selector("#session-detail:not(.hidden)", timeout=5000)
@@ -823,7 +823,7 @@ class TestPhotoViewer:
     ) -> None:
         """Verify PhotoViewer keyboard navigation works."""
         # Navigate to full session view and open photo viewer
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
         page.locator("#sessions-table tbody tr").first.click()
         page.wait_for_selector("#session-detail:not(.hidden)", timeout=5000)
@@ -847,7 +847,7 @@ class TestPhotoViewer:
     def test_photo_viewer_click_zones(self, demo_server: str, page: Page) -> None:
         """Verify clicking left/right of photo navigates."""
         # Navigate to full session view and open photo viewer
-        page.goto(f"{demo_server}/strava-backup.html#/sessions")
+        page.goto(f"{demo_server}/mykrok.html#/sessions")
         page.wait_for_selector("#sessions-table tbody tr", timeout=10000)
         page.locator("#sessions-table tbody tr").first.click()
         page.wait_for_selector("#session-detail:not(.hidden)", timeout=5000)
@@ -878,7 +878,7 @@ class TestPhotoViewer:
 
     def test_photo_popup_navigation_on_map(self, demo_server: str, page: Page) -> None:
         """Verify photo popup navigation works on map view."""
-        page.goto(f"{demo_server}/strava-backup.html#/map")
+        page.goto(f"{demo_server}/mykrok.html#/map")
         page.wait_for_selector("#view-map.active", timeout=10000)
 
         # Wait for markers to load

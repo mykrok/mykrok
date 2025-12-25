@@ -1,4 +1,4 @@
-# Unified Web Frontend for strava-backup
+# Unified Web Frontend for mykrok
 
 ## Overview
 
@@ -78,7 +78,7 @@ athletes.tsv
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
-│  [Logo]  Strava Backup     Map   Sessions   Stats     [Athlete ▾] │
+│  [Logo]  MyKrok     Map   Sessions   Stats     [Athlete ▾] │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -93,7 +93,7 @@ athletes.tsv
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│  [Athlete ▾]          Strava Backup          [Filter ☰]   │
+│  [Athlete ▾]          MyKrok          [Filter ☰]   │
 └────────────────────────────────────────────────────────────┘
 ```
 
@@ -778,7 +778,7 @@ No Athletes Found:
 │                                 │
 │   No athlete data found.        │
 │                                 │
-│   Run 'strava-backup sync'      │
+│   Run 'mykrok sync'      │
 │   to download activities.       │
 │                                 │
 └─────────────────────────────────┘

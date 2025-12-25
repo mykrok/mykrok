@@ -3,7 +3,7 @@
 
 version = 1
 
-# Default: All project files are Apache-2.0 licensed by strava-backup Team
+# Default: All project files are Apache-2.0 licensed by MyKrok Team
 [[annotations]]
 path = [
     "src/**",
@@ -31,32 +31,32 @@ path = [
     ".gitattributes",
     ".pre-commit-config.yaml",
 ]
-SPDX-FileCopyrightText = "2025 strava-backup Team"
+SPDX-FileCopyrightText = "2025 MyKrok Team"
 SPDX-License-Identifier = "Apache-2.0"
 
 # Vendored: hyparquet - MIT licensed
 [[annotations]]
-path = "src/strava_backup/assets/hyparquet/**"
+path = "src/mykrok/assets/hyparquet/**"
 precedence = "override"
 SPDX-FileCopyrightText = "hyparam"
 SPDX-License-Identifier = "MIT"
 
 # Vendored: snappy.js within hyparquet (from snappyjs) - MIT licensed
 [[annotations]]
-path = "src/strava_backup/assets/hyparquet/snappy.js"
+path = "src/mykrok/assets/hyparquet/snappy.js"
 precedence = "override"
 SPDX-FileCopyrightText = "2016 Zhipeng Jia"
 SPDX-License-Identifier = "MIT"
 
 # Vendored: Leaflet - BSD-2-Clause licensed
 [[annotations]]
-path = "src/strava_backup/assets/leaflet/**"
+path = "src/mykrok/assets/leaflet/**"
 precedence = "override"
 SPDX-FileCopyrightText = "2010-2023 Vladimir Agafonkin, 2010-2011 CloudMade"
 SPDX-License-Identifier = "BSD-2-Clause"
 
 # Project icon/logo
 [[annotations]]
-path = "src/strava_backup/assets/strava-backup-icon.svg"
-SPDX-FileCopyrightText = "2025 strava-backup Team"
+path = "src/mykrok/assets/mykrok-icon.svg"
+SPDX-FileCopyrightText = "2025 MyKrok Team"
 SPDX-License-Identifier = "Apache-2.0"

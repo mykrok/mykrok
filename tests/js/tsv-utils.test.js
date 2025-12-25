@@ -2,7 +2,7 @@
  * Tests for TSV parsing utilities.
  */
 
-import { parseTSV } from '../../src/strava_backup/assets/map-browser/tsv-utils.js';
+import { parseTSV } from '../../src/mykrok/assets/map-browser/tsv-utils.js';
 
 describe('parseTSV', () => {
     test('parses simple TSV with Unix line endings', () => {

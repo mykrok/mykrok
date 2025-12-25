@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from strava_backup.config import Config, DataConfig, StravaConfig, SyncConfig
+from mykrok.config import Config, DataConfig, StravaConfig, SyncConfig
 
 
 @pytest.fixture
@@ -91,7 +91,7 @@ class TestStravaClientMocked:
 
     def test_get_athlete(self, mock_config: Config) -> None:
         """Test fetching athlete profile."""
-        from strava_backup.services.strava import StravaClient
+        from mykrok.services.strava import StravaClient
 
         mock_athlete = MagicMock()
         mock_athlete.id = 12345
@@ -104,7 +104,7 @@ class TestStravaClientMocked:
         mock_athlete.bikes = []
         mock_athlete.shoes = []
 
-        with patch("strava_backup.services.strava.Client") as MockClient:
+        with patch("mykrok.services.strava.Client") as MockClient:
             mock_client_instance = MagicMock()
             mock_client_instance.get_athlete.return_value = mock_athlete
             MockClient.return_value = mock_client_instance
@@ -119,13 +119,13 @@ class TestStravaClientMocked:
 
     def test_get_activities(self, mock_config: Config, sample_strava_activity: dict) -> None:
         """Test fetching activities list."""
-        from strava_backup.services.strava import StravaClient
+        from mykrok.services.strava import StravaClient
 
         mock_activity = MagicMock()
         for key, value in sample_strava_activity.items():
             setattr(mock_activity, key, value)
 
-        with patch("strava_backup.services.strava.Client") as MockClient:
+        with patch("mykrok.services.strava.Client") as MockClient:
             mock_client_instance = MagicMock()
             mock_client_instance.get_activities.return_value = iter([mock_activity])
             MockClient.return_value = mock_client_instance
@@ -141,7 +141,7 @@ class TestStravaClientMocked:
 
     def test_get_activity_streams(self, mock_config: Config, sample_strava_streams: dict) -> None:
         """Test fetching activity streams."""
-        from strava_backup.services.strava import StravaClient
+        from mykrok.services.strava import StravaClient
 
         # Create mock stream objects
         mock_streams = {}
@@ -150,7 +150,7 @@ class TestStravaClientMocked:
             mock_stream.data = stream_data["data"]
             mock_streams[stream_type] = mock_stream
 
-        with patch("strava_backup.services.strava.Client") as MockClient:
+        with patch("mykrok.services.strava.Client") as MockClient:
             mock_client_instance = MagicMock()
             mock_client_instance.get_activity_streams.return_value = mock_streams
             MockClient.return_value = mock_client_instance
@@ -167,7 +167,7 @@ class TestStravaClientMocked:
 
     def test_get_activity_comments(self, mock_config: Config) -> None:
         """Test fetching activity comments."""
-        from strava_backup.services.strava import StravaClient
+        from mykrok.services.strava import StravaClient
 
         mock_comment = MagicMock()
         mock_comment.id = 1001
@@ -178,7 +178,7 @@ class TestStravaClientMocked:
         mock_comment.athlete.firstname = "Jane"
         mock_comment.athlete.lastname = "Doe"
 
-        with patch("strava_backup.services.strava.Client") as MockClient:
+        with patch("mykrok.services.strava.Client") as MockClient:
             mock_client_instance = MagicMock()
             mock_client_instance.get_activity_comments.return_value = [mock_comment]
             MockClient.return_value = mock_client_instance
@@ -194,14 +194,14 @@ class TestStravaClientMocked:
 
     def test_get_activity_kudos(self, mock_config: Config) -> None:
         """Test fetching activity kudos."""
-        from strava_backup.services.strava import StravaClient
+        from mykrok.services.strava import StravaClient
 
         mock_kudo = MagicMock()
         mock_kudo.id = 54321
         mock_kudo.firstname = "John"
         mock_kudo.lastname = "Smith"
 
-        with patch("strava_backup.services.strava.Client") as MockClient:
+        with patch("mykrok.services.strava.Client") as MockClient:
             mock_client_instance = MagicMock()
             mock_client_instance.get_activity_kudos.return_value = [mock_kudo]
             MockClient.return_value = mock_client_instance
@@ -227,7 +227,7 @@ class TestBackupServiceMocked:
         sample_strava_streams: dict,
     ) -> None:
         """Test that sync creates proper activity files."""
-        from strava_backup.services.backup import BackupService
+        from mykrok.services.backup import BackupService
 
         # Create mock athlete
         mock_athlete = MagicMock()
@@ -256,7 +256,7 @@ class TestBackupServiceMocked:
             mock_stream.data = stream_data["data"]
             mock_streams[stream_type] = mock_stream
 
-        with patch("strava_backup.services.backup.StravaClient") as MockStravaClient:
+        with patch("mykrok.services.backup.StravaClient") as MockStravaClient:
             mock_strava = MagicMock()
             mock_strava.get_athlete.return_value = mock_athlete
             mock_strava.get_activities.return_value = iter([mock_activity])
@@ -294,7 +294,7 @@ class TestBackupServiceMocked:
         sample_strava_activity: dict,
     ) -> None:
         """Test that dry run doesn't create files."""
-        from strava_backup.services.backup import BackupService
+        from mykrok.services.backup import BackupService
 
         # Create mock athlete
         mock_athlete = MagicMock()
@@ -315,7 +315,7 @@ class TestBackupServiceMocked:
         mock_activity.moving_time = timedelta(seconds=1800)
         mock_activity.elapsed_time = timedelta(seconds=1850)
 
-        with patch("strava_backup.services.backup.StravaClient") as MockStravaClient:
+        with patch("mykrok.services.backup.StravaClient") as MockStravaClient:
             mock_strava = MagicMock()
             mock_strava.get_athlete.return_value = mock_athlete
             mock_strava.get_activities.return_value = iter([mock_activity])
@@ -345,7 +345,7 @@ class TestBackupServiceMocked:
         sample_strava_streams: dict,
     ) -> None:
         """Test that refresh_social updates kudos and comments for existing activities."""
-        from strava_backup.services.backup import BackupService
+        from mykrok.services.backup import BackupService
 
         # Create mock athlete
         mock_athlete = MagicMock()
@@ -366,7 +366,7 @@ class TestBackupServiceMocked:
         mock_activity.moving_time = timedelta(seconds=1800)
         mock_activity.elapsed_time = timedelta(seconds=1850)
 
-        with patch("strava_backup.services.backup.StravaClient") as MockStravaClient:
+        with patch("mykrok.services.backup.StravaClient") as MockStravaClient:
             mock_strava = MagicMock()
             mock_strava.get_athlete.return_value = mock_athlete
             mock_strava.get_activities.return_value = iter([mock_activity])
@@ -421,7 +421,7 @@ class TestBackupServiceMocked:
         sample_strava_streams: dict,
     ) -> None:
         """Test that refresh_social with dry_run doesn't modify files."""
-        from strava_backup.services.backup import BackupService
+        from mykrok.services.backup import BackupService
 
         # Create mock athlete
         mock_athlete = MagicMock()
@@ -442,7 +442,7 @@ class TestBackupServiceMocked:
         mock_activity.moving_time = timedelta(seconds=1800)
         mock_activity.elapsed_time = timedelta(seconds=1850)
 
-        with patch("strava_backup.services.backup.StravaClient") as MockStravaClient:
+        with patch("mykrok.services.backup.StravaClient") as MockStravaClient:
             mock_strava = MagicMock()
             mock_strava.get_athlete.return_value = mock_athlete
             mock_strava.get_activities.return_value = iter([mock_activity])
@@ -485,7 +485,7 @@ class TestBackupServiceMocked:
         sample_strava_streams: dict,  # noqa: ARG002
     ) -> None:
         """Test that refresh_social respects limit parameter."""
-        from strava_backup.services.backup import BackupService
+        from mykrok.services.backup import BackupService
 
         # Create mock athlete
         mock_athlete = MagicMock()
@@ -513,7 +513,7 @@ class TestBackupServiceMocked:
             mock_activity.elapsed_time = timedelta(seconds=1850)
             activities.append(mock_activity)
 
-        with patch("strava_backup.services.backup.StravaClient") as MockStravaClient:
+        with patch("mykrok.services.backup.StravaClient") as MockStravaClient:
             mock_strava = MagicMock()
             mock_strava.get_athlete.return_value = mock_athlete
             mock_strava.get_activities.return_value = iter(activities)

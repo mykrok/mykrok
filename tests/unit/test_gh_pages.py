@@ -48,7 +48,7 @@ class TestGhPagesGeneration:
 
     def test_generate_gh_pages_creates_branch(self, git_repo: Path) -> None:
         """Test that generate_gh_pages creates the gh-pages branch."""
-        from strava_backup.services.gh_pages import generate_gh_pages
+        from mykrok.services.gh_pages import generate_gh_pages
 
         worktree_path = git_repo / ".gh-pages"
 
@@ -74,7 +74,7 @@ class TestGhPagesGeneration:
 
     def test_generate_gh_pages_has_expected_files(self, git_repo: Path) -> None:
         """Test that gh-pages branch contains all expected files."""
-        from strava_backup.services.gh_pages import (
+        from mykrok.services.gh_pages import (
             generate_gh_pages,
             get_expected_files,
         )
@@ -101,7 +101,7 @@ class TestGhPagesGeneration:
 
     def test_generate_gh_pages_is_idempotent(self, git_repo: Path) -> None:
         """Test that running twice produces no new commit."""
-        from strava_backup.services.gh_pages import generate_gh_pages
+        from mykrok.services.gh_pages import generate_gh_pages
 
         worktree_path = git_repo / ".gh-pages"
 
@@ -152,7 +152,7 @@ class TestGhPagesGeneration:
         self, git_repo: Path
     ) -> None:
         """Test that different seeds produce different content."""
-        from strava_backup.services.gh_pages import generate_gh_pages
+        from mykrok.services.gh_pages import generate_gh_pages
 
         worktree_path = git_repo / ".gh-pages"
 
@@ -198,7 +198,7 @@ class TestGhPagesGeneration:
 
     def test_generate_gh_pages_index_html_exists(self, git_repo: Path) -> None:
         """Test that index.html is properly generated."""
-        from strava_backup.services.gh_pages import generate_gh_pages
+        from mykrok.services.gh_pages import generate_gh_pages
 
         worktree_path = git_repo / ".gh-pages"
 
@@ -222,12 +222,12 @@ class TestGhPagesGeneration:
 
         # Verify it's a valid HTML file with expected content
         assert "<!DOCTYPE html>" in html_content
-        assert "strava-backup" in html_content.lower()
+        assert "mykrok" in html_content.lower()
         assert "leaflet" in html_content.lower()
 
     def test_generate_gh_pages_readme_exists(self, git_repo: Path) -> None:
         """Test that README.md is properly generated."""
-        from strava_backup.services.gh_pages import generate_gh_pages
+        from mykrok.services.gh_pages import generate_gh_pages
 
         worktree_path = git_repo / ".gh-pages"
 
@@ -250,13 +250,13 @@ class TestGhPagesGeneration:
         readme_content = result.stdout
 
         # Verify expected content
-        assert "strava-backup Demo" in readme_content
+        assert "MyKrok Demo" in readme_content
         assert "DataLad" in readme_content
         assert "synthetic data" in readme_content
 
     def test_generate_gh_pages_cleans_up_worktree(self, git_repo: Path) -> None:
         """Test that worktree is cleaned up after generation."""
-        from strava_backup.services.gh_pages import generate_gh_pages
+        from mykrok.services.gh_pages import generate_gh_pages
 
         worktree_path = git_repo / ".gh-pages"
 
@@ -286,7 +286,7 @@ class TestVerifyGhPagesContent:
 
     def test_verify_content_all_present(self, git_repo: Path) -> None:
         """Test verification when all files are present."""
-        from strava_backup.services.gh_pages import (
+        from mykrok.services.gh_pages import (
             generate_gh_pages,
             get_expected_files,
         )

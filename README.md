@@ -1,8 +1,10 @@
-# strava-backup
+# MyKrok
+
+> **Note**: This project was formerly known as "strava-backup". The name "MyKrok" comes from Ukrainian "мій крок" meaning "my step" - fitting for a tool that preserves every step of your fitness journey.
 
 CLI tool to backup Strava activities with incremental sync, map visualization, and FitTrackee export.
 
-**[Live Demo](https://yarikoptic.github.io/strava-backup/)** - Try the web frontend with synthetic data. It is served directly from [gh-pages branch](https://github.com/yarikoptic/strava-backup/tree/gh-pages) where you could also explore the backup filetree we show [below](#no-backend-required).
+**[Live Demo](https://mykrok.github.io/mykrok/)** - Try the web frontend with synthetic data. It is served directly from [gh-pages branch](https://github.com/mykrok/mykrok/tree/gh-pages) where you could also explore the backup filetree we show [below](#no-backend-required).
 
 ## Features
 
@@ -82,14 +84,14 @@ The browser fetches `athletes.tsv` → discovers athletes → loads each `sessio
 - **Host anywhere**: Any static file server (nginx, GitHub Pages, S3, local `python -m http.server`)
 - **Query with standard tools**: DuckDB, pandas, or any Parquet-compatible tool
 - **Version with git/DataLad**: Text files diff cleanly, binary files handled by git-annex
-- **Browse offline**: Open `strava-backup.html` directly from disk
+- **Browse offline**: Open `mykrok.html` directly from disk
 
 ## Installation
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/strava-backup
-cd strava-backup
+git clone https://github.com/mykrok/mykrok
+cd mykrok
 
 # Install with uv (recommended)
 uv venv
@@ -102,7 +104,7 @@ pip install -e ".[devel]"
 
 ## Strava API Setup
 
-Before using strava-backup, you need to create a Strava API application:
+Before using MyKrok, you need to create a Strava API application:
 
 1. Go to https://www.strava.com/settings/api
 2. Click "Create an Application" (or use existing one)
@@ -117,42 +119,43 @@ Before using strava-backup, you need to create a Strava API application:
 
 1. Authenticate with your Strava API credentials:
    ```bash
-   strava-backup auth --client-id YOUR_CLIENT_ID --client-secret YOUR_CLIENT_SECRET
+   mykrok auth --client-id YOUR_CLIENT_ID --client-secret YOUR_CLIENT_SECRET
    ```
    This opens a browser for OAuth authorization. After approval, tokens are saved automatically.
 
 2. Sync your activities:
    ```bash
-   strava-backup sync
+   mykrok sync
    ```
 
 3. View your data:
    ```bash
-   strava-backup view stats
-   strava-backup view map --serve
-   strava-backup browse
+   mykrok view stats
+   mykrok view map --serve
+   mykrok browse
    ```
 
 ## Configuration
 
-strava-backup looks for configuration in the following order:
+MyKrok looks for configuration in the following order:
 
-1. `STRAVA_BACKUP_CONFIG` environment variable (explicit path)
-2. `.strava-backup/config.toml` in the current directory (recommended for DataLad datasets)
-3. `.strava-backup.toml` in the current directory (legacy, still supported)
-4. `~/.config/strava-backup/config.toml`
+1. `MYKROK_CONFIG` environment variable (explicit path)
+2. `.mykrok/config.toml` in the current directory (recommended for DataLad datasets)
+3. `.strava-backup/config.toml` in the current directory (legacy, still supported)
+4. `.strava-backup.toml` in the current directory (legacy, still supported)
+5. `~/.config/mykrok/config.toml`
 
-OAuth tokens are stored separately in `.strava-backup/oauth-tokens.toml` (gitignored).
+OAuth tokens are stored separately in `.mykrok/oauth-tokens.toml` (gitignored).
 
 ### Configuration File Format
 
-Create `.strava-backup/config.toml` in your project directory or `~/.config/strava-backup/config.toml`:
+Create `.mykrok/config.toml` in your project directory or `~/.config/mykrok/config.toml`:
 
 ```toml
 [strava]
 client_id = "YOUR_CLIENT_ID"
 client_secret = "YOUR_CLIENT_SECRET"
-# These are auto-populated after `strava-backup auth`:
+# These are auto-populated after `mykrok auth`:
 # access_token = "..."
 # refresh_token = "..."
 # token_expires_at = 1234567890
@@ -177,10 +180,10 @@ All settings can be overridden with environment variables:
 
 | Variable | Description |
 |----------|-------------|
-| `STRAVA_BACKUP_CONFIG` | Path to config file |
+| `MYKROK_CONFIG` | Path to config file |
 | `STRAVA_CLIENT_ID` | Strava API client ID |
 | `STRAVA_CLIENT_SECRET` | Strava API client secret |
-| `STRAVA_BACKUP_DATA_DIR` | Data storage directory |
+| `MYKROK_DATA_DIR` | Data storage directory |
 | `FITTRACKEE_URL` | FitTrackee instance URL |
 | `FITTRACKEE_EMAIL` | FitTrackee login email |
 | `FITTRACKEE_PASSWORD` | FitTrackee login password |
@@ -191,116 +194,116 @@ All settings can be overridden with environment variables:
 
 ```bash
 # First-time authentication
-strava-backup auth --client-id YOUR_ID --client-secret YOUR_SECRET
+mykrok auth --client-id YOUR_ID --client-secret YOUR_SECRET
 
 # Re-authenticate (e.g., after token expiry)
-strava-backup auth --force
+mykrok auth --force
 ```
 
 ### Sync Activities
 
 ```bash
 # Incremental sync (default) - only new activities since last sync
-strava-backup sync
+mykrok sync
 
 # Full sync - re-download all activities
-strava-backup sync --what=full
+mykrok sync --what=full
 
 # Refresh social data (kudos/comments) for existing activities
-strava-backup sync --what=social
+mykrok sync --what=social
 
 # Refresh athlete profile info and avatar
-strava-backup sync --what=athlete-profiles
+mykrok sync --what=athlete-profiles
 
 # Sync with limits
-strava-backup sync --limit 100
+mykrok sync --limit 100
 
 # Preview without downloading
-strava-backup sync --dry-run
+mykrok sync --dry-run
 
 # Skip photos/comments
-strava-backup sync --no-photos --no-comments
+mykrok sync --no-photos --no-comments
 
 # Sync specific activities by ID
-strava-backup sync --activity-ids 12345678901,12345678902
+mykrok sync --activity-ids 12345678901,12345678902
 ```
 
 ### View Statistics
 
 ```bash
 # Overall stats
-strava-backup view stats
+mykrok view stats
 
 # Stats for specific year
-strava-backup view stats --year 2025
+mykrok view stats --year 2025
 
 # Stats for specific month
-strava-backup view stats --month 2025-06
+mykrok view stats --month 2025-06
 
 # Breakdown by month
-strava-backup view stats --by-month
+mykrok view stats --by-month
 
 # Breakdown by activity type
-strava-backup view stats --by-type
+mykrok view stats --by-type
 
 # JSON output
-strava-backup view stats --json
+mykrok view stats --json
 ```
 
 ### Generate Maps
 
 ```bash
 # Create HTML map file (embeds all data)
-strava-backup view map --output activities.html
+mykrok view map --output activities.html
 
 # Create and serve locally
-strava-backup view map --serve
+mykrok view map --serve
 
 # Lightweight mode - generates map.html in data directory that loads data on demand
 # Best for large datasets and web server publishing
-strava-backup view map --lightweight --serve
+mykrok view map --lightweight --serve
 
 # Heatmap mode
-strava-backup view map --heatmap --serve
+mykrok view map --heatmap --serve
 
 # Include photos on map
-strava-backup view map --photos --serve
+mykrok view map --photos --serve
 
 # Filter by date/type
-strava-backup view map --after 2025-01-01 --type Run
+mykrok view map --after 2025-01-01 --type Run
 ```
 
 ### Browse Offline
 
 ```bash
 # Start local browser at http://127.0.0.1:8080
-strava-backup browse
+mykrok browse
 
 # Custom port
-strava-backup browse --port 9000
+mykrok browse --port 9000
 ```
 
 ### Export GPX
 
 ```bash
 # Export specific activity
-strava-backup gpx 12345678901 --output activity.gpx
+mykrok gpx 12345678901 --output activity.gpx
 
 # Export all activities
-strava-backup gpx --all --output-dir ./gpx/
+mykrok gpx --all --output-dir ./gpx/
 ```
 
 ### Export to FitTrackee
 
 ```bash
 # Export to FitTrackee
-strava-backup export fittrackee --url https://fittrackee.example.com --email user@example.com
+mykrok export fittrackee --url https://fittrackee.example.com --email user@example.com
 
 # Preview what would be exported
-strava-backup export fittrackee --dry-run
+mykrok export fittrackee --dry-run
 
 # Force re-export all
-strava-backup export fittrackee --full
+mykrok export fittrackee --full
 ```
 
 ### Create DataLad Dataset
@@ -309,27 +312,27 @@ Create a version-controlled dataset for reproducible backups using [DataLad](htt
 
 ```bash
 # Create a new DataLad dataset
-strava-backup create-datalad-dataset ./my-strava-backup
+mykrok create-datalad-dataset ./my-backup
 
 # Navigate to the dataset
-cd my-strava-backup
+cd my-backup
 
 # Edit config with your Strava API credentials
-nano .strava-backup/config.toml
+nano .mykrok/config.toml
 
 # Authenticate
-strava-backup auth
+mykrok auth
 
 # Sync using datalad run (creates versioned commit)
 make sync
 
 # Generate lightweight map for web viewing
-strava-backup view map --lightweight
+mykrok view map --lightweight
 ```
 
 This creates a dataset with:
 - **text2git configuration**: Text files (JSON, TSV) tracked by git, binary files (photos, Parquet) by git-annex
-- **Sample config**: `.strava-backup/config.toml` with comments explaining each setting
+- **Sample config**: `.mykrok/config.toml` with comments explaining each setting
 - **README**: Documentation for the dataset
 - **Makefile**: Targets for `make sync`, `make stats`, `make map`, etc. using `datalad run`
 
@@ -348,13 +351,13 @@ With DataLad, publishing your backup to a web server for browser-based viewing i
 # Create a sibling that excludes sensitive files (API credentials)
 datalad create-sibling -s public-website \
     --annex-wanted "not metadata=distribution-restrictions=*" \
-    user@server.example.com:/var/www/strava-backup
+    user@server.example.com:/var/www/mykrok
 
 # Push your data (sensitive config files are automatically excluded)
 datalad push --to=public-website
 ```
 
-Then access the map visualization at `https://your-server.example.com/strava-backup/map.html`.
+Then access the map visualization at `https://your-server.example.com/mykrok/map.html`.
 
 **Note**: Access restrictions and user management are outside the scope of this project. Implement access control using your web server's authentication mechanisms (HTTP Basic Auth, OAuth proxy, IP allowlisting, etc.).
 
@@ -407,14 +410,14 @@ For automated daily backups:
 crontab -e
 
 # Add daily sync at 2 AM
-0 2 * * * cd /path/to/strava-backup && .venv/bin/strava-backup sync --quiet
+0 2 * * * cd /path/to/mykrok && .venv/bin/mykrok sync --quiet
 ```
 
 ## Troubleshooting
 
 ### Token Expired
 ```bash
-strava-backup auth --force
+mykrok auth --force
 ```
 
 ### Rate Limit Hit
@@ -426,7 +429,7 @@ Some activities (treadmill, manual entries) have no GPS. They appear in `session
 ### Photo Download Failed
 Photo URLs expire. Re-run sync to retry:
 ```bash
-strava-backup sync --full
+mykrok sync --full
 ```
 
 ## License

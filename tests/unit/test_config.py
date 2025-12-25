@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from strava_backup.config import Config, load_config
+from mykrok.config import Config, load_config
 
 
 @pytest.mark.ai_generated
@@ -60,9 +60,11 @@ photos = false
     def test_load_config_from_local_file(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """Test loading configuration from local .strava-backup.toml file."""
-        # Create local config file
-        local_config = tmp_path / ".strava-backup.toml"
+        """Test loading configuration from local .mykrok/config.toml file."""
+        # Create local config directory and file
+        config_dir = tmp_path / ".mykrok"
+        config_dir.mkdir()
+        local_config = config_dir / "config.toml"
         local_config.write_text("""
 [strava]
 client_id = "local_id"
@@ -76,16 +78,17 @@ client_secret = "local_secret"
 
         assert config.strava.client_id == "local_id"
         assert config.strava.client_secret == "local_secret"
-        # Config path should be the local file (relative path)
+        # Config path should be the local file
         assert config.config_path is not None
-        assert config.config_path.name == ".strava-backup.toml"
+        assert config.config_path.name == "config.toml"
+        assert config.config_path.parent.name == ".mykrok"
 
     def test_save_tokens_preserves_comments(self, tmp_path: Path) -> None:
         """Test that save_tokens saves to separate tokens file."""
-        from strava_backup.config import Config, StravaConfig, save_tokens
+        from mykrok.config import Config, StravaConfig, save_tokens
 
         # Create config directory with config file
-        config_dir = tmp_path / ".strava-backup"
+        config_dir = tmp_path / ".mykrok"
         config_dir.mkdir()
         config_path = config_dir / "config.toml"
         config_path.write_text("""\

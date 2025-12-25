@@ -1,4 +1,4 @@
-# Pre-commit hooks for strava-backup
+# Pre-commit hooks for MyKrok
 # Install: pip install pre-commit && pre-commit install
 # Run manually: pre-commit run --all-files
 
@@ -29,7 +29,7 @@ repos:
         exclude: |
           (?x)^(
             tests/e2e/fixtures/|
-            src/strava_backup/assets/|
+            src/mykrok/assets/|
             docs/prompts/
           )$
 
@@ -38,7 +38,7 @@ repos:
     hooks:
       - id: mypy
         args: [--ignore-missing-imports, --no-warn-unused-ignores]
-        files: ^src/strava_backup/
+        files: ^src/mykrok/
         additional_dependencies:
           - types-requests
           - click>=8.0

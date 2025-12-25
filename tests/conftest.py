@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for strava-backup tests."""
+"""Shared pytest fixtures for mykrok tests."""
 
 from __future__ import annotations
 

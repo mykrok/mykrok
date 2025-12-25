@@ -1,1 +1,1 @@
-"""Integration tests for strava-backup."""
+"""Integration tests for mykrok."""

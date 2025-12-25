@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from strava_backup.models.state import (
+from mykrok.models.state import (
     BACKOFF_CONFIG,
     FailedActivity,
     FailureType,

@@ -2,7 +2,7 @@
 
 ## Problem Statement
 
-Strava's API requires OAuth2 authentication, meaning each user must explicitly authorize the application to access their data. Currently, strava-backup supports only a single authenticated athlete.
+Strava's API requires OAuth2 authentication, meaning each user must explicitly authorize the application to access their data. Currently, mykrok supports only a single authenticated athlete.
 
 To back up activities from multiple athletes (friends, family, training partners), we need a solution that:
 1. Allows multiple users to authenticate with the same Strava API application
@@ -25,7 +25,7 @@ Store multiple OAuth tokens locally, one per athlete.
 
 **Token storage structure**:
 ```
-.strava-backup/
+.mykrok/
 ├── config.toml          # Shared app credentials
 └── tokens/
     ├── alice.json       # Alice's OAuth tokens
@@ -36,21 +36,21 @@ Store multiple OAuth tokens locally, one per athlete.
 **CLI flow**:
 ```bash
 # Initial setup (shared credentials)
-strava-backup auth --client-id XXXX --client-secret YYYY
+mykrok auth --client-id XXXX --client-secret YYYY
 
 # Alice authenticates
-strava-backup auth --athlete alice
+mykrok auth --athlete alice
 # Opens browser, Alice logs in, token saved to tokens/alice.json
 
 # Bob authenticates (on same machine or share config)
-strava-backup auth --athlete bob
+mykrok auth --athlete bob
 # Opens browser, Bob logs in, token saved to tokens/bob.json
 
 # Sync all athletes
-strava-backup sync --all-athletes
+mykrok sync --all-athletes
 
 # Sync specific athlete
-strava-backup sync --athlete alice
+mykrok sync --athlete alice
 ```
 
 **Pros**:
@@ -132,13 +132,13 @@ jobs:
 
 ### Option C: Shared OAuth App with Manual Token Exchange
 
-Share your Strava API app credentials with friends, who run `strava-backup auth` locally and send you the token file.
+Share your Strava API app credentials with friends, who run `mykrok auth` locally and send you the token file.
 
 **Flow**:
 1. You share `client_id` and `client_secret` with friend (securely)
-2. Friend runs: `strava-backup auth --export-token friend_token.json`
+2. Friend runs: `mykrok auth --export-token friend_token.json`
 3. Friend sends you `friend_token.json` (encrypted email, Signal, etc.)
-4. You import: `strava-backup import-token friend_token.json --athlete friend`
+4. You import: `mykrok import-token friend_token.json --athlete friend`
 
 **Pros**:
 - No infrastructure needed
@@ -167,12 +167,12 @@ Share your Strava API app credentials with friends, who run `strava-backup auth`
 
 2. **Update `auth` command**:
    ```bash
-   strava-backup auth [--athlete NAME]
+   mykrok auth [--athlete NAME]
    ```
 
 3. **Update `sync` command**:
    ```bash
-   strava-backup sync [--athlete NAME | --all-athletes]
+   mykrok sync [--athlete NAME | --all-athletes]
    ```
 
 4. **Rate limit awareness**: Track API usage across all athletes to avoid hitting limits.

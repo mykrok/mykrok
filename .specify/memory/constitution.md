@@ -16,7 +16,7 @@ Templates requiring updates:
 Follow-up TODOs: None
 -->
 
-# Strava Backup Constitution
+# MyKrok Constitution
 
 ## Core Principles
 
@@ -114,7 +114,7 @@ All non-trivial functionality MUST have automated tests. Tests document expected
 
 ## Governance
 
-This constitution defines the non-negotiable principles for the strava-backup project. All contributions MUST align with these principles.
+This constitution defines the non-negotiable principles for the mykrok project. All contributions MUST align with these principles.
 
 **Amendment Process:**
 1. Propose change via issue or PR

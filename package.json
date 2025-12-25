@@ -1,12 +1,12 @@
 {
-  "name": "strava-backup",
-  "version": "0.1.0",
-  "description": "JavaScript frontend for strava-backup activity browser",
+  "name": "mykrok",
+  "version": "1.0.0",
+  "description": "JavaScript frontend for MyKrok activity browser",
   "private": true,
   "type": "module",
   "scripts": {
-    "lint": "eslint src/strava_backup/assets/map-browser/",
-    "lint:fix": "eslint src/strava_backup/assets/map-browser/ --fix",
+    "lint": "eslint src/mykrok/assets/map-browser/",
+    "lint:fix": "eslint src/mykrok/assets/map-browser/ --fix",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch"
   },

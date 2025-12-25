@@ -939,6 +939,115 @@ wheels = [
 ]
 
 [[package]]
+name = "mykrok"
+source = { editable = "." }
+dependencies = [
+    { name = "click" },
+    { name = "datalad" },
+    { name = "duckdb" },
+    { name = "pyarrow" },
+    { name = "requests" },
+    { name = "stravalib" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
+    { name = "tomlkit" },
+]
+
+[package.optional-dependencies]
+ci = [
+    { name = "codespell" },
+    { name = "mypy" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-docker" },
+    { name = "pytest-timeout" },
+    { name = "responses" },
+    { name = "ruff" },
+    { name = "tox" },
+    { name = "tox-gh-actions" },
+    { name = "tox-uv" },
+    { name = "types-requests" },
+]
+devel = [
+    { name = "codespell" },
+    { name = "mypy" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-docker" },
+    { name = "pytest-timeout" },
+    { name = "responses" },
+    { name = "ruff" },
+    { name = "tox" },
+    { name = "tox-uv" },
+    { name = "types-requests" },
+]
+e2e = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-docker" },
+    { name = "pytest-playwright" },
+    { name = "pytest-timeout" },
+    { name = "responses" },
+]
+test = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-docker" },
+    { name = "pytest-timeout" },
+    { name = "responses" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "click", specifier = ">=8.0" },
+    { name = "codespell", marker = "extra == 'ci'", specifier = ">=2.2" },
+    { name = "codespell", marker = "extra == 'devel'", specifier = ">=2.2" },
+    { name = "datalad", specifier = ">=1.0" },
+    { name = "duckdb", specifier = ">=0.9" },
+    { name = "mypy", marker = "extra == 'ci'", specifier = ">=1.0" },
+    { name = "mypy", marker = "extra == 'devel'", specifier = ">=1.0" },
+    { name = "pre-commit", marker = "extra == 'ci'", specifier = ">=3.0" },
+    { name = "pre-commit", marker = "extra == 'devel'", specifier = ">=3.0" },
+    { name = "pyarrow", specifier = ">=14.0" },
+    { name = "pytest", marker = "extra == 'ci'", specifier = ">=7.0" },
+    { name = "pytest", marker = "extra == 'devel'", specifier = ">=7.0" },
+    { name = "pytest", marker = "extra == 'e2e'", specifier = ">=7.0" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0" },
+    { name = "pytest-cov", marker = "extra == 'ci'", specifier = ">=4.0" },
+    { name = "pytest-cov", marker = "extra == 'devel'", specifier = ">=4.0" },
+    { name = "pytest-cov", marker = "extra == 'e2e'", specifier = ">=4.0" },
+    { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=4.0" },
+    { name = "pytest-docker", marker = "extra == 'ci'", specifier = ">=2.0" },
+    { name = "pytest-docker", marker = "extra == 'devel'", specifier = ">=2.0" },
+    { name = "pytest-docker", marker = "extra == 'e2e'", specifier = ">=2.0" },
+    { name = "pytest-docker", marker = "extra == 'test'", specifier = ">=2.0" },
+    { name = "pytest-playwright", marker = "extra == 'e2e'", specifier = ">=0.4.0" },
+    { name = "pytest-timeout", marker = "extra == 'ci'", specifier = ">=2.0" },
+    { name = "pytest-timeout", marker = "extra == 'devel'", specifier = ">=2.0" },
+    { name = "pytest-timeout", marker = "extra == 'e2e'", specifier = ">=2.0" },
+    { name = "pytest-timeout", marker = "extra == 'test'", specifier = ">=2.0" },
+    { name = "requests", specifier = ">=2.28" },
+    { name = "responses", marker = "extra == 'ci'", specifier = ">=0.23" },
+    { name = "responses", marker = "extra == 'devel'", specifier = ">=0.23" },
+    { name = "responses", marker = "extra == 'e2e'", specifier = ">=0.23" },
+    { name = "responses", marker = "extra == 'test'", specifier = ">=0.23" },
+    { name = "ruff", marker = "extra == 'ci'", specifier = ">=0.1.0" },
+    { name = "ruff", marker = "extra == 'devel'", specifier = ">=0.1.0" },
+    { name = "stravalib", specifier = ">=2.0" },
+    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0" },
+    { name = "tomlkit", specifier = ">=0.12" },
+    { name = "tox", marker = "extra == 'ci'", specifier = ">=4.0" },
+    { name = "tox", marker = "extra == 'devel'", specifier = ">=4.0" },
+    { name = "tox-gh-actions", marker = "extra == 'ci'", specifier = ">=3.0" },
+    { name = "tox-uv", marker = "extra == 'ci'", specifier = ">=1.0" },
+    { name = "tox-uv", marker = "extra == 'devel'", specifier = ">=1.0" },
+    { name = "types-requests", marker = "extra == 'ci'" },
+    { name = "types-requests", marker = "extra == 'devel'" },
+]
+provides-extras = ["ci", "devel", "e2e", "test"]
+
+[[package]]
 name = "mypy"
 version = "1.19.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1670,115 +1779,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/94/e7/b2c673351809dca68
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274", size = 11050, upload-time = "2024-12-04T17:35:26.475Z" },
 ]
-
-[[package]]
-name = "strava-backup"
-source = { editable = "." }
-dependencies = [
-    { name = "click" },
-    { name = "datalad" },
-    { name = "duckdb" },
-    { name = "pyarrow" },
-    { name = "requests" },
-    { name = "stravalib" },
-    { name = "tomli", marker = "python_full_version < '3.11'" },
-    { name = "tomlkit" },
-]
-
-[package.optional-dependencies]
-ci = [
-    { name = "codespell" },
-    { name = "mypy" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "pytest-docker" },
-    { name = "pytest-timeout" },
-    { name = "responses" },
-    { name = "ruff" },
-    { name = "tox" },
-    { name = "tox-gh-actions" },
-    { name = "tox-uv" },
-    { name = "types-requests" },
-]
-devel = [
-    { name = "codespell" },
-    { name = "mypy" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "pytest-docker" },
-    { name = "pytest-timeout" },
-    { name = "responses" },
-    { name = "ruff" },
-    { name = "tox" },
-    { name = "tox-uv" },
-    { name = "types-requests" },
-]
-e2e = [
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "pytest-docker" },
-    { name = "pytest-playwright" },
-    { name = "pytest-timeout" },
-    { name = "responses" },
-]
-test = [
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "pytest-docker" },
-    { name = "pytest-timeout" },
-    { name = "responses" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "click", specifier = ">=8.0" },
-    { name = "codespell", marker = "extra == 'ci'", specifier = ">=2.2" },
-    { name = "codespell", marker = "extra == 'devel'", specifier = ">=2.2" },
-    { name = "datalad", specifier = ">=1.0" },
-    { name = "duckdb", specifier = ">=0.9" },
-    { name = "mypy", marker = "extra == 'ci'", specifier = ">=1.0" },
-    { name = "mypy", marker = "extra == 'devel'", specifier = ">=1.0" },
-    { name = "pre-commit", marker = "extra == 'ci'", specifier = ">=3.0" },
-    { name = "pre-commit", marker = "extra == 'devel'", specifier = ">=3.0" },
-    { name = "pyarrow", specifier = ">=14.0" },
-    { name = "pytest", marker = "extra == 'ci'", specifier = ">=7.0" },
-    { name = "pytest", marker = "extra == 'devel'", specifier = ">=7.0" },
-    { name = "pytest", marker = "extra == 'e2e'", specifier = ">=7.0" },
-    { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0" },
-    { name = "pytest-cov", marker = "extra == 'ci'", specifier = ">=4.0" },
-    { name = "pytest-cov", marker = "extra == 'devel'", specifier = ">=4.0" },
-    { name = "pytest-cov", marker = "extra == 'e2e'", specifier = ">=4.0" },
-    { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=4.0" },
-    { name = "pytest-docker", marker = "extra == 'ci'", specifier = ">=2.0" },
-    { name = "pytest-docker", marker = "extra == 'devel'", specifier = ">=2.0" },
-    { name = "pytest-docker", marker = "extra == 'e2e'", specifier = ">=2.0" },
-    { name = "pytest-docker", marker = "extra == 'test'", specifier = ">=2.0" },
-    { name = "pytest-playwright", marker = "extra == 'e2e'", specifier = ">=0.4.0" },
-    { name = "pytest-timeout", marker = "extra == 'ci'", specifier = ">=2.0" },
-    { name = "pytest-timeout", marker = "extra == 'devel'", specifier = ">=2.0" },
-    { name = "pytest-timeout", marker = "extra == 'e2e'", specifier = ">=2.0" },
-    { name = "pytest-timeout", marker = "extra == 'test'", specifier = ">=2.0" },
-    { name = "requests", specifier = ">=2.28" },
-    { name = "responses", marker = "extra == 'ci'", specifier = ">=0.23" },
-    { name = "responses", marker = "extra == 'devel'", specifier = ">=0.23" },
-    { name = "responses", marker = "extra == 'e2e'", specifier = ">=0.23" },
-    { name = "responses", marker = "extra == 'test'", specifier = ">=0.23" },
-    { name = "ruff", marker = "extra == 'ci'", specifier = ">=0.1.0" },
-    { name = "ruff", marker = "extra == 'devel'", specifier = ">=0.1.0" },
-    { name = "stravalib", specifier = ">=2.0" },
-    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0" },
-    { name = "tomlkit", specifier = ">=0.12" },
-    { name = "tox", marker = "extra == 'ci'", specifier = ">=4.0" },
-    { name = "tox", marker = "extra == 'devel'", specifier = ">=4.0" },
-    { name = "tox-gh-actions", marker = "extra == 'ci'", specifier = ">=3.0" },
-    { name = "tox-uv", marker = "extra == 'ci'", specifier = ">=1.0" },
-    { name = "tox-uv", marker = "extra == 'devel'", specifier = ">=1.0" },
-    { name = "types-requests", marker = "extra == 'ci'" },
-    { name = "types-requests", marker = "extra == 'devel'" },
-]
-provides-extras = ["ci", "devel", "e2e", "test"]
 
 [[package]]
 name = "stravalib"

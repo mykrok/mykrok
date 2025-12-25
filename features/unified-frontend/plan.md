@@ -6,7 +6,7 @@ Transform the existing lightweight map into a full single-page application with 
 
 ## Architecture
 
-The implementation extends `generate_lightweight_map()` in `src/strava_backup/views/map.py` to produce a more comprehensive HTML file. The key architectural decisions:
+The implementation extends `generate_lightweight_map()` in `src/mykrok/views/map.py` to produce a more comprehensive HTML file. The key architectural decisions:
 
 1. **Single HTML file**: All CSS and JavaScript embedded inline
 2. **Module structure**: JavaScript organized into logical modules within the same file
@@ -25,7 +25,7 @@ Add app shell markup around existing map:
 ```html
 <div id="app">
   <header id="app-header">
-    <div class="logo">Strava Backup</div>
+    <div class="logo">MyKrok</div>
     <nav id="main-nav">
       <a href="#/map" class="nav-tab active">Map</a>
       <a href="#/sessions" class="nav-tab">Sessions</a>
@@ -349,7 +349,7 @@ Add to `tests/unit/test_unified_frontend.py`:
 1. Load app in browser, verify all three views render
 2. Switch athletes, verify data updates
 3. Test session filtering and sorting
-4. Verify stats calculations match `strava-backup view stats` output
+4. Verify stats calculations match `mykrok view stats` output
 5. Test on mobile device (or DevTools responsive mode)
 6. Test with no athletes (empty state)
 7. Test with single athlete (no "All Athletes" option)
@@ -420,8 +420,8 @@ tests/e2e/fixtures/
 #### Demo Mode
 Add CLI option to generate demo with fixtures:
 ```bash
-strava-backup demo --output ./demo-data/
-# Generates sample data and opens browser to strava-backup.html
+mykrok demo --output ./demo-data/
+# Generates sample data and opens browser to mykrok.html
 ```
 
 ---
@@ -431,7 +431,7 @@ strava-backup demo --output ./demo-data/
 ### Modified Files
 | File | Changes |
 |------|---------|
-| `src/strava_backup/views/map.py` | Extend `generate_lightweight_map()` to produce full SPA |
+| `src/mykrok/views/map.py` | Extend `generate_lightweight_map()` to produce full SPA |
 
 ### New Files
 | File | Purpose |
@@ -489,9 +489,9 @@ Phase 3: Sessions View            Phase 4: Stats    (Map already works)
 
 ## Critical Files for Implementation
 
-- `src/strava_backup/views/map.py` - Core file to extend with SPA generation
-- `src/strava_backup/views/stats.py` - Reference for stats calculation logic to port to JS
-- `src/strava_backup/models/activity.py` - Data model for sessions.tsv columns
+- `src/mykrok/views/map.py` - Core file to extend with SPA generation
+- `src/mykrok/views/stats.py` - Reference for stats calculation logic to port to JS
+- `src/mykrok/models/activity.py` - Data model for sessions.tsv columns
 - `features/unified-frontend/spec.md` - UX specification for design reference
 
 ---
@@ -799,7 +799,7 @@ tox -e screenshots
    - Better visibility when multiple tracks overlap
 
 7. **Version Display in Header** (v0.6.0)
-   - Show strava-backup version in map header
+   - Show mykrok version in map header
    - Links to project repository
 
 ### Sessions View Enhancements

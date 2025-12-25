@@ -7,12 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from strava_backup.lib.paths import ATHLETE_PREFIX
-from strava_backup.services.migrate import (
+from mykrok.lib.paths import ATHLETE_PREFIX
+from mykrok.services.migrate import (
     LOG_GITATTRIBUTES_RULE,
     add_log_gitattributes_rule,
     migrate_center_to_start_coords,
+    migrate_config_directory,
     run_full_migration,
+    update_gitattributes_paths,
 )
 
 
@@ -72,6 +74,135 @@ class TestAddLogGitattributesRule:
 
         assert result is True
         # Content should not be modified
+        assert gitattributes.read_text() == original_content
+
+
+@pytest.mark.ai_generated
+class TestMigrateConfigDirectory:
+    """Tests for migrate_config_directory function."""
+
+    def test_renames_strava_backup_to_mykrok(self, tmp_path: Path) -> None:
+        """Test renaming .strava-backup directory to .mykrok."""
+        # Create legacy config directory
+        old_dir = tmp_path / ".strava-backup"
+        old_dir.mkdir()
+        config_file = old_dir / "config.toml"
+        config_file.write_text('[strava]\nclient_id = "test"\n')
+
+        result = migrate_config_directory(tmp_path)
+
+        assert result["dir_renamed"] is not None
+        assert ".strava-backup" in result["dir_renamed"][0]
+        assert ".mykrok" in result["dir_renamed"][1]
+        assert not old_dir.exists()
+        new_dir = tmp_path / ".mykrok"
+        assert new_dir.exists()
+        assert (new_dir / "config.toml").exists()
+        assert (new_dir / "config.toml").read_text() == '[strava]\nclient_id = "test"\n'
+
+    def test_migrates_legacy_single_file_config(self, tmp_path: Path) -> None:
+        """Test migrating .strava-backup.toml to .mykrok/config.toml."""
+        # Create legacy single-file config
+        legacy_file = tmp_path / ".strava-backup.toml"
+        legacy_file.write_text('[strava]\nclient_id = "legacy"\n')
+
+        result = migrate_config_directory(tmp_path)
+
+        assert result["file_migrated"] is not None
+        assert ".strava-backup.toml" in result["file_migrated"][0]
+        assert ".mykrok/config.toml" in result["file_migrated"][1]
+        assert not legacy_file.exists()
+        new_config = tmp_path / ".mykrok" / "config.toml"
+        assert new_config.exists()
+        assert new_config.read_text() == '[strava]\nclient_id = "legacy"\n'
+
+    def test_skips_if_mykrok_already_exists(self, tmp_path: Path) -> None:
+        """Test skipping migration if .mykrok already exists."""
+        # Create both directories
+        old_dir = tmp_path / ".strava-backup"
+        old_dir.mkdir()
+        (old_dir / "config.toml").write_text('[strava]\nclient_id = "old"\n')
+
+        new_dir = tmp_path / ".mykrok"
+        new_dir.mkdir()
+        (new_dir / "config.toml").write_text('[strava]\nclient_id = "new"\n')
+
+        result = migrate_config_directory(tmp_path)
+
+        assert result["dir_renamed"] is None
+        # Both directories should still exist
+        assert old_dir.exists()
+        assert new_dir.exists()
+        # New config should be unchanged
+        assert (new_dir / "config.toml").read_text() == '[strava]\nclient_id = "new"\n'
+
+    def test_dry_run_does_not_modify(self, tmp_path: Path) -> None:
+        """Test dry run mode doesn't rename directory."""
+        old_dir = tmp_path / ".strava-backup"
+        old_dir.mkdir()
+        (old_dir / "config.toml").write_text('[strava]\nclient_id = "test"\n')
+
+        result = migrate_config_directory(tmp_path, dry_run=True)
+
+        assert result["dir_renamed"] is not None
+        # Directory should still exist with old name
+        assert old_dir.exists()
+        assert not (tmp_path / ".mykrok").exists()
+
+    def test_handles_no_legacy_config(self, tmp_path: Path) -> None:
+        """Test handling when no legacy config exists."""
+        result = migrate_config_directory(tmp_path)
+
+        assert result["dir_renamed"] is None
+        assert result["file_migrated"] is None
+
+
+@pytest.mark.ai_generated
+class TestUpdateGitattributesPaths:
+    """Tests for update_gitattributes_paths function."""
+
+    def test_updates_legacy_paths(self, tmp_path: Path) -> None:
+        """Test updating .strava-backup paths to .mykrok in .gitattributes."""
+        gitattributes = tmp_path / ".gitattributes"
+        gitattributes.write_text(
+            "# Config file\n"
+            ".strava-backup/config.toml annex.largefiles=anything\n"
+            "*.log annex.largefiles=anything\n"
+        )
+
+        result = update_gitattributes_paths(tmp_path)
+
+        assert result is True
+        content = gitattributes.read_text()
+        assert ".mykrok/config.toml" in content
+        assert ".strava-backup/config.toml" not in content
+        assert "*.log annex.largefiles=anything" in content
+
+    def test_skips_if_no_legacy_paths(self, tmp_path: Path) -> None:
+        """Test skipping if no legacy paths exist."""
+        gitattributes = tmp_path / ".gitattributes"
+        original_content = ".mykrok/config.toml annex.largefiles=anything\n"
+        gitattributes.write_text(original_content)
+
+        result = update_gitattributes_paths(tmp_path)
+
+        assert result is False
+        assert gitattributes.read_text() == original_content
+
+    def test_returns_false_if_file_missing(self, tmp_path: Path) -> None:
+        """Test returning False when .gitattributes doesn't exist."""
+        result = update_gitattributes_paths(tmp_path)
+        assert result is False
+
+    def test_dry_run_does_not_modify(self, tmp_path: Path) -> None:
+        """Test dry run mode doesn't modify file."""
+        gitattributes = tmp_path / ".gitattributes"
+        original_content = ".strava-backup/config.toml annex.largefiles=anything\n"
+        gitattributes.write_text(original_content)
+
+        result = update_gitattributes_paths(tmp_path, dry_run=True)
+
+        assert result is True
         assert gitattributes.read_text() == original_content
 
 
@@ -280,3 +411,32 @@ class TestRunFullMigration:
 
         assert results["coords_columns_migrated"] == 0
         assert results["prefix_renames"] == []
+
+    def test_migrates_config_directory_in_full_migration(self, tmp_path: Path) -> None:
+        """Test that full migration includes config directory rename."""
+        # Create legacy config directory
+        old_dir = tmp_path / ".strava-backup"
+        old_dir.mkdir()
+        (old_dir / "config.toml").write_text('[strava]\nclient_id = "test"\n')
+
+        # Create legacy gitattributes
+        gitattributes = tmp_path / ".gitattributes"
+        gitattributes.write_text(".strava-backup/config.toml annex.largefiles=anything\n")
+
+        # Create fake dataset to satisfy other migration requirements
+        create_fake_legacy_dataset(tmp_path)
+
+        results = run_full_migration(tmp_path)
+
+        # Check config directory was migrated
+        assert results["config_dir_migrated"] is not None
+        assert not old_dir.exists()
+        new_dir = tmp_path / ".mykrok"
+        assert new_dir.exists()
+        assert (new_dir / "config.toml").exists()
+
+        # Check gitattributes was updated
+        assert results["gitattributes_paths_updated"] is True
+        content = gitattributes.read_text()
+        assert ".mykrok/config.toml" in content
+        assert ".strava-backup/config.toml" not in content

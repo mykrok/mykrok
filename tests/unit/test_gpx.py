@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from strava_backup.lib.gpx import get_gpx_size, simplify_track
+from mykrok.lib.gpx import get_gpx_size, simplify_track
 
 
 @pytest.mark.ai_generated

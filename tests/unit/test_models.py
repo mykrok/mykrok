@@ -7,13 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from strava_backup.models.activity import (
+from mykrok.models.activity import (
     Activity,
     load_activity,
     save_activity,
 )
-from strava_backup.models.athlete import Athlete, Gear, GearCatalog
-from strava_backup.models.state import (
+from mykrok.models.athlete import Athlete, Gear, GearCatalog
+from mykrok.models.state import (
     FitTrackeeExportState,
     SyncState,
 )
@@ -61,7 +61,7 @@ class TestActivity:
         save_activity(temp_data_dir, username, activity)
 
         # Load it back
-        from strava_backup.lib.paths import get_session_dir
+        from mykrok.lib.paths import get_session_dir
 
         session_dir = get_session_dir(temp_data_dir, username, activity.start_date)
         loaded = load_activity(session_dir)

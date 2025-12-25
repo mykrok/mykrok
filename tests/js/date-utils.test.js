@@ -5,7 +5,7 @@
  * date navigation buttons.
  */
 
-import { getExpansionDays, expandDateRange, formatDate } from '../../src/strava_backup/assets/map-browser/date-utils.js';
+import { getExpansionDays, expandDateRange, formatDate } from '../../src/mykrok/assets/map-browser/date-utils.js';
 
 describe('getExpansionDays', () => {
     test('single day range (0 days) expands by 3 days', () => {

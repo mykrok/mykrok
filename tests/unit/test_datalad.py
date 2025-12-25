@@ -13,7 +13,7 @@ class TestDataladDatasetCreation:
 
     def test_create_dataset_basic(self, tmp_path: Path) -> None:
         """Test basic dataset creation."""
-        from strava_backup.services.datalad import create_datalad_dataset
+        from mykrok.services.datalad import create_datalad_dataset
 
         dataset_path = tmp_path / "test-dataset"
         result = create_datalad_dataset(dataset_path)
@@ -29,13 +29,13 @@ class TestDataladDatasetCreation:
 
     def test_create_dataset_files(self, tmp_path: Path) -> None:
         """Test that all template files are created."""
-        from strava_backup.services.datalad import create_datalad_dataset
+        from mykrok.services.datalad import create_datalad_dataset
 
         dataset_path = tmp_path / "test-dataset"
         create_datalad_dataset(dataset_path)
 
         # Check config directory and files
-        config_dir = dataset_path / ".strava-backup"
+        config_dir = dataset_path / ".mykrok"
         assert config_dir.exists()
         assert config_dir.is_dir()
 
@@ -56,7 +56,7 @@ class TestDataladDatasetCreation:
 
     def test_create_dataset_readme(self, tmp_path: Path) -> None:
         """Test that README.md is created with proper content."""
-        from strava_backup.services.datalad import create_datalad_dataset
+        from mykrok.services.datalad import create_datalad_dataset
 
         dataset_path = tmp_path / "test-dataset"
         create_datalad_dataset(dataset_path)
@@ -66,11 +66,11 @@ class TestDataladDatasetCreation:
         readme_content = readme_file.read_text()
         assert "Strava" in readme_content
         assert "DataLad" in readme_content
-        assert "strava-backup" in readme_content
+        assert "mykrok" in readme_content
 
     def test_create_dataset_makefile(self, tmp_path: Path) -> None:
         """Test that Makefile is created with datalad run targets."""
-        from strava_backup.services.datalad import create_datalad_dataset
+        from mykrok.services.datalad import create_datalad_dataset
 
         dataset_path = tmp_path / "test-dataset"
         create_datalad_dataset(dataset_path)
@@ -80,11 +80,11 @@ class TestDataladDatasetCreation:
         makefile_content = makefile.read_text()
         assert "datalad run" in makefile_content
         assert "sync:" in makefile_content
-        assert "strava-backup sync" in makefile_content
+        assert "mykrok sync" in makefile_content
 
     def test_create_dataset_no_data_subdir(self, tmp_path: Path) -> None:
         """Test that data is stored in root (no data/ subdirectory)."""
-        from strava_backup.services.datalad import create_datalad_dataset
+        from mykrok.services.datalad import create_datalad_dataset
 
         dataset_path = tmp_path / "test-dataset"
         create_datalad_dataset(dataset_path)
@@ -93,14 +93,14 @@ class TestDataladDatasetCreation:
         data_dir = dataset_path / "data"
         assert not data_dir.exists(), "data/ subdirectory should not be created"
 
-        # Config should reference parent directory (.strava-backup/config.toml -> ..)
-        config_file = dataset_path / ".strava-backup" / "config.toml"
+        # Config should reference parent directory (.mykrok/config.toml -> ..)
+        config_file = dataset_path / ".mykrok" / "config.toml"
         config_content = config_file.read_text()
         assert 'directory = ".."' in config_content
 
     def test_create_dataset_gitignore(self, tmp_path: Path) -> None:
         """Test that .gitignore is created/updated."""
-        from strava_backup.services.datalad import create_datalad_dataset
+        from mykrok.services.datalad import create_datalad_dataset
 
         dataset_path = tmp_path / "test-dataset"
         create_datalad_dataset(dataset_path)
@@ -110,7 +110,7 @@ class TestDataladDatasetCreation:
 
     def test_create_dataset_existing_empty_dir(self, tmp_path: Path) -> None:
         """Test creating dataset in existing empty directory."""
-        from strava_backup.services.datalad import create_datalad_dataset
+        from mykrok.services.datalad import create_datalad_dataset
 
         dataset_path = tmp_path / "existing-empty"
         dataset_path.mkdir()
@@ -120,7 +120,7 @@ class TestDataladDatasetCreation:
 
     def test_create_dataset_existing_nonempty_fails(self, tmp_path: Path) -> None:
         """Test that creating dataset in non-empty directory fails."""
-        from strava_backup.services.datalad import create_datalad_dataset
+        from mykrok.services.datalad import create_datalad_dataset
 
         dataset_path = tmp_path / "non-empty"
         dataset_path.mkdir()
@@ -131,7 +131,7 @@ class TestDataladDatasetCreation:
 
     def test_create_dataset_force_overwrites(self, tmp_path: Path) -> None:
         """Test that force=True allows overwriting."""
-        from strava_backup.services.datalad import create_datalad_dataset
+        from mykrok.services.datalad import create_datalad_dataset
 
         dataset_path = tmp_path / "force-test"
         dataset_path.mkdir()
@@ -142,12 +142,12 @@ class TestDataladDatasetCreation:
 
     def test_create_dataset_config_has_comments(self, tmp_path: Path) -> None:
         """Test that config file has helpful comments."""
-        from strava_backup.services.datalad import create_datalad_dataset
+        from mykrok.services.datalad import create_datalad_dataset
 
         dataset_path = tmp_path / "test-dataset"
         create_datalad_dataset(dataset_path)
 
-        config_file = dataset_path / ".strava-backup" / "config.toml"
+        config_file = dataset_path / ".mykrok" / "config.toml"
         config_content = config_file.read_text()
 
         # Check for helpful comments
@@ -158,7 +158,7 @@ class TestDataladDatasetCreation:
 
     def test_create_dataset_makefile_has_help(self, tmp_path: Path) -> None:
         """Test that Makefile has help target."""
-        from strava_backup.services.datalad import create_datalad_dataset
+        from mykrok.services.datalad import create_datalad_dataset
 
         dataset_path = tmp_path / "test-dataset"
         create_datalad_dataset(dataset_path)
@@ -170,7 +170,7 @@ class TestDataladDatasetCreation:
 
     def test_create_dataset_gitattributes(self, tmp_path: Path) -> None:
         """Test that .gitattributes is created with annex rules."""
-        from strava_backup.services.datalad import create_datalad_dataset
+        from mykrok.services.datalad import create_datalad_dataset
 
         dataset_path = tmp_path / "test-dataset"
         create_datalad_dataset(dataset_path)
@@ -179,19 +179,19 @@ class TestDataladDatasetCreation:
         assert gitattributes.exists()
         content = gitattributes.read_text()
         # Should have rule to track config in git-annex
-        assert ".strava-backup/config.toml" in content
+        assert ".mykrok/config.toml" in content
         assert "annex.largefiles" in content
 
     def test_create_dataset_config_is_annexed_unlocked(self, tmp_path: Path) -> None:
         """Test that config file is tracked by git-annex but unlocked (regular file)."""
         import subprocess
 
-        from strava_backup.services.datalad import create_datalad_dataset
+        from mykrok.services.datalad import create_datalad_dataset
 
         dataset_path = tmp_path / "test-dataset"
         create_datalad_dataset(dataset_path)
 
-        config_file = dataset_path / ".strava-backup" / "config.toml"
+        config_file = dataset_path / ".mykrok" / "config.toml"
         assert config_file.exists()
 
         # Config should be a regular file (unlocked), not a symlink
@@ -201,7 +201,7 @@ class TestDataladDatasetCreation:
 
         # Verify it's tracked by git-annex using whereis
         result = subprocess.run(
-            ["git", "annex", "whereis", ".strava-backup/config.toml"],
+            ["git", "annex", "whereis", ".mykrok/config.toml"],
             cwd=str(dataset_path),
             capture_output=True,
             text=True,

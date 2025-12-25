@@ -1,1 +1,1 @@
-"""Unit tests for strava-backup."""
+"""Unit tests for mykrok."""

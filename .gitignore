@@ -7,7 +7,7 @@ __pycache__/
 *.so
 .Python
 # Generated version file (from hatch-vcs)
-src/strava_backup/_version.py
+src/mykrok/_version.py
 build/
 develop-eggs/
 dist/
@@ -15,7 +15,7 @@ downloads/
 eggs/
 .eggs/
 lib/
-!src/strava_backup/lib/
+!src/mykrok/lib/
 lib64/
 parts/
 sdist/

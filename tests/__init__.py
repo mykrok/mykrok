@@ -1,1 +1,1 @@
-"""Test suite for strava-backup."""
+"""Test suite for mykrok."""
