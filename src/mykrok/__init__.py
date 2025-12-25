@@ -1,8 +1,9 @@
-"""Strava Activity Backup and Visualization CLI Tool.
+"""MyKrok - Fitness Activity Backup and Visualization CLI Tool.
 
-A command-line tool to backup Strava activities (metadata, GPS tracks, photos,
+A command-line tool to backup fitness activities (metadata, GPS tracks, photos,
 comments, kudos) with incremental sync, store in Hive-partitioned layout for
-DuckDB queries, generate interactive map visualizations, and export to FitTrackee.
+DuckDB queries, generate interactive map visualizations, and export to other
+platforms. Currently supports Strava as the data source.
 """
 
 try:

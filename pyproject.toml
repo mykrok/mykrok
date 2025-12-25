@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "mykrok"
 dynamic = ["version"]
-description = "CLI tool to backup Strava activities with incremental sync, map visualization, and FitTrackee export"
+description = "CLI tool to backup fitness activities with incremental sync, map visualization, and export (Strava supported)"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10"

@@ -1,4 +1,4 @@
-# Implementation Plan: Strava Activity Backup and Visualization
+# Implementation Plan: MyKrok - Fitness Activity Backup and Visualization
 
 **Branch**: `001-mykrok` | **Date**: 2025-12-18 | **Spec**: [specs/001-mykrok/spec.md](spec.md)
 **Input**: Feature specification from `/specs/001-mykrok/spec.md`
@@ -7,7 +7,7 @@
 
 ## Summary
 
-CLI tool to backup Strava activities (metadata, GPS tracks, photos, comments, kudos) with incremental sync, store in Hive-partitioned layout for DuckDB queries, generate interactive map visualizations with heatmap mode, and export to FitTrackee. MVC architecture with file-based model layer.
+CLI tool to backup fitness activities (metadata, GPS tracks, photos, comments, kudos) with incremental sync, store in Hive-partitioned layout for DuckDB queries, generate interactive map visualizations with heatmap mode, and export to other platforms. Currently supports Strava as data source. MVC architecture with file-based model layer.
 
 ## Technical Context
 

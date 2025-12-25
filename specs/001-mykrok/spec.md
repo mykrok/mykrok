@@ -1,4 +1,4 @@
-# Feature Specification: MyKrok - Strava Activity Backup and Visualization
+# Feature Specification: MyKrok - Fitness Activity Backup and Visualization
 
 > **Historical Note**: This project was originally called "strava-backup" and was renamed to "MyKrok" (Ukrainian "мій крок" = "my step") in v1.0.0.
 

@@ -123,10 +123,11 @@ def main(
     quiet: bool,
     json_output: bool,
 ) -> None:
-    """Strava Activity Backup and Visualization CLI.
+    """Fitness Activity Backup and Visualization CLI.
 
-    Back up your Strava activities, view statistics, generate maps,
-    and export to FitTrackee.
+    Back up your fitness activities, view statistics, generate maps,
+    and export to other platforms. Currently supports Strava as the
+    data source and FitTrackee as an export target.
     """
     # Create our context object
     ctx = Context()
@@ -1077,13 +1078,13 @@ def fittrackee(
 )
 @pass_context
 def create_datalad_dataset_cmd(ctx: Context, path: Path, force: bool) -> None:
-    """Create a DataLad dataset for Strava backups.
+    """Create a DataLad dataset for activity backups.
 
     Creates a new DataLad dataset at PATH with:
 
     \b
     - text2git configuration (text in git, binaries in git-annex)
-    - Sample .strava-backup/config.toml config with comments
+    - Sample .mykrok/config.toml config with comments
     - README.md explaining the dataset
     - Makefile for reproducible syncs using `datalad run`
 
@@ -1093,7 +1094,7 @@ def create_datalad_dataset_cmd(ctx: Context, path: Path, force: bool) -> None:
         mykrok create-datalad-dataset ./my-mykrok-backup
         cd my-mykrok-backup
         # Edit .mykrok/config.toml with your credentials
-        strava-backup auth
+        mykrok auth
         make sync
     """
     from mykrok.services.datalad import create_datalad_dataset

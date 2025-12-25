@@ -2,13 +2,13 @@
 
 > **Note**: This project was formerly known as "strava-backup". The name "MyKrok" comes from Ukrainian "мій крок" meaning "my step" - fitting for a tool that preserves every step of your fitness journey.
 
-CLI tool to backup Strava activities with incremental sync, map visualization, and FitTrackee export.
+CLI tool to backup fitness activities with incremental sync, map visualization, and export capabilities. Currently supports **Strava** as the data source.
 
 **[Live Demo](https://mykrok.github.io/mykrok/)** - Try the web frontend with synthetic data. It is served directly from [gh-pages branch](https://github.com/mykrok/mykrok/tree/gh-pages) where you could also explore the backup filetree we show [below](#no-backend-required).
 
 ## Features
 
-- **Backup Activities**: Download all your Strava activities including metadata, GPS tracks, photos, comments, and kudos
+- **Backup Activities**: Download all your activities including metadata, GPS tracks, photos, comments, and kudos
 - **Incremental Sync**: Only fetch new activities after initial backup
 - **Interactive Maps**: Generate HTML maps with route visualization and heatmap mode
 - **Statistics**: View activity statistics by time period with breakdowns by type

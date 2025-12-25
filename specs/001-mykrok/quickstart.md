@@ -1,4 +1,4 @@
-# Quickstart: Strava Activity Backup
+# Quickstart: MyKrok - Fitness Activity Backup
 
 ## Prerequisites
 

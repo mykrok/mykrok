@@ -73,7 +73,7 @@ class TestAppLaunch:
         page.goto(f"{demo_server}/mykrok.html")
 
         # Check title/header
-        assert "Strava Backup" in page.locator(".app-logo").text_content()
+        assert "MyKrok" in page.locator(".app-logo").text_content()
 
         # Check all three nav tabs are present
         nav_tabs = page.locator(".nav-tab")

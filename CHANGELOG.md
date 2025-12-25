@@ -252,7 +252,7 @@ Legacy configuration paths are still supported for backward compatibility:
 
 #### 🚀 Features
 
-- Initial release with Strava backup, map visualization, and FitTrackee export
+- Initial release with activity backup (Strava), map visualization, and FitTrackee export
 - OAuth2 authentication with automatic token refresh
 - Incremental activity sync with Hive-partitioned storage
 - GPS tracking data stored as Parquet files

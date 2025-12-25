@@ -1,6 +1,6 @@
 """DataLad dataset creation service for MyKrok.
 
-Creates a DataLad dataset configured for version-controlled Strava backups
+Creates a DataLad dataset configured for version-controlled activity backups
 with reproducible sync operations using `datalad run`.
 """
 
@@ -63,8 +63,8 @@ oauth-tokens.toml
 README_TEMPLATE = """\
 # MyKrok Activity Backup Dataset
 
-This is a [DataLad](https://www.datalad.org/) dataset for backing up Strava activities
-using [MyKrok](https://github.com/mykrok/mykrok).
+This is a [DataLad](https://www.datalad.org/) dataset for backing up fitness activities
+using [MyKrok](https://github.com/mykrok/mykrok). Currently supports Strava as the data source.
 
 ## Prerequisites
 
@@ -219,8 +219,8 @@ mechanisms (e.g., HTTP Basic Auth, OAuth proxy, IP allowlisting, etc.).
 
 # Template for Makefile
 MAKEFILE_TEMPLATE = """\
-# Strava Backup Makefile
-# ======================
+# MyKrok Activity Backup Makefile
+# ================================
 # Uses datalad run for reproducible, version-controlled backups
 
 .PHONY: sync sync-full auth stats map browse help
@@ -230,17 +230,17 @@ all: sync
 
 # Incremental sync - only fetch new activities
 sync:
-	datalad run -m "Sync new Strava activities" \\
+	datalad run -m "Sync new activities" \\
 		-o "athl=*" \\
 		"mykrok sync"
 
 # Full sync - re-download everything
 sync-full:
-	datalad run -m "Full Strava sync" \\
+	datalad run -m "Full activity sync" \\
 		-o "athl=*" \\
 		"mykrok sync --full"
 
-# Authenticate with Strava (interactive)
+# Authenticate with data source (interactive)
 auth:
 	mykrok auth
 
@@ -266,10 +266,10 @@ browse:
 
 # Show help
 help:
-	@echo "Strava Backup Commands:"
+	@echo "MyKrok Activity Backup Commands:"
 	@echo "  make sync        - Sync new activities (incremental)"
 	@echo "  make sync-full   - Re-sync all activities"
-	@echo "  make auth        - Authenticate with Strava"
+	@echo "  make auth        - Authenticate with data source"
 	@echo "  make stats       - Show activity statistics"
 	@echo "  make map         - View activities on map"
 	@echo "  make heatmap     - Generate heatmap HTML"
@@ -278,7 +278,7 @@ help:
 
 # Template for .gitignore additions
 GITIGNORE_TEMPLATE = """\
-# Strava Backup
+# MyKrok Activity Backup
 # Note: .mykrok/config.toml is tracked by git-annex (not git) for security
 # OAuth tokens in .mykrok/oauth-tokens.toml are gitignored (see .mykrok/.gitignore)
 
@@ -308,7 +308,7 @@ def create_datalad_dataset(
     path: Path,
     force: bool = False,
 ) -> dict[str, Any]:
-    """Create a DataLad dataset configured for Strava backups.
+    """Create a DataLad dataset configured for activity backups.
 
     Creates a new DataLad dataset with the text2git configuration
     (text files in git, binary files in git-annex) and populates it

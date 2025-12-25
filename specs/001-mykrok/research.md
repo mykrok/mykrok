@@ -1,4 +1,4 @@
-# Research: Strava Activity Backup and Visualization
+# Research: MyKrok - Fitness Activity Backup and Visualization
 
 **Branch**: `001-mykrok` | **Date**: 2025-12-18
 

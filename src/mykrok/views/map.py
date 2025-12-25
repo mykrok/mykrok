@@ -102,7 +102,7 @@ def generate_browser(_data_dir: Path) -> str:
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Strava Backup</title>
+    <title>MyKrok</title>
     <link rel="icon" type="image/svg+xml" href="assets/mykrok-icon.svg">
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="assets/leaflet/leaflet.css">
@@ -2133,7 +2133,7 @@ def generate_browser(_data_dir: Path) -> str:
         <a href="https://github.com/mykrok/mykrok" class="app-logo" target="_blank">
             <img src="assets/mykrok-icon.svg" alt="Logo">
             <span class="app-logo-text">
-                Strava Backup
+                MyKrok
                 <span class="app-version">v{__version__}</span>
             </span>
         </a>

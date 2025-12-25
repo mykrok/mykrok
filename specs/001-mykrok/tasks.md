@@ -1,4 +1,4 @@
-# Tasks: Strava Activity Backup and Visualization
+# Tasks: MyKrok - Fitness Activity Backup and Visualization
 
 **Input**: Design documents from `/specs/001-mykrok/`
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/cli.md, quickstart.md
@@ -175,9 +175,9 @@
 
 ## Phase 8b: User Story 7 - DataLad Dataset Creation (Priority: P7)
 
-**Goal**: Create a DataLad dataset for version-controlled, reproducible Strava backups
+**Goal**: Create a DataLad dataset for version-controlled, reproducible activity backups
 
-**Independent Test**: Run `mykrok create-datalad-dataset ./my-strava` and verify:
+**Independent Test**: Run `mykrok create-datalad-dataset ./my-activities` and verify:
 - DataLad dataset is created with text2git configuration
 - Sample config file with comments is generated
 - README.md describing the dataset is created
