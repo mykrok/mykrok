@@ -846,10 +846,15 @@ def migrate(ctx: Context, dry_run: bool) -> None:
     """Migrate data directory to latest format.
 
     Performs the following migrations:
+    - Renames .strava-backup/ config directory to .mykrok/
+    - Updates git-annex annex.addunlocked config
+    - Updates .gitattributes, README.md, Makefile, .gitignore references
     - Renames sub= directories to athl= prefix
-    - Updates Makefile and README.md to use athl= prefix
     - Generates top-level athletes.tsv
-    - Adds center GPS coordinates to sessions.tsv files
+    - Migrates center_lat/lng columns to start_lat/lng
+
+    NOTE: If config file shows as pointer after reset, run 'git annex fsck'
+    (not 'git annex unlock') to restore content before migrating.
     """
     from mykrok.services.migrate import run_full_migration
 
@@ -866,23 +871,54 @@ def migrate(ctx: Context, dry_run: bool) -> None:
     try:
         results = run_full_migration(data_dir, dry_run=dry_run)
 
+        # Report config directory migration
+        if results["config_dir_migrated"]:
+            old_path, new_path = results["config_dir_migrated"]
+            action = "Would rename" if dry_run else "Renamed"
+            ctx.log(f"{action} config directory: {old_path} -> {new_path}")
+
+        if results["config_file_migrated"]:
+            old_path, new_path = results["config_file_migrated"]
+            action = "Would migrate" if dry_run else "Migrated"
+            ctx.log(f"{action} config file: {old_path} -> {new_path}")
+
+        # Report annex.addunlocked config update
+        if results.get("annex_config_updated"):
+            action = "Would update" if dry_run else "Updated"
+            ctx.log(f"{action} git-annex addunlocked config (.strava-backup -> .mykrok)")
+
+        # Report config.toml content update
+        if results.get("config_content_updated"):
+            action = "Would update" if dry_run else "Updated"
+            ctx.log(f"{action} config.toml comments (.strava-backup -> .mykrok)")
+
+        # Report gitattributes path updates
+        if results["gitattributes_paths_updated"]:
+            action = "Would update" if dry_run else "Updated"
+            ctx.log(f"{action} .gitattributes paths (.strava-backup -> .mykrok)")
+
+        # Report template file updates (README, Makefile, .gitignore)
+        if results.get("template_files_updated"):
+            ctx.log(f"Template files updated: {len(results['template_files_updated'])}")
+            for filename in results["template_files_updated"]:
+                action = "Would update" if dry_run else "Updated"
+                ctx.log(f"  {action}: {filename}")
+
         # Report prefix renames
         if results["prefix_renames"]:
             ctx.log(f"Directory renames: {len(results['prefix_renames'])}")
             for old, new in results["prefix_renames"]:
                 action = "Would rename" if dry_run else "Renamed"
                 ctx.log(f"  {action}: {old} -> {new}")
-        else:
-            ctx.log("No directory renames needed")
 
-        # Report dataset file updates
+        # Report dataset file updates (sub= -> athl=)
         if results["dataset_files_updated"]:
-            ctx.log(f"Dataset files updated: {len(results['dataset_files_updated'])}")
+            ctx.log(f"Prefix updates in files: {len(results['dataset_files_updated'])}")
             for filepath in results["dataset_files_updated"]:
                 action = "Would update" if dry_run else "Updated"
                 ctx.log(f"  {action}: {filepath}")
 
-        # Report gitattributes update
+        # Report gitattributes log rule
         if results["log_gitattributes_added"]:
             action = "Would add" if dry_run else "Added"
             ctx.log(f"{action} log file gitattributes rule")
@@ -901,7 +937,22 @@ def migrate(ctx: Context, dry_run: bool) -> None:
 
             ctx.log("Migration complete")
         else:
-            ctx.log("Dry run complete - run without --dry-run to apply changes")
+            # Check if anything would be done
+            has_changes = any([
+                results["config_dir_migrated"],
+                results["config_file_migrated"],
+                results.get("annex_config_updated"),
+                results.get("config_content_updated"),
+                results["gitattributes_paths_updated"],
+                results.get("template_files_updated"),
+                results["prefix_renames"],
+                results["dataset_files_updated"],
+                results["log_gitattributes_added"],
+            ])
+            if has_changes:
+                ctx.log("Dry run complete - run without --dry-run to apply changes")
+            else:
+                ctx.log("No migrations needed")
 
     except Exception as e:
         ctx.error(f"Migration failed: {e}")

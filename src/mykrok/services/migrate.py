@@ -305,12 +305,68 @@ def add_log_gitattributes_rule(dataset_dir: Path, dry_run: bool = False) -> bool
     return True
 
 
+def update_annex_addunlocked(dataset_dir: Path, dry_run: bool = False) -> bool:
+    """Update git-annex annex.addunlocked config from .strava-backup to .mykrok.
+
+    The annex.addunlocked config controls which files are added in unlocked
+    (regular file) mode. This needs to be updated BEFORE renaming the config
+    directory so that the file remains unlocked after the move.
+
+    Args:
+        dataset_dir: Dataset root directory.
+        dry_run: If True, only report what would be done.
+
+    Returns:
+        True if config was updated (or would be), False otherwise.
+    """
+    import subprocess
+
+    try:
+        # Check current annex.addunlocked config
+        result = subprocess.run(
+            ["git", "annex", "config", "--get", "annex.addunlocked"],
+            cwd=str(dataset_dir),
+            capture_output=True,
+            text=True,
+        )
+        current_config = result.stdout.strip()
+
+        # Check if it references .strava-backup
+        if ".strava-backup" not in current_config:
+            return False
+
+        # Update to use .mykrok
+        new_config = current_config.replace(".strava-backup", ".mykrok")
+
+        if dry_run:
+            return True
+
+        subprocess.run(
+            ["git", "annex", "config", "--set", "annex.addunlocked", new_config],
+            cwd=str(dataset_dir),
+            check=True,
+            capture_output=True,
+        )
+        return True
+
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        # git-annex not available or config not set
+        return False
+
+
 def migrate_config_directory(dataset_dir: Path, dry_run: bool = False) -> dict[str, Any]:
     """Migrate config directory from .strava-backup to .mykrok.
 
     Renames the legacy .strava-backup/ config directory to the new .mykrok/
     name. Also migrates the legacy .strava-backup.toml single-file config
     to .mykrok/config.toml if present.
+
+    IMPORTANT: This function also updates the git-annex annex.addunlocked
+    config BEFORE renaming, to ensure the config file remains unlocked.
+
+    NOTE: If the config file shows as a pointer file after `git reset --hard`,
+    `git annex unlock` may not restore the content. Use `git annex fsck` instead.
+    See: https://git-annex.branchable.com/bugs/get_of_unlocked___34__absent__34___file_does_nothing_/
 
     Args:
         dataset_dir: Dataset root directory.
@@ -320,10 +376,13 @@ def migrate_config_directory(dataset_dir: Path, dry_run: bool = False) -> dict[s
         Dictionary with migration results:
             - dir_renamed: tuple of (old_path, new_path) if directory was renamed
             - file_migrated: tuple of (old_path, new_path) if file was migrated
+            - annex_config_updated: True if annex.addunlocked was updated
     """
     results: dict[str, Any] = {
         "dir_renamed": None,
         "file_migrated": None,
+        "annex_config_updated": False,
+        "config_content_updated": False,
     }
 
     old_dir = dataset_dir / ".strava-backup"
@@ -337,6 +396,12 @@ def migrate_config_directory(dataset_dir: Path, dry_run: bool = False) -> dict[s
             # User needs to manually merge
             pass
         else:
+            # Update annex.addunlocked BEFORE renaming the directory
+            # This ensures the config file stays unlocked after the move
+            results["annex_config_updated"] = update_annex_addunlocked(
+                dataset_dir, dry_run=dry_run
+            )
+
             results["dir_renamed"] = (str(old_dir), str(new_dir))
             if not dry_run:
                 shutil.move(str(old_dir), str(new_dir))
@@ -349,6 +414,22 @@ def migrate_config_directory(dataset_dir: Path, dry_run: bool = False) -> dict[s
             if not dry_run:
                 new_dir.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(legacy_file), str(new_config_path))
+
+    # Update config file contents to replace strava-backup references
+    # In dry-run mode, check the old location; otherwise check the new location
+    config_file = old_dir / "config.toml" if dry_run else new_dir / "config.toml"
+    if config_file.exists():
+        try:
+            content = config_file.read_text(encoding="utf-8")
+            if "strava-backup" in content:
+                results["config_content_updated"] = True
+                if not dry_run:
+                    # Replace CLI command references in comments
+                    new_content = content.replace("strava-backup", "mykrok")
+                    (new_dir / "config.toml").write_text(new_content, encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            # Skip if file can't be read (e.g., annex pointer)
+            pass
 
     return results
 
@@ -414,11 +495,8 @@ def update_dataset_template_files(dataset_dir: Path, dry_run: bool = False) -> l
         # Config directory path
         (r"\.strava-backup/", ".mykrok/"),
         (r"\.strava-backup", ".mykrok"),
-        # CLI command (but not the directory)
-        (r"strava-backup sync", "mykrok sync"),
-        (r"strava-backup auth", "mykrok auth"),
-        (r'"strava-backup sync"', '"mykrok sync"'),
-        (r'"strava-backup sync --full"', '"mykrok sync --full"'),
+        # CLI commands - all subcommands
+        (r"\bstrava-backup\b", "mykrok"),
         # Comments and headers
         (r"# Strava Backup\b", "# MyKrok Activity Backup"),
         (r"Strava Backup Makefile", "MyKrok Activity Backup Makefile"),
@@ -427,6 +505,11 @@ def update_dataset_template_files(dataset_dir: Path, dry_run: bool = False) -> l
         # Commit messages in Makefile
         (r'"Sync new Strava activities"', '"Sync new activities"'),
         (r'"Full Strava sync"', '"Full activity sync"'),
+        # GitHub URLs
+        (r"github\.com/yourusername/strava-backup", "github.com/mykrok/mykrok"),
+        (r"github\.com/[^/]+/strava-backup", "github.com/mykrok/mykrok"),
+        # Directory cloning examples
+        (r"my-strava-backup", "my-mykrok"),
     ]
 
     for filename in ["README.md", "Makefile", ".gitignore"]:
@@ -490,6 +573,8 @@ def run_full_migration(
     results: dict[str, Any] = {
         "config_dir_migrated": None,
         "config_file_migrated": None,
+        "annex_config_updated": False,
+        "config_content_updated": False,
         "gitattributes_paths_updated": False,
         "template_files_updated": [],
         "prefix_renames": [],
@@ -500,17 +585,47 @@ def run_full_migration(
     }
 
     # Determine dataset root directory
-    # The dataset root is typically the parent of the data directory,
-    # or the data directory itself if it's the dataset root
-    dataset_dir = data_dir.parent if (data_dir.parent / ".datalad").exists() else data_dir
-    # Also check if data_dir itself is the dataset root
-    if not (dataset_dir / ".datalad").exists() and (data_dir / ".datalad").exists():
-        dataset_dir = data_dir
+    # The config directory (.strava-backup/ or .mykrok/) is typically in:
+    # 1. The current working directory (where user runs the command from)
+    # 2. The data directory itself
+    # 3. The parent of the data directory (if data/ subdirectory is used)
+    #
+    # IMPORTANT: cwd must be checked FIRST because when config has
+    # `directory = ".."`, data_dir resolves to the PARENT of the dataset root,
+    # but the user runs the command from the dataset root itself.
+    cwd = Path.cwd()
+    data_dir_resolved = data_dir.resolve()
+
+    # Check possible locations for dataset root (where config dir lives)
+    # Order matters: prioritize cwd since user runs command from dataset root
+    possible_roots = [cwd, data_dir_resolved, data_dir_resolved.parent]
+
+    # Find the dataset root by looking for config directory
+    # FIRST pass: look for .strava-backup or .mykrok (config directories)
+    # These take priority over .datalad because the migration is about
+    # renaming the config directory
+    dataset_dir = cwd  # default to cwd, where user runs the command
+    found_config_dir = False
+    for candidate in possible_roots:
+        if (candidate / ".strava-backup").exists() or (candidate / ".mykrok").exists():
+            dataset_dir = candidate
+            found_config_dir = True
+            break
+
+    # SECOND pass: if no config dir found, fall back to .datalad
+    if not found_config_dir:
+        for candidate in possible_roots:
+            if (candidate / ".datalad").exists():
+                dataset_dir = candidate
+                break
 
     # 1. Migrate config directory from .strava-backup to .mykrok
+    # This also updates annex.addunlocked config BEFORE renaming
     config_results = migrate_config_directory(dataset_dir, dry_run=dry_run)
     results["config_dir_migrated"] = config_results.get("dir_renamed")
     results["config_file_migrated"] = config_results.get("file_migrated")
+    results["annex_config_updated"] = config_results.get("annex_config_updated", False)
+    results["config_content_updated"] = config_results.get("config_content_updated", False)
 
     # 2. Update .gitattributes to use new .mykrok path
     results["gitattributes_paths_updated"] = update_gitattributes_paths(

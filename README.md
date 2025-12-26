@@ -1,6 +1,6 @@
 # MyKrok
 
-> **Note**: This project was formerly known as "strava-backup". The name "MyKrok" comes from Ukrainian "мій крок" meaning "my step" - fitting for a tool that preserves every step of your fitness journey.
+> **Note**: This project was formerly known as "mykrok". The name "MyKrok" comes from Ukrainian "мій крок" meaning "my step" - fitting for a tool that preserves every step of your fitness journey.
 
 CLI tool to backup fitness activities with incremental sync, map visualization, and export capabilities. Currently supports **Strava** as the data source.
 
@@ -141,8 +141,8 @@ MyKrok looks for configuration in the following order:
 
 1. `MYKROK_CONFIG` environment variable (explicit path)
 2. `.mykrok/config.toml` in the current directory (recommended for DataLad datasets)
-3. `.strava-backup/config.toml` in the current directory (legacy, still supported)
-4. `.strava-backup.toml` in the current directory (legacy, still supported)
+3. `.mykrok/config.toml` in the current directory (legacy, still supported)
+4. `.mykrok.toml` in the current directory (legacy, still supported)
 5. `~/.config/mykrok/config.toml`
 
 OAuth tokens are stored separately in `.mykrok/oauth-tokens.toml` (gitignored).

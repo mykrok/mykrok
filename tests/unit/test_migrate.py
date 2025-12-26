@@ -650,3 +650,41 @@ class TestRunFullMigration:
             "Legacy references remain after migration:\n"
             + "\n".join(f"  - {ref}" for ref in remaining_references)
         )
+
+    def test_migration_finds_config_from_cwd_when_data_dir_is_parent(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test migration works when data_dir is the PARENT of the dataset root.
+
+        This simulates the real-world scenario where:
+        - User is in /home/user/strava-mine/ (cwd = dataset root)
+        - Config at .strava-backup/config.toml has directory = ".."
+        - So data_dir resolves to /home/user/ (parent of dataset root)
+        - Migration should still find .strava-backup/ in cwd
+        """
+        # Create dataset structure at tmp_path (simulates strava-mine/)
+        dataset_root = tmp_path / "strava-mine"
+        dataset_root.mkdir()
+
+        # Create legacy config directory in dataset root
+        old_config_dir = dataset_root / ".strava-backup"
+        old_config_dir.mkdir()
+        (old_config_dir / "config.toml").write_text(
+            '[strava]\nclient_id = "test"\n\n[data]\ndirectory = ".."\n'
+        )
+
+        # Change cwd to dataset root (where user runs command from)
+        monkeypatch.chdir(dataset_root)
+
+        # data_dir is the PARENT (tmp_path), simulating resolved directory = ".."
+        # This is the bug scenario - data_dir doesn't contain .strava-backup/
+        data_dir = tmp_path  # Parent of dataset_root
+
+        # Run migration with data_dir pointing to parent
+        results = run_full_migration(data_dir)
+
+        # Migration should find .strava-backup/ in cwd (dataset_root) and rename it
+        assert results["config_dir_migrated"] is not None
+        assert not old_config_dir.exists()
+        assert (dataset_root / ".mykrok").exists()
+        assert (dataset_root / ".mykrok" / "config.toml").exists()
