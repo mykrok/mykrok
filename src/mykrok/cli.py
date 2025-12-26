@@ -655,6 +655,12 @@ def stats(
 
 @main.command("create-browser")
 @click.option(
+    "-o",
+    "--output",
+    default="mykrok.html",
+    help="Output filename (default: mykrok.html)",
+)
+@click.option(
     "--serve",
     is_flag=True,
     help="Start local HTTP server after generation",
@@ -665,7 +671,7 @@ def stats(
     help="Server port (default: 8080)",
 )
 @pass_context
-def create_browser_cmd(ctx: Context, serve: bool, port: int) -> None:
+def create_browser_cmd(ctx: Context, output: str, serve: bool, port: int) -> None:
     """Generate interactive activity browser.
 
     Creates a single-page application (SPA) with:
@@ -683,12 +689,12 @@ def create_browser_cmd(ctx: Context, serve: bool, port: int) -> None:
         ctx.error("Configuration not loaded")
         sys.exit(1)
 
-    # Validate that data directory looks like a strava-backup dataset
+    # Validate that data directory looks like a mykrok dataset
     athletes_tsv = config.data.directory / "athletes.tsv"
     if not athletes_tsv.exists():
         ctx.error(
             f"Data directory {config.data.directory} does not appear to be a "
-            "strava-backup dataset (missing athletes.tsv). "
+            "mykrok dataset (missing athletes.tsv). "
             "Run 'mykrok sync' first to populate data, or check your configuration."
         )
         sys.exit(1)
@@ -698,7 +704,7 @@ def create_browser_cmd(ctx: Context, serve: bool, port: int) -> None:
         html = generate_browser(config.data.directory)
 
         # Output to data directory
-        output_path = config.data.directory / "mykrok.html"
+        output_path = config.data.directory / output
         output_path.write_text(html, encoding="utf-8")
 
         # Copy JS/CSS assets
