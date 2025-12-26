@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.0.0 (2025-12-23)
+## v1.0.0 (2025-12-26)
 
 #### 🎉 Project Rename
 
@@ -10,7 +10,20 @@
 - Package name changed from `strava-backup` to `mykrok`
 - GitHub organization: https://github.com/mykrok/mykrok
 
+#### 🚀 Features
+
+- Add `-o/--output` option to `create-browser` command for custom output filename (default: mykrok.html)
+
+#### 🔧 Improvements
+
+- Generalize descriptions to be platform-agnostic ("fitness activity backup" instead of "Strava backup")
+- Consolidate and fix application icon
+
 #### 🔄 Migration
+
+- Fix migration to properly find and update config directory
+- Add migration for dataset template files (README, Makefile, .gitignore)
+- Update all legacy `strava-backup` references in template files
 
 Legacy configuration paths are still supported for backward compatibility:
 - `.strava-backup/config.toml` → `.mykrok/config.toml`
