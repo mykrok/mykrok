@@ -866,20 +866,26 @@ const Router = {
     pendingTrackRestore: null,
     pendingPopupRestore: null,
 
-    restoreTrackFromURL(athlete, datetime, retryCount = 0) {
+    async restoreTrackFromURL(athlete, datetime, retryCount = 0) {
         // Find the marker for this session
         const markerData = MapView.allMarkers.find(
             m => m.athlete === athlete && m.session === datetime
         );
         if (markerData) {
-            // Load track and photos
-            MapView.loadTrack(athlete, datetime, markerData.color);
+            // Load track and photos - await to ensure track is loaded before zooming
+            await MapView.loadTrack(athlete, datetime, markerData.color);
             if (markerData.hasPhotos) {
                 MapView.loadPhotos(athlete, datetime, markerData.sessionName);
             }
             MapView.focusSessionInList(athlete, datetime);
-            // Zoom to the marker
-            MapView.map.setView(markerData.marker.getLatLng(), 14);
+            // Zoom to the track bounds if available, otherwise marker
+            const trackKey = `${athlete}/${datetime}`;
+            const polyline = MapView.tracksBySession[trackKey];
+            if (polyline) {
+                MapView.map.fitBounds(polyline.getBounds(), { padding: [50, 50], maxZoom: 14 });
+            } else {
+                MapView.map.setView(markerData.marker.getLatLng(), 14);
+            }
             this.pendingTrackRestore = null;
         } else if (retryCount < 10) {
             // Data might not be loaded yet, retry
@@ -2590,12 +2596,14 @@ const SessionsView = {
                 btn.className = 'view-on-map-btn';
                 btn.textContent = 'View on Map';
                 btn.onclick = () => {
-                    location.hash = '#/map';
-                    setTimeout(() => {
-                        if (window.mapInstance) {
-                            window.mapInstance.setView([lat, lng], 14);
-                        }
-                    }, 200);
+                    const session = this.selectedSession;
+                    if (session) {
+                        // Include track parameter to load the track on the map
+                        const trackKey = `${session.athlete}/${session.datetime}`;
+                        location.hash = `#/map?z=14&lat=${lat}&lng=${lng}&track=${encodeURIComponent(trackKey)}`;
+                    } else {
+                        location.hash = `#/map?z=14&lat=${lat}&lng=${lng}`;
+                    }
                 };
                 mapContainer.insertAdjacentElement('afterend', btn);
             } else {
