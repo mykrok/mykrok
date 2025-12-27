@@ -32,7 +32,10 @@ jobs:
           node-version: '20'
 
       - name: Install CI dependencies
-        run: uv pip install --system -e ".[ci]"
+        run: |
+            # Since datalad allows for system-wide git-annex, install explicitly
+            uv pip install git-annex
+            uv pip install --system -e ".[ci]"
 
       - name: Run tox
         run: tox
