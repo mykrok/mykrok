@@ -439,10 +439,11 @@ class TestLeanUpdate:
     """Tests for the lean_update parameter in sync()."""
 
     @pytest.mark.ai_generated
-    def test_lean_update_skips_state_save_when_no_changes(
+    def test_lean_update_skips_state_and_log_when_no_changes(
         self, mock_config: MagicMock, setup_athlete_dir: Path
     ) -> None:
-        """When lean_update=True and no changes, sync_state.json should not be updated."""
+        """When lean_update=True and no changes, sync_state.json and log file should not be kept."""
+        from mykrok.lib import logging as mykrok_logging
         from mykrok.models.state import SyncState, load_sync_state, save_sync_state
         from mykrok.services.backup import BackupService
 
@@ -456,6 +457,14 @@ class TestLeanUpdate:
             total_activities=5,
         )
         save_sync_state(data_dir, "testuser", initial_state)
+
+        # Create a log file that should be removed
+        log_dir = data_dir / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_file = log_dir / "mykrok-test.log"
+        log_file.write_text("test log content\n")
+        mykrok_logging._current_log_file = log_file
+        mykrok_logging._file_handler = MagicMock()
 
         # Mock Strava client to return empty activities (no new data)
         mock_strava = MagicMock()
@@ -471,6 +480,8 @@ class TestLeanUpdate:
         )
         mock_strava.get_activities.return_value = iter([])  # No activities
 
+        assert log_file.exists()
+
         with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
             service = BackupService.__new__(BackupService)
             service.config = mock_config
@@ -484,6 +495,9 @@ class TestLeanUpdate:
         state_after = load_sync_state(data_dir, "testuser")
         assert state_after.last_sync == initial_state.last_sync
         assert state_after.total_activities == initial_state.total_activities
+
+        # Verify log file was removed
+        assert not log_file.exists()
 
     @pytest.mark.ai_generated
     def test_default_behavior_always_saves_state(

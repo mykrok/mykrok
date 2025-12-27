@@ -149,3 +149,37 @@ def cleanup_empty_log() -> None:
     # Reset globals
     _current_log_file = None
     _file_handler = None
+
+
+def force_cleanup_log() -> None:
+    """Force removal of the current log file regardless of content.
+
+    Used by lean_update mode to remove log files when sync completes
+    with no meaningful changes (no new activities, photos, etc.).
+    """
+    global _current_log_file, _file_handler
+
+    if _current_log_file is None or _file_handler is None:
+        return
+
+    if not _current_log_file.exists():
+        return
+
+    # Close the file handler first to ensure all writes are flushed
+    _file_handler.close()
+    logger.removeHandler(_file_handler)
+
+    # Also remove from stravalib logger
+    stravalib_logger = logging.getLogger("stravalib")
+    stravalib_logger.removeHandler(_file_handler)
+
+    # Remove the log file
+    try:
+        _current_log_file.unlink()
+    except OSError:
+        # If we can't remove the file, just leave it
+        pass
+
+    # Reset globals
+    _current_log_file = None
+    _file_handler = None

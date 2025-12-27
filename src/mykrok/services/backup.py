@@ -443,6 +443,14 @@ class BackupService:
 
                     log(f"  [RETRY] Error: {error_msg}{retry_info}")
 
+        # Determine if there were actual changes (used for lean_update mode)
+        has_changes = (
+            activities_new > 0
+            or activities_updated > 0
+            or photos_downloaded > 0
+            or retries_succeeded > 0
+        )
+
         # Update gear catalog
         if not dry_run:
             try:
@@ -458,12 +466,6 @@ class BackupService:
 
             # Update sync state
             # When lean_update is True, only save if there were actual changes
-            has_changes = (
-                activities_new > 0
-                or activities_updated > 0
-                or photos_downloaded > 0
-                or retries_succeeded > 0
-            )
             if not lean_update or has_changes:
                 state.last_sync = datetime.now()
                 if latest_activity_date:
@@ -507,6 +509,12 @@ class BackupService:
             retries_failed,
             retry_queue.get_pending_count(),
         )
+
+        # In lean_update mode with no changes, remove the log file
+        if lean_update and not has_changes:
+            from mykrok.lib.logging import force_cleanup_log
+
+            force_cleanup_log()
 
         return {
             "athlete": username,
