@@ -182,6 +182,8 @@ const URLState = {
         if (state.track) params.set('track', state.track);
         // Photo popup on map: popup=athlete/datetime/photoIndex
         if (state.popup) params.set('popup', state.popup);
+        // Viewport filter: vp=1 when enabled
+        if (state.viewportFilter) params.set('vp', '1');
         const queryStr = params.toString();
         return '#/' + state.view + (queryStr ? '?' + queryStr : '');
     },
@@ -205,7 +207,9 @@ const URLState = {
             // Track selection on map: track=athlete/datetime
             track: params.get('track') || '',
             // Photo popup on map: popup=athlete/datetime/photoIndex
-            popup: params.get('popup') || ''
+            popup: params.get('popup') || '',
+            // Viewport filter: true if vp=1
+            viewportFilter: params.get('vp') === '1'
         };
     },
 
@@ -840,6 +844,19 @@ const Router = {
             }, 500);
         }
 
+        // Restore viewport filter state on map view
+        if (state.view === 'map' && state.viewportFilter !== undefined) {
+            MapView.viewportFilterEnabled = state.viewportFilter;
+            // Update button state if control exists
+            if (MapView.viewportFilterControl) {
+                const btn = MapView.viewportFilterControl.getContainer().querySelector('button');
+                if (btn) {
+                    btn.classList.toggle('active', state.viewportFilter);
+                    btn.setAttribute('aria-checked', state.viewportFilter);
+                }
+            }
+        }
+
         // Restore track selection on map view
         if (state.track && state.view === 'map') {
             const [trackAthlete, trackDatetime] = state.track.split('/');
@@ -999,6 +1016,8 @@ const MapView = {
     AUTO_LOAD_ZOOM: 11,
     restoringFromURL: false,
     selectedTrackKey: null,  // Currently selected track key for bold styling
+    viewportFilterEnabled: false,  // Filter activities list to current map viewport
+    viewportFilterControl: null,  // Reference to the control for updating button state
 
     // Color palette for athletes
     ATHLETE_PALETTE: ['#2196F3', '#4CAF50', '#9C27B0', '#FF9800', '#00BCD4', '#E91E63', '#795548', '#607D8B'],
@@ -1070,6 +1089,40 @@ const MapView = {
         };
         fitBoundsControl.addTo(this.map);
 
+        // Viewport filter control - filter activities list to current map view
+        const viewportFilterControl = L.control({ position: 'topright' });
+        viewportFilterControl.onAdd = function() {
+            const div = L.DomUtil.create('div', 'leaflet-control-viewport leaflet-bar');
+            const isActive = self.viewportFilterEnabled;
+            div.innerHTML = `
+                <button type="button"
+                    role="switch"
+                    aria-checked="${isActive}"
+                    aria-label="Filter activities list to current map view"
+                    title="Filter to map view"
+                    class="${isActive ? 'active' : ''}">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M2 5V2h3M11 2h3v3M14 11v3h-3M5 14H2v-3"/>
+                        <circle cx="8" cy="8" r="1.5" fill="currentColor"/>
+                    </svg>
+                </button>
+            `;
+            L.DomEvent.disableClickPropagation(div);
+            const btn = div.querySelector('button');
+            btn.addEventListener('click', () => {
+                self.viewportFilterEnabled = !self.viewportFilterEnabled;
+                btn.classList.toggle('active', self.viewportFilterEnabled);
+                btn.setAttribute('aria-checked', self.viewportFilterEnabled);
+                // Update URL state
+                URLState.update({ viewportFilter: self.viewportFilterEnabled });
+                // Re-apply filters to update the activities list
+                self.applyFiltersAndUpdateUI();
+            });
+            return div;
+        };
+        this.viewportFilterControl = viewportFilterControl;
+        viewportFilterControl.addTo(this.map);
+
         // Set up auto-loading on zoom/pan
         this.map.on('moveend', () => this.loadVisibleTracks());
         this.map.on('zoomend', () => {
@@ -1086,6 +1139,17 @@ const MapView = {
                 const zoom = this.map.getZoom();
                 URLState.update({ zoom, lat: center.lat, lng: center.lng });
             }, 500);
+        });
+
+        // Update activities list when viewport filter is enabled (debounced)
+        let viewportFilterTimeout = null;
+        this.map.on('moveend', () => {
+            if (this.viewportFilterEnabled) {
+                clearTimeout(viewportFilterTimeout);
+                viewportFilterTimeout = setTimeout(() => {
+                    this.applyFiltersAndUpdateUI();
+                }, 150);
+            }
         });
 
         // Set up athlete selector
@@ -1117,7 +1181,24 @@ const MapView = {
 
         const athlete = this.currentAthlete;
         const filters = FilterState.get();
-        const filtered = applyFilters(this.allSessions, filters, athlete);
+        let filtered = applyFilters(this.allSessions, filters, athlete);
+
+        // Store count before viewport filter for "X in view of Y" display
+        const filteredCountBeforeViewport = filtered.length;
+
+        // Apply viewport filter if enabled
+        if (this.viewportFilterEnabled && this.map) {
+            const bounds = this.map.getBounds();
+            filtered = filtered.filter(s => {
+                const lat = parseFloat(s.start_lat);
+                const lng = parseFloat(s.start_lng);
+                return !isNaN(lat) && !isNaN(lng) && bounds.contains([lat, lng]);
+            });
+        }
+
+        // Store viewport filter stats for display
+        this.viewportFilteredCount = filtered.length;
+        this.preViewportFilteredCount = filteredCountBeforeViewport;
 
         // Store filtered sessions sorted by date desc
         this.filteredSessions = [...filtered].sort((a, b) => (b.datetime || '').localeCompare(a.datetime || ''));
@@ -1756,7 +1837,18 @@ const MapView = {
             html += '</div>';
 
             // Session count with filter indicator
-            const countText = hasFilter ? `${filteredCount} of ${totalCount}` : `${filteredCount}`;
+            let countText;
+            if (self.viewportFilterEnabled) {
+                // Show "X in view of Y" when viewport filter is active
+                const inViewCount = self.viewportFilteredCount || filteredCount;
+                const baseCount = self.preViewportFilteredCount || totalCount;
+                countText = `${inViewCount} in view`;
+                if (hasFilter || inViewCount !== baseCount) {
+                    countText += ` of ${baseCount}`;
+                }
+            } else {
+                countText = hasFilter ? `${filteredCount} of ${totalCount}` : `${filteredCount}`;
+            }
             html += '<div class="info-stats">';
             html += `<span class="info-sessions-toggle" title="Click to ${self.sessionListExpanded ? 'collapse' : 'expand'} session list">${countText} sessions ${self.sessionListExpanded ? '▲' : '▼'}</span>`;
             if (self.loadedTrackCount > 0) {
@@ -1768,7 +1860,20 @@ const MapView = {
             html += '</div>';
 
             // Collapsible session list
-            if (self.sessionListExpanded && self.filteredSessions.length > 0) {
+            if (self.sessionListExpanded && self.filteredSessions.length === 0 && self.viewportFilterEnabled) {
+                // Empty state when viewport filter is ON but no activities in view
+                html += '<div class="info-session-list" style="text-align:center;padding:16px;color:#666;">';
+                html += '<svg width="24" height="24" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;opacity:0.5;">';
+                html += '<path d="M2 5V2h3M11 2h3v3M14 11v3h-3M5 14H2v-3"/>';
+                html += '<circle cx="8" cy="8" r="1.5" fill="currentColor"/>';
+                html += '</svg>';
+                html += '<div style="margin-bottom:8px;">No activities in this area</div>';
+                html += '<div style="display:flex;gap:8px;justify-content:center;">';
+                html += '<button class="viewport-empty-zoom" style="padding:4px 8px;border:1px solid #ccc;background:#fff;border-radius:4px;cursor:pointer;">Zoom out</button>';
+                html += '<button class="viewport-empty-showall" style="padding:4px 8px;border:1px solid #ccc;background:#fff;border-radius:4px;cursor:pointer;">Show all</button>';
+                html += '</div>';
+                html += '</div>';
+            } else if (self.sessionListExpanded && self.filteredSessions.length > 0) {
                 html += '<div class="info-session-list">';
                 const limit = self.maxVisibleSessions || 50;
                 const toShow = self.filteredSessions.slice(0, limit);
@@ -1908,6 +2013,31 @@ const MapView = {
                     }
                     // Arrow link navigates to session (handled by href)
                 });
+
+                // Viewport filter empty state buttons
+                const zoomOutBtn = div.querySelector('.viewport-empty-zoom');
+                if (zoomOutBtn) {
+                    zoomOutBtn.addEventListener('click', () => {
+                        self.fitToVisibleMarkers();
+                    });
+                }
+                const showAllBtn = div.querySelector('.viewport-empty-showall');
+                if (showAllBtn) {
+                    showAllBtn.addEventListener('click', () => {
+                        // Turn off viewport filter
+                        self.viewportFilterEnabled = false;
+                        // Update button state
+                        const vpBtn = self.viewportFilterControl?.getContainer()?.querySelector('button');
+                        if (vpBtn) {
+                            vpBtn.classList.remove('active');
+                            vpBtn.setAttribute('aria-checked', 'false');
+                        }
+                        // Update URL
+                        URLState.update({ viewportFilter: false });
+                        // Refresh the list
+                        self.applyFiltersAndUpdateUI();
+                    });
+                }
             }, 0);
 
             return div;

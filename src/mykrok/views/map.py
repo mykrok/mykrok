@@ -1802,6 +1802,50 @@ def generate_browser(_data_dir: Path) -> str:
             color: #333;
         }}
 
+        /* Viewport filter control - filter activities list to map view */
+        .leaflet-control-viewport {{
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
+            margin-top: 5px;
+        }}
+
+        .leaflet-control-viewport button {{
+            width: 30px;
+            height: 30px;
+            border: none;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            padding: 0;
+            transition: background-color 0.2s, color 0.2s;
+        }}
+
+        .leaflet-control-viewport button:hover {{
+            background: #f4f4f4;
+        }}
+
+        .leaflet-control-viewport button.active {{
+            background: #3388ff;
+            color: white;
+        }}
+
+        .leaflet-control-viewport button.active:hover {{
+            background: #2277ee;
+        }}
+
+        .leaflet-control-viewport svg {{
+            width: 16px;
+            height: 16px;
+        }}
+
+        .leaflet-control-viewport button.active svg {{
+            color: white;
+        }}
+
         /* Popup links styling */
         .popup-links {{
             display: flex;
