@@ -841,8 +841,10 @@ const Router = {
         }
 
         // Restore track selection on map view
+        console.log('[DEBUG] applyState: state.track=', state.track, 'state.view=', state.view);
         if (state.track && state.view === 'map') {
             const [trackAthlete, trackDatetime] = state.track.split('/');
+            console.log('[DEBUG] Track restore triggered:', trackAthlete, trackDatetime);
             if (trackAthlete && trackDatetime) {
                 // Store pending restore and start retry loop
                 this.pendingTrackRestore = { athlete: trackAthlete, datetime: trackDatetime };
@@ -871,8 +873,10 @@ const Router = {
         const markerData = MapView.allMarkers.find(
             m => m.athlete === athlete && m.session === datetime
         );
+        console.log('[DEBUG] restoreTrackFromURL: markerData=', markerData, 'allMarkers.length=', MapView.allMarkers.length);
         if (markerData) {
             // Load track and photos
+            console.log('[DEBUG] Found marker, calling loadTrack:', athlete, datetime, markerData.color);
             MapView.loadTrack(athlete, datetime, markerData.color);
             if (markerData.hasPhotos) {
                 MapView.loadPhotos(athlete, datetime, markerData.sessionName);
@@ -1307,13 +1311,16 @@ const MapView = {
 
     async loadTrack(athlete, session, color) {
         const trackKey = `${athlete}/${session}`;
+        console.log('[DEBUG] loadTrack called:', trackKey, 'already loaded:', this.loadedTracks.has(trackKey), 'loading:', this.loadingTracks.has(trackKey));
         if (this.loadedTracks.has(trackKey) || this.loadingTracks.has(trackKey)) return;
         this.loadingTracks.add(trackKey);
 
         try {
             const url = `athl=${athlete}/ses=${session}/tracking.parquet`;
+            console.log('[DEBUG] Fetching track:', url);
             const response = await fetch(url);
             if (!response.ok) {
+                console.log('[DEBUG] Track fetch failed:', response.status, response.statusText);
                 this.loadingTracks.delete(trackKey);
                 return;
             }
@@ -1346,8 +1353,11 @@ const MapView = {
 
                     // Only add to layer if session passes current filter
                     const markerData = this.allMarkers.find(m => m.athlete === athlete && m.session === session);
-                    if (!markerData || markerData.visible !== false) {
+                    const shouldAdd = !markerData || markerData.visible !== false;
+                    console.log('[DEBUG] Track loaded, coords:', coords.length, 'markerData.visible:', markerData?.visible, 'shouldAdd:', shouldAdd);
+                    if (shouldAdd) {
                         polyline.addTo(this.tracksLayer);
+                        console.log('[DEBUG] Track added to tracksLayer');
                     }
 
                     this.tracksBySession[sessionKey] = polyline;
@@ -2590,12 +2600,14 @@ const SessionsView = {
                 btn.className = 'view-on-map-btn';
                 btn.textContent = 'View on Map';
                 btn.onclick = () => {
-                    location.hash = '#/map';
-                    setTimeout(() => {
-                        if (window.mapInstance) {
-                            window.mapInstance.setView([lat, lng], 14);
-                        }
-                    }, 200);
+                    const session = this.selectedSession;
+                    if (session) {
+                        // Include track parameter to load the track on the map
+                        const trackKey = `${session.athlete}/${session.datetime}`;
+                        location.hash = `#/map?z=14&lat=${lat}&lng=${lng}&track=${encodeURIComponent(trackKey)}`;
+                    } else {
+                        location.hash = `#/map?z=14&lat=${lat}&lng=${lng}`;
+                    }
                 };
                 mapContainer.insertAdjacentElement('afterend', btn);
             } else {
