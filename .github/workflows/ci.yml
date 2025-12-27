@@ -34,7 +34,7 @@ jobs:
       - name: Install CI dependencies
         run: |
             # Since datalad allows for system-wide git-annex, install explicitly
-            uv pip install git-annex
+            uv pip install --system git-annex
             uv pip install --system -e ".[ci]"
 
       - name: Run tox
