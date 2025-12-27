@@ -1,5 +1,33 @@
 # Changelog
 
+## v1.1.0 (2025-12-27)
+
+#### 🚀 Features
+
+- Add viewport filter to filter activities list to current map view (toggle button with focus icon)
+- Add `--lean-update` option to sync command (skip syncs when local data is current)
+
+#### 🐛 Bug Fixes
+
+- Fix track not loading when navigating directly to URL with track parameter
+- Fix `marker.addTo is not a function` error in map-browser
+
+#### 🔧 Improvements
+
+- Extend `--lean-update` to also remove log file when no changes
+- Add debug logging for track loading
+- Fix View on Map button behavior
+
+#### 🔄 CI
+
+- Fix git-annex installation in GitHub Actions
+
+#### Authors: 1
+
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 ## v1.0.0 (2025-12-26)
 
 #### 🎉 Project Rename
