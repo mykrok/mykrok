@@ -6,6 +6,7 @@ Provides structured logging to console and file with configurable levels.
 from __future__ import annotations
 
 import atexit
+import contextlib
 import logging
 import sys
 from datetime import datetime
@@ -173,12 +174,9 @@ def force_cleanup_log() -> None:
     stravalib_logger = logging.getLogger("stravalib")
     stravalib_logger.removeHandler(_file_handler)
 
-    # Remove the log file
-    try:
+    # Remove the log file (ignore errors if we can't)
+    with contextlib.suppress(OSError):
         _current_log_file.unlink()
-    except OSError:
-        # If we can't remove the file, just leave it
-        pass
 
     # Reset globals
     _current_log_file = None

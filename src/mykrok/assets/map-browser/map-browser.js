@@ -841,10 +841,8 @@ const Router = {
         }
 
         // Restore track selection on map view
-        console.log('[DEBUG] applyState: state.track=', state.track, 'state.view=', state.view);
         if (state.track && state.view === 'map') {
             const [trackAthlete, trackDatetime] = state.track.split('/');
-            console.log('[DEBUG] Track restore triggered:', trackAthlete, trackDatetime);
             if (trackAthlete && trackDatetime) {
                 // Store pending restore and start retry loop
                 this.pendingTrackRestore = { athlete: trackAthlete, datetime: trackDatetime };
@@ -868,22 +866,26 @@ const Router = {
     pendingTrackRestore: null,
     pendingPopupRestore: null,
 
-    restoreTrackFromURL(athlete, datetime, retryCount = 0) {
+    async restoreTrackFromURL(athlete, datetime, retryCount = 0) {
         // Find the marker for this session
         const markerData = MapView.allMarkers.find(
             m => m.athlete === athlete && m.session === datetime
         );
-        console.log('[DEBUG] restoreTrackFromURL: markerData=', markerData, 'allMarkers.length=', MapView.allMarkers.length);
         if (markerData) {
-            // Load track and photos
-            console.log('[DEBUG] Found marker, calling loadTrack:', athlete, datetime, markerData.color);
-            MapView.loadTrack(athlete, datetime, markerData.color);
+            // Load track and photos - await to ensure track is loaded before zooming
+            await MapView.loadTrack(athlete, datetime, markerData.color);
             if (markerData.hasPhotos) {
                 MapView.loadPhotos(athlete, datetime, markerData.sessionName);
             }
             MapView.focusSessionInList(athlete, datetime);
-            // Zoom to the marker
-            MapView.map.setView(markerData.marker.getLatLng(), 14);
+            // Zoom to the track bounds if available, otherwise marker
+            const trackKey = `${athlete}/${datetime}`;
+            const polyline = MapView.tracksBySession[trackKey];
+            if (polyline) {
+                MapView.map.fitBounds(polyline.getBounds(), { padding: [50, 50], maxZoom: 14 });
+            } else {
+                MapView.map.setView(markerData.marker.getLatLng(), 14);
+            }
             this.pendingTrackRestore = null;
         } else if (retryCount < 10) {
             // Data might not be loaded yet, retry
@@ -1311,16 +1313,13 @@ const MapView = {
 
     async loadTrack(athlete, session, color) {
         const trackKey = `${athlete}/${session}`;
-        console.log('[DEBUG] loadTrack called:', trackKey, 'already loaded:', this.loadedTracks.has(trackKey), 'loading:', this.loadingTracks.has(trackKey));
         if (this.loadedTracks.has(trackKey) || this.loadingTracks.has(trackKey)) return;
         this.loadingTracks.add(trackKey);
 
         try {
             const url = `athl=${athlete}/ses=${session}/tracking.parquet`;
-            console.log('[DEBUG] Fetching track:', url);
             const response = await fetch(url);
             if (!response.ok) {
-                console.log('[DEBUG] Track fetch failed:', response.status, response.statusText);
                 this.loadingTracks.delete(trackKey);
                 return;
             }
@@ -1353,11 +1352,8 @@ const MapView = {
 
                     // Only add to layer if session passes current filter
                     const markerData = this.allMarkers.find(m => m.athlete === athlete && m.session === session);
-                    const shouldAdd = !markerData || markerData.visible !== false;
-                    console.log('[DEBUG] Track loaded, coords:', coords.length, 'markerData.visible:', markerData?.visible, 'shouldAdd:', shouldAdd);
-                    if (shouldAdd) {
+                    if (!markerData || markerData.visible !== false) {
                         polyline.addTo(this.tracksLayer);
-                        console.log('[DEBUG] Track added to tracksLayer');
                     }
 
                     this.tracksBySession[sessionKey] = polyline;
