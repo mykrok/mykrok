@@ -1147,15 +1147,16 @@ const MapView = {
         }
 
         // Update photo visibility - show/hide loaded photos based on filter
-        for (const [sessionKey, markers] of Object.entries(this.photosBySession)) {
+        // Note: photosBySession stores { marker, index } objects, not direct markers
+        for (const [sessionKey, entries] of Object.entries(this.photosBySession)) {
             const visible = visibleKeys.has(sessionKey);
-            for (const marker of markers) {
+            for (const entry of entries) {
                 if (visible) {
-                    if (!this.photosLayer.hasLayer(marker)) {
-                        marker.addTo(this.photosLayer);
+                    if (!this.photosLayer.hasLayer(entry.marker)) {
+                        entry.marker.addTo(this.photosLayer);
                     }
                 } else {
-                    this.photosLayer.removeLayer(marker);
+                    this.photosLayer.removeLayer(entry.marker);
                 }
             }
         }
