@@ -318,6 +318,11 @@ def auth(
     "--activity-ids",
     help="Comma-separated list of activity IDs to sync",
 )
+@click.option(
+    "--lean-update",
+    is_flag=True,
+    help="Only update sync_state.json if there are actual changes (new/updated activities)",
+)
 @pass_context
 def sync(
     ctx: Context,
@@ -330,6 +335,7 @@ def sync(
     no_comments: bool,
     dry_run: bool,
     activity_ids: str | None,
+    lean_update: bool,
 ) -> None:
     """Synchronize activities from Strava.
 
@@ -446,6 +452,7 @@ def sync(
             include_streams=not no_streams and config.sync.streams,
             include_comments=not no_comments and config.sync.comments,
             dry_run=dry_run,
+            lean_update=lean_update,
             log_callback=ctx.log if not ctx.json_output else None,
         )
 

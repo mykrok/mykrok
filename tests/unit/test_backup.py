@@ -433,3 +433,101 @@ class TestPhotoDownloadValidation:
 
         for url in valid_urls:
             assert "placeholder" not in url.lower()
+
+
+class TestLeanUpdate:
+    """Tests for the lean_update parameter in sync()."""
+
+    @pytest.mark.ai_generated
+    def test_lean_update_skips_state_save_when_no_changes(
+        self, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """When lean_update=True and no changes, sync_state.json should not be updated."""
+        from mykrok.models.state import SyncState, load_sync_state, save_sync_state
+        from mykrok.services.backup import BackupService
+
+        _ = setup_athlete_dir  # Ensure athlete dir exists
+        data_dir = mock_config.data.directory
+
+        # Create initial sync state with a known timestamp
+        initial_state = SyncState(
+            last_sync=datetime(2024, 1, 1, 12, 0, 0),
+            last_activity_date=datetime(2024, 1, 1, 10, 0, 0),
+            total_activities=5,
+        )
+        save_sync_state(data_dir, "testuser", initial_state)
+
+        # Mock Strava client to return empty activities (no new data)
+        mock_strava = MagicMock()
+        mock_strava.get_athlete.return_value = MagicMock(
+            username="testuser",
+            id=12345,
+            firstname="Test",
+            lastname="User",
+            profile="",
+            city="",
+            state="",
+            country="",
+        )
+        mock_strava.get_activities.return_value = iter([])  # No activities
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.config = mock_config
+            service.strava = mock_strava
+            service.data_dir = data_dir
+
+            # Run sync with lean_update=True
+            service.sync(lean_update=True)
+
+        # Verify sync_state.json was NOT updated (original timestamp preserved)
+        state_after = load_sync_state(data_dir, "testuser")
+        assert state_after.last_sync == initial_state.last_sync
+        assert state_after.total_activities == initial_state.total_activities
+
+    @pytest.mark.ai_generated
+    def test_default_behavior_always_saves_state(
+        self, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """When lean_update=False (default), sync_state.json should always be updated."""
+        from mykrok.models.state import SyncState, load_sync_state, save_sync_state
+        from mykrok.services.backup import BackupService
+
+        _ = setup_athlete_dir  # Ensure athlete dir exists
+        data_dir = mock_config.data.directory
+
+        # Create initial sync state with a known timestamp
+        initial_state = SyncState(
+            last_sync=datetime(2024, 1, 1, 12, 0, 0),
+            last_activity_date=datetime(2024, 1, 1, 10, 0, 0),
+            total_activities=5,
+        )
+        save_sync_state(data_dir, "testuser", initial_state)
+
+        # Mock Strava client to return empty activities (no new data)
+        mock_strava = MagicMock()
+        mock_strava.get_athlete.return_value = MagicMock(
+            username="testuser",
+            id=12345,
+            firstname="Test",
+            lastname="User",
+            profile="",
+            city="",
+            state="",
+            country="",
+        )
+        mock_strava.get_activities.return_value = iter([])  # No activities
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.config = mock_config
+            service.strava = mock_strava
+            service.data_dir = data_dir
+
+            # Run sync with lean_update=False (default)
+            service.sync(lean_update=False)
+
+        # Verify sync_state.json WAS updated even with no changes
+        state_after = load_sync_state(data_dir, "testuser")
+        assert state_after.last_sync != initial_state.last_sync
+        assert state_after.last_sync > initial_state.last_sync

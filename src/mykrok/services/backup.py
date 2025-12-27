@@ -68,6 +68,7 @@ class BackupService:
         include_streams: bool = True,
         include_comments: bool = True,
         dry_run: bool = False,
+        lean_update: bool = False,
         log_callback: Callable[[str, int], None] | None = None,
     ) -> dict[str, Any]:
         """Synchronize activities from Strava.
@@ -82,6 +83,7 @@ class BackupService:
             include_streams: Download GPS/sensor streams.
             include_comments: Download comments and kudos.
             dry_run: Show what would be synced without downloading.
+            lean_update: Only update sync_state.json if there are actual changes.
             log_callback: Optional callback for progress messages.
 
         Returns:
@@ -455,11 +457,19 @@ class BackupService:
             update_sessions_tsv(self.data_dir, username)
 
             # Update sync state
-            state.last_sync = datetime.now()
-            if latest_activity_date:
-                state.last_activity_date = latest_activity_date
-            state.total_activities = activities_synced
-            save_sync_state(self.data_dir, username, state)
+            # When lean_update is True, only save if there were actual changes
+            has_changes = (
+                activities_new > 0
+                or activities_updated > 0
+                or photos_downloaded > 0
+                or retries_succeeded > 0
+            )
+            if not lean_update or has_changes:
+                state.last_sync = datetime.now()
+                if latest_activity_date:
+                    state.last_activity_date = latest_activity_date
+                state.total_activities = activities_synced
+                save_sync_state(self.data_dir, username, state)
 
             # Save retry queue
             save_retry_queue(self.data_dir, username, retry_queue)
