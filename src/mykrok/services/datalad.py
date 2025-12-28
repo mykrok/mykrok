@@ -224,7 +224,7 @@ MAKEFILE_TEMPLATE = """\
 # ================================
 # Uses datalad run for reproducible, version-controlled backups
 
-.PHONY: sync sync-full auth stats map browse help
+.PHONY: sync sync-full auth stats browser generate-browser help
 
 # Default target
 all: sync
