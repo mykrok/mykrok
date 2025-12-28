@@ -1,5 +1,7 @@
 # MyKrok
 
+[![Documentation Status](https://readthedocs.org/projects/mykrok/badge/?version=latest)](https://mykrok.readthedocs.io/en/latest/)
+
 > **Note**: This project was formerly known as "mykrok". The name "MyKrok" comes from Ukrainian "мій крок" meaning "my step" - fitting for a tool that preserves every step of your fitness journey.
 
 CLI tool to backup fitness activities with incremental sync, map visualization, and export capabilities. Currently supports **Strava** as the data source.
