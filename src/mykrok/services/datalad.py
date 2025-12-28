@@ -118,18 +118,19 @@ vd athl=*/sessions.tsv                    # View all sessions
 vd athl=*/ses=*/tracking.parquet          # View GPS/sensor data
 ```
 
-### Generate Map
+### Generate Interactive Browser
 
 ```bash
-mykrok view map --serve
-mykrok view map --heatmap --output heatmap.html
+mykrok create-browser --serve
 ```
 
-### Browse Offline
-
-```bash
-mykrok browse
-```
+The browser includes:
+- Interactive map with activity markers and GPS tracks
+- Sessions list with filtering by date, type, and search
+- Statistics dashboard with charts
+- Heatmap layer toggle
+- Photo viewing
+- Offline support (works without internet)
 
 ## Directory Structure
 
@@ -223,7 +224,7 @@ MAKEFILE_TEMPLATE = """\
 # ================================
 # Uses datalad run for reproducible, version-controlled backups
 
-.PHONY: sync sync-full auth stats map browse help
+.PHONY: sync sync-full auth stats browser generate-browser help
 
 # Default target
 all: sync
@@ -252,28 +253,23 @@ stats:
 stats-monthly:
 	mykrok view stats --by-month --by-type
 
-# Generate and serve map
-map:
-	mykrok view map --serve
+# Generate and serve interactive browser
+browser:
+	mykrok create-browser --serve
 
-# Generate heatmap
-heatmap:
-	mykrok view map --heatmap --output heatmap.html
-
-# Start offline browser
-browse:
-	mykrok browse
+# Generate interactive browser (without serving)
+generate-browser:
+	mykrok create-browser
 
 # Show help
 help:
 	@echo "MyKrok Activity Backup Commands:"
-	@echo "  make sync        - Sync new activities (incremental)"
-	@echo "  make sync-full   - Re-sync all activities"
-	@echo "  make auth        - Authenticate with data source"
-	@echo "  make stats       - Show activity statistics"
-	@echo "  make map         - View activities on map"
-	@echo "  make heatmap     - Generate heatmap HTML"
-	@echo "  make browse      - Start offline browser"
+	@echo "  make sync            - Sync new activities (incremental)"
+	@echo "  make sync-full       - Re-sync all activities"
+	@echo "  make auth            - Authenticate with data source"
+	@echo "  make stats           - Show activity statistics"
+	@echo "  make browser         - Generate and serve interactive browser"
+	@echo "  make generate-browser - Generate browser (without serving)"
 """
 
 # Template for .gitignore additions
