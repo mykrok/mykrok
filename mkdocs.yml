@@ -6,6 +6,8 @@ repo_name: mykrok/mykrok
 
 theme:
   name: material
+  logo: mykrok-icon.svg
+  favicon: mykrok-icon.svg
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default

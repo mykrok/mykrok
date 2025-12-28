@@ -19,6 +19,9 @@ This opens `http://127.0.0.1:8080` with your activities.
 
 The map view shows all your activities on an interactive map.
 
+![Map view with activity markers](../screenshots/01-map-overview.jpg)
+*Map view with activity markers*
+
 ### Activity Markers
 
 - Each activity is shown as a colored marker at its starting location
@@ -27,11 +30,17 @@ The map view shows all your activities on an interactive map.
 
 ### Viewing Tracks
 
+![Activities zoomed with GPS tracks](../screenshots/02-map-zoomed.jpg)
+*Activities zoomed to fit with GPS tracks visible*
+
 Click a marker to:
 
 1. See the activity popup with name, date, distance, and stats
 2. View the full GPS track on the map
 3. Navigate to photos if available
+
+![Activity popup with details](../screenshots/03-map-popup.jpg)
+*Activity popup showing details, photos, and navigation*
 
 ### Map Controls
 
@@ -75,6 +84,9 @@ Click an activity to:
 
 Switch to Sessions view for a full list of all activities with more details.
 
+![Sessions list with filters](../screenshots/04-sessions-list.jpg)
+*Sessions list with date and type filters*
+
 ### Columns
 
 - Date and time
@@ -85,6 +97,9 @@ Switch to Sessions view for a full list of all activities with more details.
 - Elevation gain
 - Heart rate (if recorded)
 
+![Sessions filtered by type](../screenshots/05-sessions-filtered.jpg)
+*Sessions filtered by activity type*
+
 ### Session Details
 
 Click a session to see:
@@ -94,9 +109,21 @@ Click a session to see:
 - Photos
 - Comments and kudos
 
+![Session detail panel](../screenshots/06-session-detail.jpg)
+*Session detail panel with metadata*
+
+![Full-screen session view](../screenshots/07-session-full.jpg)
+*Full-screen session view*
+
+![Activity data streams](../screenshots/08-data-streams.jpg)
+*Activity data streams: elevation, heart rate, cadence*
+
 ## The Stats View
 
 The Stats view shows aggregated statistics.
+
+![Statistics dashboard](../screenshots/09-stats-dashboard.jpg)
+*Statistics dashboard with charts*
 
 ### Charts
 
@@ -107,6 +134,9 @@ The Stats view shows aggregated statistics.
 ### Filtering
 
 Use the filter bar to see stats for specific date ranges or activity types.
+
+![Statistics filtered by athlete](../screenshots/10-stats-filtered.jpg)
+*Statistics filtered by athlete*
 
 ## URL Sharing
 
