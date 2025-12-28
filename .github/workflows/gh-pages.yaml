@@ -3,6 +3,11 @@ name: Deploy GitHub Pages
 on:
   push:
     branches: [master]
+    paths:
+      - 'src/**'
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - '.github/workflows/gh-pages.yaml'
   workflow_dispatch:  # Manual trigger
 
 permissions:
@@ -25,12 +30,23 @@ jobs:
         uses: astral-sh/setup-uv@v4
 
       - name: Install dependencies
-        run: uv pip install --system -e ".[e2e]"
+        run: uv pip install --system -e ".[e2e,docs]"
 
       - name: Configure git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Generate and deploy gh-pages
-        run: mykrok gh-pages --push --no-datalad
+      - name: Generate demo site
+        run: mykrok gh-pages --no-datalad
+        # This creates .gh-pages/ with demo app
+
+      - name: Build documentation
+        run: mkdocs build --site-dir .gh-pages/docs/
+
+      - name: Deploy to GitHub Pages
+        run: |
+          cd .gh-pages
+          git add -A
+          git commit -m "Deploy demo + docs" || echo "No changes to commit"
+          git push origin gh-pages --force
