@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.2.0 (2025-12-27)
+
+#### 📚 Documentation
+
+- Add MkDocs documentation site with Diataxis organization (Tutorials, How-to, Reference, Explanation)
+- Add Read the Docs integration and badge
+- Add screenshots to documentation (reused from README)
+- Add Apache hosting guide with git-annex symlink configuration
+- Add MyKrok logo to documentation site
+
+#### 🔧 Improvements
+
+- Deploy documentation alongside demo on GitHub Pages (`/docs/` subdirectory)
+
+#### Authors: 1
+
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 ## v1.1.0 (2025-12-27)
 
 #### 🚀 Features
