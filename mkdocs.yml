@@ -43,6 +43,7 @@ nav:
       - Automate Syncs: how-to/automate-sync.md
       - Export to FitTrackee: how-to/export-fittrackee.md
       - Publish to GitHub Pages: how-to/publish-github.md
+      - Serve with Apache: how-to/serve-with-apache.md
       - Recover Photos: how-to/recover-photos.md
       - Use with DataLad: how-to/use-datalad.md
   - Reference:

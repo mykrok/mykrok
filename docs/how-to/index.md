@@ -13,6 +13,9 @@ Migrate your activities to a self-hosted FitTrackee instance.
 ### [Publish to GitHub Pages](publish-github.md)
 Share your activity map as a public website.
 
+### [Serve with Apache](serve-with-apache.md)
+Host on Apache with proper symlink handling for git-annex/DataLad.
+
 ### [Recover Photos](recover-photos.md)
 Fix missing photos and verify data integrity.
 
