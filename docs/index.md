@@ -4,41 +4,14 @@
 
 MyKrok backs up your Strava activities to local files, with incremental sync, GPS tracking, photos, and an interactive map browser that works offline.
 
-<div class="grid cards" markdown>
+## Documentation
 
--   :material-school:{ .lg .middle } __Tutorials__
-
-    ---
-
-    New to MyKrok? Start here with step-by-step guides.
-
-    [:octicons-arrow-right-24: Getting Started](tutorials/getting-started.md)
-
--   :material-book-open-variant:{ .lg .middle } __How-to Guides__
-
-    ---
-
-    Solve specific problems: automate syncs, export data, recover photos.
-
-    [:octicons-arrow-right-24: How-to Guides](how-to/index.md)
-
--   :material-file-document:{ .lg .middle } __Reference__
-
-    ---
-
-    Technical details: CLI commands, configuration, data format.
-
-    [:octicons-arrow-right-24: Reference](reference/index.md)
-
--   :material-lightbulb:{ .lg .middle } __Explanation__
-
-    ---
-
-    Understand the design: architecture, storage model, why no backend.
-
-    [:octicons-arrow-right-24: Explanation](explanation/index.md)
-
-</div>
+| Section | Description |
+|---------|-------------|
+| **[Tutorials](tutorials/index.md)** | New to MyKrok? Start here with step-by-step guides. |
+| **[How-to Guides](how-to/index.md)** | Solve specific problems: automate syncs, export data, recover photos. |
+| **[Reference](reference/index.md)** | Technical details: CLI commands, configuration, data format. |
+| **[Explanation](explanation/index.md)** | Understand the design: architecture, storage model, why no backend. |
 
 ## Quick Start
 

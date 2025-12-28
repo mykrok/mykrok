@@ -17,4 +17,4 @@ All notable changes to MyKrok are documented in the [CHANGELOG.md](https://githu
 - Add `-o/--output` option to `create-browser` command
 - Fix migration and update template files
 
-[View full changelog on GitHub](https://github.com/mykrok/mykrok/blob/master/CHANGELOG.md){ .md-button }
+[View full changelog on GitHub](https://github.com/mykrok/mykrok/blob/master/CHANGELOG.md)
