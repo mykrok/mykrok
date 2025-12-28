@@ -64,13 +64,18 @@ ci = [
     "mykrok[devel]",
     "tox-gh-actions>=3.0",
 ]
+docs = [
+    "mkdocs>=1.5",
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.24",
+]
 
 [project.scripts]
 mykrok = "mykrok.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/mykrok/mykrok"
-Documentation = "https://github.com/mykrok/mykrok#readme"
+Documentation = "https://mykrok.github.io/mykrok/"
 Repository = "https://github.com/mykrok/mykrok"
 Issues = "https://github.com/mykrok/mykrok/issues"
 

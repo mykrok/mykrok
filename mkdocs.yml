@@ -1,0 +1,76 @@
+site_name: MyKrok
+site_description: CLI tool for fitness activity backup with map visualization
+site_url: https://mykrok.github.io/mykrok/
+repo_url: https://github.com/mykrok/mykrok
+repo_name: mykrok/mykrok
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Tutorials:
+      - tutorials/index.md
+      - Getting Started: tutorials/getting-started.md
+      - Exploring Your Data: tutorials/exploring-your-data.md
+  - How-to Guides:
+      - how-to/index.md
+      - Automate Syncs: how-to/automate-sync.md
+      - Export to FitTrackee: how-to/export-fittrackee.md
+      - Publish to GitHub Pages: how-to/publish-github.md
+      - Recover Photos: how-to/recover-photos.md
+      - Use with DataLad: how-to/use-datalad.md
+  - Reference:
+      - reference/index.md
+      - CLI Commands: reference/cli.md
+      - Configuration: reference/configuration.md
+      - Data Model: reference/data-model.md
+  - Explanation:
+      - explanation/index.md
+      - Architecture: explanation/architecture.md
+      - Why No Backend: explanation/no-backend.md
+  - Changelog: changelog.md
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+  - attr_list
+  - md_in_html
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/mykrok/mykrok

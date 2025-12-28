@@ -1,0 +1,5 @@
+
+
+# Force log files to git-annex to avoid bloating .git/objects
+*.log annex.largefiles=anything
+logs/**/*.log annex.largefiles=anything

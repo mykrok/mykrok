@@ -82,3 +82,6 @@ token.json
 credentials.json
 *_token.json
 node_modules/
+
+# MkDocs build output
+site/
