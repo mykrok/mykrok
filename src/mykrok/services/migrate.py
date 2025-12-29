@@ -510,6 +510,26 @@ def update_dataset_template_files(dataset_dir: Path, dry_run: bool = False) -> l
         (r"github\.com/[^/]+/strava-backup", "github.com/mykrok/mykrok"),
         # Directory cloning examples
         (r"my-strava-backup", "my-mykrok"),
+        # Old CLI commands -> new commands (more specific first)
+        (r"mykrok view map --serve", "mykrok create-browser --serve"),
+        (r"mykrok view map --heatmap[^\n]*", "mykrok create-browser"),  # heatmap not supported
+        (r"mykrok view map", "mykrok create-browser"),
+        (r"mykrok browse", "mykrok create-browser --serve"),
+        # Makefile target names (map: -> browser:, browse: -> browser:)
+        (r"^map:", "browser:"),
+        (r"^browse:", "browser:"),  # browse: becomes browser:
+        (r"^heatmap:", "generate-browser:"),  # repurpose heatmap target
+        # .PHONY line updates
+        (r"\.PHONY:(.*)( map )(.*)$", r".PHONY:\1 browser \3"),
+        (r"\.PHONY:(.*)( browse )(.*)$", r".PHONY:\1 browser \3"),
+        (r"\.PHONY:(.*)( heatmap )(.*)$", r".PHONY:\1 generate-browser \3"),
+        # Help text updates
+        (r"View activities on map", "Generate and serve interactive browser"),
+        (r"Generate heatmap HTML", "Generate browser (without serving)"),
+        (r"Start offline browser", "Generate and serve interactive browser"),
+        (r"make map\s+- ", "make browser       - "),
+        (r"make heatmap\s+- ", "make generate-browser - "),
+        (r"make browse\s+- ", "make browser       - "),
     ]
 
     for filename in ["README.md", "Makefile", ".gitignore"]:
@@ -523,7 +543,7 @@ def update_dataset_template_files(dataset_dir: Path, dry_run: bool = False) -> l
         # Check if any replacements are needed
         needs_update = False
         for pattern, _ in replacements:
-            if re.search(pattern, content):
+            if re.search(pattern, content, re.MULTILINE):
                 needs_update = True
                 break
 
@@ -534,9 +554,9 @@ def update_dataset_template_files(dataset_dir: Path, dry_run: bool = False) -> l
             updated_files.append(filename)
             continue
 
-        # Apply all replacements
+        # Apply all replacements (MULTILINE for ^ patterns in Makefile)
         for pattern, replacement in replacements:
-            content = re.sub(pattern, replacement, content)
+            content = re.sub(pattern, replacement, content, flags=re.MULTILINE)
 
         if content != original_content:
             filepath.write_text(content, encoding="utf-8")
