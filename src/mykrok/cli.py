@@ -1019,6 +1019,161 @@ def rebuild_sessions(ctx: Context) -> None:
         sys.exit(1)
 
 
+@main.command("rebuild-timezones")
+@click.option(
+    "--default-timezone",
+    default="America/New_York",
+    help="Default timezone before first GPS-detected change",
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Force rebuild, ignoring rapid change warnings",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Show what would be done without making changes",
+)
+@pass_context
+def rebuild_timezones(
+    ctx: Context,
+    default_timezone: str,
+    force: bool,
+    dry_run: bool,
+) -> None:
+    """Rebuild timezone history from GPS coordinates in activities.
+
+    Scans all activities with GPS data and builds a timezone change history
+    for each athlete. This history is used to correct local times that may
+    have been recorded with wrong timezone settings.
+
+    Activities without GPS (indoor workouts) will use the timezone that was
+    active at that time based on surrounding GPS-enabled activities.
+
+    Example:
+        mykrok rebuild-timezones --default-timezone America/New_York
+    """
+    from mykrok.lib.paths import iter_athlete_dirs
+    from mykrok.models.activity import load_activities
+    from mykrok.models.tracking import get_coordinates, load_tracking_manifest
+    from mykrok.services.timezone import (
+        TimezoneHistory,
+        detect_timezone_from_coords,
+        validate_timezone_history,
+    )
+
+    config = ctx.config
+    if config is None:
+        ctx.error("Configuration not loaded")
+        sys.exit(1)
+
+    data_dir = config.data.directory
+
+    # Check if timezonefinder is available
+    try:
+        import timezonefinder  # noqa: F401
+    except ImportError:
+        ctx.error(
+            "timezonefinder not installed. Install with: pip install mykrok[timezone]"
+        )
+        sys.exit(1)
+
+    try:
+        athletes = list(iter_athlete_dirs(data_dir))
+        if not athletes:
+            ctx.log("No athlete directories found")
+            return
+
+        ctx.log(f"Found {len(athletes)} athlete(s)")
+        ctx.log(f"Default timezone: {default_timezone}")
+        if dry_run:
+            ctx.log("DRY RUN - no changes will be made")
+
+        for username, athlete_dir in athletes:
+            ctx.log(f"\nProcessing {username}...")
+
+            # Load or create timezone history
+            history = TimezoneHistory(athlete_dir, default_timezone=default_timezone)
+            if not dry_run:
+                history.clear()  # Start fresh
+
+            # Get all activities sorted by date
+            activities = load_activities(data_dir, username)
+            activities.sort(key=lambda a: a.start_date)
+
+            changes_added = 0
+            activities_with_gps = 0
+
+            for activity in activities:
+                # Check for GPS coordinates - get from tracking data
+                if not activity.has_gps:
+                    continue
+
+                session_key = activity.start_date.strftime("%Y%m%dT%H%M%S")
+                session_dir = athlete_dir / f"ses={session_key}"
+
+                manifest = load_tracking_manifest(session_dir)
+                if not manifest or not manifest.has_gps:
+                    continue
+
+                coords = get_coordinates(session_dir)
+                if not coords:
+                    continue
+
+                lat, lng = coords[0]  # Use first GPS point
+                activities_with_gps += 1
+
+                # Detect timezone from coordinates
+                detected_tz = detect_timezone_from_coords(lat, lng)
+                if detected_tz is None:
+                    continue
+
+                # Try to add timezone change
+                if force:
+                    success, msg = history.add_change_force(
+                        activity.start_date,
+                        detected_tz,
+                        f"gps:ses={activity.start_date.strftime('%Y%m%dT%H%M%S')}",
+                    )
+                else:
+                    success, msg = history.add_change(
+                        activity.start_date,
+                        detected_tz,
+                        f"gps:ses={activity.start_date.strftime('%Y%m%dT%H%M%S')}",
+                    )
+
+                if success:
+                    changes_added += 1
+                    ctx.log(f"  {activity.start_date.date()}: -> {detected_tz}")
+
+            # Validate and warn
+            warnings = validate_timezone_history(history)
+            for warning in warnings:
+                ctx.log(f"  WARNING: {warning}")
+
+            # Save
+            if not dry_run:
+                history.save()
+                ctx.log(
+                    f"  Saved: {changes_added} timezone changes "
+                    f"(from {activities_with_gps} GPS activities)"
+                )
+            else:
+                ctx.log(
+                    f"  Would save: {changes_added} timezone changes "
+                    f"(from {activities_with_gps} GPS activities)"
+                )
+
+        ctx.log("\nDone")
+
+    except Exception as e:
+        ctx.error(f"Failed to rebuild timezones: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
 @main.group()
 def export() -> None:
     """Export activities to external services."""

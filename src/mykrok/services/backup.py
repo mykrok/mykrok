@@ -109,6 +109,18 @@ class BackupService:
         state = load_sync_state(self.data_dir, username)
         retry_queue = load_retry_queue(self.data_dir, username)
 
+        # Load timezone history if available (optional feature)
+        tz_history = None
+        try:
+            from mykrok.lib.paths import get_athlete_dir
+            from mykrok.services.timezone import TimezoneHistory
+
+            athlete_dir = get_athlete_dir(self.data_dir, username)
+            tz_history = TimezoneHistory(athlete_dir)
+            logger.debug("Loaded timezone history (%d changes)", len(tz_history))
+        except ImportError:
+            logger.debug("Timezone module not available")
+
         # Determine sync window
         sync_after: float | None = None
         if after:
@@ -238,6 +250,12 @@ class BackupService:
                                 manifest.has_gps,
                             )
                             log(f"    Saved tracking data ({manifest.row_count} points)", 2)
+
+                            # Detect timezone from GPS if available
+                            if tz_history is not None and manifest.has_gps:
+                                self._detect_and_add_timezone(
+                                    tz_history, session_dir, activity, logger
+                                )
                     except Exception as e:
                         logger.warning(
                             "Failed to get streams for activity %d: %s",
@@ -476,6 +494,12 @@ class BackupService:
             # Save retry queue
             save_retry_queue(self.data_dir, username, retry_queue)
 
+            # Save timezone history if modified
+            if tz_history is not None:
+                tz_history.save()
+                if len(tz_history) > 0:
+                    logger.debug("Saved timezone history (%d changes)", len(tz_history))
+
             # Report retry queue status
             pending_retries = retry_queue.get_pending_count()
             if pending_retries > 0:
@@ -527,6 +551,41 @@ class BackupService:
             "retries_failed": retries_failed,
             "pending_retries": retry_queue.get_pending_count(),
         }
+
+    def _detect_and_add_timezone(
+        self,
+        tz_history: Any,  # TimezoneHistory, but avoid import cycle
+        session_dir: Path,
+        activity: Activity,
+        log: logging.Logger,
+    ) -> None:
+        """Detect timezone from GPS coordinates and add to history.
+
+        This is a best-effort operation - failures are logged but don't interrupt sync.
+        """
+        try:
+            from mykrok.models.tracking import get_coordinates
+            from mykrok.services.timezone import detect_timezone_from_coords
+
+            coords = get_coordinates(session_dir)
+            if not coords:
+                return
+
+            lat, lng = coords[0]  # Use first GPS point
+            detected_tz = detect_timezone_from_coords(lat, lng)
+            if detected_tz is None:
+                return
+
+            # Try to add timezone change (may be rejected if too close to existing)
+            success, msg = tz_history.add_change(
+                activity.start_date,
+                detected_tz,
+                f"gps:ses={activity.start_date.strftime('%Y%m%dT%H%M%S')}",
+            )
+            if success:
+                log.debug("Detected timezone %s for activity %d", detected_tz, activity.id)
+        except Exception as e:
+            log.debug("Failed to detect timezone for activity %d: %s", activity.id, e)
 
     def _download_photos(
         self,

@@ -415,12 +415,15 @@ SESSIONS_TSV_COLUMNS = [
 ]
 
 
-def update_sessions_tsv(data_dir: Path, username: str) -> Path:
+def update_sessions_tsv(
+    data_dir: Path, username: str, use_timezone_history: bool = True
+) -> Path:
     """Regenerate sessions.tsv from all activity info.json files.
 
     Args:
         data_dir: Base data directory.
         username: Athlete username.
+        use_timezone_history: If True, use timezone history for local time correction.
 
     Returns:
         Path to sessions.tsv file.
@@ -429,6 +432,18 @@ def update_sessions_tsv(data_dir: Path, username: str) -> Path:
     athlete_dir.mkdir(parents=True, exist_ok=True)
 
     sessions_path = get_sessions_tsv_path(athlete_dir)
+
+    # Try to load timezone history for local time correction
+    tz_history = None
+    if use_timezone_history:
+        try:
+            from mykrok.services.timezone import TimezoneHistory
+
+            history_path = athlete_dir / "timezone-history.tsv"
+            if history_path.exists():
+                tz_history = TimezoneHistory(athlete_dir)
+        except ImportError:
+            pass  # timezone module not available
 
     # Collect all activities
     activities = load_activities(data_dir, username)
@@ -459,11 +474,17 @@ def update_sessions_tsv(data_dir: Path, username: str) -> Path:
                         start_lng = str(round(coords[0][1], 6))
 
             # Local time for Activity Timing heatmap
-            datetime_local = (
-                activity.start_date_local.strftime("%Y%m%dT%H%M%S")
-                if activity.start_date_local
-                else session_key
-            )
+            # Priority: 1) timezone history, 2) Strava's start_date_local, 3) UTC
+            if tz_history is not None:
+                # Use corrected local time from timezone history
+                corrected_local = tz_history.get_local_time(activity.start_date)
+                datetime_local = corrected_local.strftime("%Y%m%dT%H%M%S")
+            elif activity.start_date_local:
+                # Fall back to Strava's local time
+                datetime_local = activity.start_date_local.strftime("%Y%m%dT%H%M%S")
+            else:
+                # Last resort: use UTC
+                datetime_local = session_key
 
             writer.writerow(
                 {

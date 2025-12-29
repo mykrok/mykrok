@@ -39,6 +39,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+timezone = [
+    "timezonefinder>=6.0",
+]
+full = [
+    "mykrok[timezone]",
+    # Add more user-facing extras here as they are created
+]
 test = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
