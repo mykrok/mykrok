@@ -1,5 +1,37 @@
 # Changelog
 
+## v1.3.0 (2025-12-29)
+
+#### 🚀 Features
+
+- Add timezone history tracking for correct local times
+  - Detect timezone from GPS coordinates using `timezonefinder` (optional dependency)
+  - Per-athlete timezone history survives Strava re-syncs
+  - Sanity checks: reject rapid changes (<4h), validate timezone names, warn about flickering
+  - Add `rebuild-timezones` CLI command to build history from existing activities
+  - Auto-detect timezone during sync for new GPS-enabled activities
+- Add Stats view with activity heatmaps
+  - Activity Calendar: GitHub-style year heatmap with week totals and date filtering
+  - Activity Timing: hour-of-day × day-of-week heatmap showing workout patterns
+  - Unified rendering with consistent color scales and tooltips
+- Add `[full]` optional dependency for typical user deployments (`pip install mykrok[full]`)
+
+#### 🐛 Bug Fixes
+
+- Fix `datetime_local` not passed to StatsView sessions (Activity Timing showed wrong hours)
+- Fix footer row height to match regular rows in heatmaps
+
+#### 🔧 Improvements
+
+- Add Total row to Activity Timing heatmap
+- Fix colorbar max value calculation in heatmaps
+
+#### Authors: 1
+
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 ## v1.2.0 (2025-12-27)
 
 #### 📚 Documentation
