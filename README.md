@@ -133,8 +133,7 @@ Before using MyKrok, you need to create a Strava API application:
 3. View your data:
    ```bash
    mykrok view stats
-   mykrok view map --serve
-   mykrok browse
+   mykrok create-browser --serve
    ```
 
 ## Configuration
@@ -252,38 +251,29 @@ mykrok view stats --by-type
 mykrok view stats --json
 ```
 
-### Generate Maps
+### Generate Interactive Browser
 
 ```bash
-# Create HTML map file (embeds all data)
-mykrok view map --output activities.html
-
-# Create and serve locally
-mykrok view map --serve
-
-# Lightweight mode - generates map.html in data directory that loads data on demand
-# Best for large datasets and web server publishing
-mykrok view map --lightweight --serve
-
-# Heatmap mode
-mykrok view map --heatmap --serve
-
-# Include photos on map
-mykrok view map --photos --serve
-
-# Filter by date/type
-mykrok view map --after 2025-01-01 --type Run
-```
-
-### Browse Offline
-
-```bash
-# Start local browser at http://127.0.0.1:8080
-mykrok browse
+# Generate and serve locally
+mykrok create-browser --serve
 
 # Custom port
-mykrok browse --port 9000
+mykrok create-browser --serve --port 9000
+
+# Generate without serving
+mykrok create-browser
+
+# Custom output filename
+mykrok create-browser --output my-activities.html
 ```
+
+The browser includes:
+- Interactive map with activity markers and GPS tracks
+- Sessions list with filtering by date, type, and search
+- Statistics dashboard with charts
+- Heatmap layer toggle
+- Photo viewing
+- Offline support (works without internet)
 
 ### Export GPX
 
@@ -328,8 +318,8 @@ mykrok auth
 # Sync using datalad run (creates versioned commit)
 make sync
 
-# Generate lightweight map for web viewing
-mykrok view map --lightweight
+# Generate interactive browser for web viewing
+mykrok create-browser
 ```
 
 This creates a dataset with:
@@ -359,7 +349,7 @@ datalad create-sibling -s public-website \
 datalad push --to=public-website
 ```
 
-Then access the map visualization at `https://your-server.example.com/mykrok/map.html`.
+Then access the map visualization at `https://your-server.example.com/mykrok/mykrok.html`.
 
 **Note**: Access restrictions and user management are outside the scope of this project. Implement access control using your web server's authentication mechanisms (HTTP Basic Auth, OAuth proxy, IP allowlisting, etc.).
 
@@ -370,7 +360,7 @@ Activities are stored in a Hive-partitioned directory structure:
 ```
 data/
 ├── athletes.tsv                  # Summary of all athletes
-├── map.html                      # Generated map (with --lightweight)
+├── mykrok.html                   # Generated interactive browser
 └── athl={username}/
     ├── athlete.json              # Athlete profile data
     ├── avatar.jpg                # Profile photo
