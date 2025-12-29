@@ -1692,6 +1692,7 @@ const MapView = {
                         const sessionData = {
                             athlete: username,
                             datetime: session.datetime,
+                            datetime_local: session.datetime_local,
                             name: session.name || 'Activity',
                             type: type,
                             distance_m: session.distance_m || '0',
