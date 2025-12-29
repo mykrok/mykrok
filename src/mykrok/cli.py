@@ -323,6 +323,13 @@ def auth(
     is_flag=True,
     help="Only update sync_state.json if there are actual changes (new/updated activities)",
 )
+@click.option(
+    "--refresh-social-days",
+    type=int,
+    default=7,
+    show_default=True,
+    help="After sync, refresh kudos/comments for activities from past N days (0 to disable)",
+)
 @pass_context
 def sync(
     ctx: Context,
@@ -336,6 +343,7 @@ def sync(
     dry_run: bool,
     activity_ids: str | None,
     lean_update: bool,
+    refresh_social_days: int,
 ) -> None:
     """Synchronize activities from Strava.
 
@@ -473,6 +481,22 @@ def sync(
                 ctx.log(f"Downloaded {result['photos_downloaded']} photos")
             if result.get("errors"):
                 ctx.log(f"Errors: {len(result['errors'])}")
+
+        # Refresh social data for recent activities (after main sync)
+        if refresh_social_days > 0 and not dry_run and what in ("recent", "full"):
+            from datetime import datetime, timedelta
+
+            social_after = datetime.now() - timedelta(days=refresh_social_days)
+            ctx.log(f"\nRefreshing social data for activities from past {refresh_social_days} days...")
+            social_result = service.refresh_social(
+                after=social_after,
+                dry_run=False,
+                log_callback=ctx.log if not ctx.json_output else None,
+            )
+            if not ctx.json_output:
+                ctx.log(
+                    f"Social refresh: {social_result['activities_updated']} activities updated"
+                )
 
     except ValueError as e:
         ctx.error(str(e))
