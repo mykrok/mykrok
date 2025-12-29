@@ -4099,7 +4099,21 @@ const StatsView = {
 
     renderHeatmap() {
         const data = this.calculateHeatmapData(this.filtered);
-        const maxCount = Math.max(...data.flat());
+
+        // Calculate hourly totals for footer row
+        const hourlyTotals = [];
+        for (let hour = 0; hour < 24; hour++) {
+            let total = 0;
+            for (let day = 0; day < 7; day++) {
+                total += data[day][hour];
+            }
+            hourlyTotals.push(total);
+        }
+
+        // Max includes both individual cells and totals
+        const cellMax = Math.max(...data.flat());
+        const totalMax = Math.max(...hourlyTotals);
+        const maxCount = Math.max(cellMax, totalMax);
 
         // Build column definitions for hours 0-23
         const columns = [];
@@ -4115,12 +4129,20 @@ const StatsView = {
             legendId: 'heatmap-legend',
             columns,
             maxCount,
+            footerLabel: 'Total',
             getCellData: (dayIdx, colIdx) => {
                 const jsDay = this.dayIndexMap[dayIdx];
                 const count = data[jsDay][colIdx];
                 return {
                     count,
                     tooltip: `${this.dayLabels[dayIdx]} ${colIdx}:00 - ${count} ${count === 1 ? 'activity' : 'activities'}`
+                };
+            },
+            getFooterData: (colIdx) => {
+                const total = hourlyTotals[colIdx];
+                return {
+                    count: total,
+                    tooltip: `${colIdx}:00 total: ${total} ${total === 1 ? 'activity' : 'activities'}`
                 };
             }
         });
@@ -4202,8 +4224,31 @@ const StatsView = {
         const endWeek = this.getWeekStart(lastDate);
         const numWeeks = Math.ceil((endWeek - startWeek) / msPerWeek) + 1;
 
-        // Calculate max for color scaling
-        const maxCount = Math.max(...Object.values(data));
+        // Calculate week totals for footer row (needed for maxCount calculation)
+        const weekTotals = [];
+        for (let week = 0; week < numWeeks; week++) {
+            const weekStartDate = new Date(startWeek);
+            weekStartDate.setDate(weekStartDate.getDate() + week * 7);
+            let total = 0;
+            let hasAnyInRange = false;
+
+            for (let day = 0; day < 7; day++) {
+                const cellDate = new Date(weekStartDate);
+                cellDate.setDate(cellDate.getDate() + day);
+                const dateKey = this.formatDateKey(cellDate);
+                const inRange = cellDate >= firstDate && cellDate <= lastDate;
+                if (inRange) {
+                    hasAnyInRange = true;
+                    total += data[dateKey] || 0;
+                }
+            }
+            weekTotals.push({ total, hasAnyInRange, weekStartDate: this.formatDateKey(weekStartDate) });
+        }
+
+        // Calculate max for color scaling (includes week totals)
+        const cellMax = Math.max(...Object.values(data));
+        const weekMax = Math.max(...weekTotals.map(w => w.total));
+        const maxCount = Math.max(cellMax, weekMax);
 
         // Month names for labels
         const monthNames = [
@@ -4259,27 +4304,6 @@ const StatsView = {
 
         // Store for getCellData access
         const calendarStartWeek = startWeek;
-
-        // Calculate week totals for footer row
-        const weekTotals = [];
-        for (let week = 0; week < numWeeks; week++) {
-            const weekStartDate = new Date(startWeek);
-            weekStartDate.setDate(weekStartDate.getDate() + week * 7);
-            let total = 0;
-            let hasAnyInRange = false;
-
-            for (let day = 0; day < 7; day++) {
-                const cellDate = new Date(weekStartDate);
-                cellDate.setDate(cellDate.getDate() + day);
-                const dateKey = this.formatDateKey(cellDate);
-                const inRange = cellDate >= firstDate && cellDate <= lastDate;
-                if (inRange) {
-                    hasAnyInRange = true;
-                    total += data[dateKey] || 0;
-                }
-            }
-            weekTotals.push({ total, hasAnyInRange, weekStartDate: this.formatDateKey(weekStartDate) });
-        }
 
         this.renderHeatmapGrid({
             wrapperId: 'calendar-heatmap-wrapper',

@@ -2150,12 +2150,14 @@ def generate_browser(_data_dir: Path) -> str:
             opacity: 0.4;
         }}
 
-        .heatmap-grid-table .heatmap-footer-row {{
-            border-top: 1px solid #ddd;
+        .heatmap-grid-table .heatmap-footer-row td {{
+            border-top: 2px solid #ccc;
+            padding-top: 4px;
         }}
 
         .heatmap-grid-table .heatmap-footer-row .heatmap-day-label {{
-            font-weight: 500;
+            font-weight: 600;
+            padding-top: 4px;
         }}
 
         .heatmap-legend {{
