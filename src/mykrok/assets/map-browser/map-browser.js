@@ -3997,12 +3997,14 @@ const StatsView = {
      * @param {number} config.maxCount - Maximum count for color scaling
      * @param {Function} config.onCellClick - Optional click handler (clickData) => void
      * @param {Function} config.onHeaderClick - Optional header click handler (clickData) => void
+     * @param {Function} config.getFooterData - Optional (colIdx) => {count, tooltip, clickData?} for footer row
+     * @param {string} config.footerLabel - Optional label for footer row (e.g., "Week")
      */
     renderHeatmapGrid(config) {
         const wrapper = document.getElementById(config.wrapperId);
         if (!wrapper) return;
 
-        const { columns, getCellData, maxCount, onCellClick, onHeaderClick } = config;
+        const { columns, getCellData, maxCount, onCellClick, onHeaderClick, getFooterData, footerLabel } = config;
 
         // Build table HTML
         let html = '<table class="heatmap-grid-table"><thead><tr><th></th>';
@@ -4042,6 +4044,24 @@ const StatsView = {
             }
             html += '</tr>';
         }
+
+        // Optional footer row (e.g., week totals)
+        if (getFooterData) {
+            html += `<tr class="heatmap-footer-row"><td class="heatmap-day-label">${footerLabel || ''}</td>`;
+            for (let colIdx = 0; colIdx < columns.length; colIdx++) {
+                const footerData = getFooterData(colIdx);
+                const intensity = maxCount > 0 ? footerData.count / maxCount : 0;
+                const color = footerData.isEmpty ? '#f6f8fa' : this.getHeatmapColor(intensity);
+                const clickClass = footerData.clickData ? ' heatmap-cell-clickable' : '';
+                const clickAttr = footerData.clickData ? ` data-click='${JSON.stringify(footerData.clickData)}'` : '';
+                const emptyClass = footerData.isEmpty ? ' heatmap-cell-empty' : '';
+
+                html += `<td class="heatmap-cell heatmap-footer-cell${clickClass}${emptyClass}" style="background:${color}" ` +
+                        `title="${footerData.tooltip}"${clickAttr}></td>`;
+            }
+            html += '</tr>';
+        }
+
         html += '</tbody></table>';
 
         wrapper.innerHTML = html;
@@ -4240,11 +4260,33 @@ const StatsView = {
         // Store for getCellData access
         const calendarStartWeek = startWeek;
 
+        // Calculate week totals for footer row
+        const weekTotals = [];
+        for (let week = 0; week < numWeeks; week++) {
+            const weekStartDate = new Date(startWeek);
+            weekStartDate.setDate(weekStartDate.getDate() + week * 7);
+            let total = 0;
+            let hasAnyInRange = false;
+
+            for (let day = 0; day < 7; day++) {
+                const cellDate = new Date(weekStartDate);
+                cellDate.setDate(cellDate.getDate() + day);
+                const dateKey = this.formatDateKey(cellDate);
+                const inRange = cellDate >= firstDate && cellDate <= lastDate;
+                if (inRange) {
+                    hasAnyInRange = true;
+                    total += data[dateKey] || 0;
+                }
+            }
+            weekTotals.push({ total, hasAnyInRange, weekStartDate: this.formatDateKey(weekStartDate) });
+        }
+
         this.renderHeatmapGrid({
             wrapperId: 'calendar-heatmap-wrapper',
             legendId: 'calendar-heatmap-legend',
             columns,
             maxCount,
+            footerLabel: 'Week',
             getCellData: (dayIdx, colIdx) => {
                 const col = columns[colIdx];
                 const weekStartDate = new Date(calendarStartWeek);
@@ -4265,17 +4307,54 @@ const StatsView = {
                     tooltip: inRange
                         ? `${this.dayLabels[dayIdx]}, ${dateKey}: ${count} ${count === 1 ? 'activity' : 'activities'}`
                         : '',
-                    clickData: inRange && count > 0 ? { weekStart: col.weekStartDate } : undefined
+                    // Click on individual date, not week
+                    clickData: inRange && count > 0 ? { date: dateKey } : undefined
+                };
+            },
+            getFooterData: (colIdx) => {
+                const weekData = weekTotals[colIdx];
+                const weekEnd = new Date(this.parseLocalDate(weekData.weekStartDate));
+                weekEnd.setDate(weekEnd.getDate() + 6);
+                const weekEndStr = this.formatDateKey(weekEnd);
+
+                return {
+                    count: weekData.total,
+                    isEmpty: !weekData.hasAnyInRange,
+                    tooltip: weekData.hasAnyInRange
+                        ? `Week ${weekData.weekStartDate} to ${weekEndStr}: ${weekData.total} ${weekData.total === 1 ? 'activity' : 'activities'}`
+                        : '',
+                    clickData: weekData.hasAnyInRange && weekData.total > 0
+                        ? { weekStart: weekData.weekStartDate }
+                        : undefined
                 };
             },
             onCellClick: (clickData) => {
-                const weekStart = this.parseLocalDate(clickData.weekStart);
-                this.handleWeekClick(weekStart);
+                if (clickData.date) {
+                    // Single date click
+                    this.handleDateClick(clickData.date);
+                } else if (clickData.weekStart) {
+                    // Week total click
+                    const weekStart = this.parseLocalDate(clickData.weekStart);
+                    this.handleWeekClick(weekStart);
+                }
             },
             onHeaderClick: (clickData) => {
                 this.handleMonthClick(clickData.monthStart, clickData.monthEnd);
             }
         });
+    },
+
+    handleDateClick(dateStr) {
+        // Navigate to sessions view filtered to this specific date
+        const params = new URLSearchParams();
+        params.set('from', dateStr);
+        params.set('to', dateStr);
+
+        // Preserve current athlete
+        const athlete = document.getElementById('athlete-selector')?.value;
+        if (athlete) params.set('a', athlete);
+
+        location.hash = `#/sessions?${params.toString()}`;
     },
 
     handleMonthClick(monthStart, monthEnd) {
