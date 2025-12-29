@@ -109,7 +109,8 @@ Denormalized index for quick filtering.
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `datetime` | string | ISO 8601 basic format |
+| `datetime` | string | ISO 8601 basic format (UTC) |
+| `datetime_local` | string | ISO 8601 basic format (local time) |
 | `type` | string | Activity type |
 | `sport` | string | Sport type |
 | `name` | string | Activity name |

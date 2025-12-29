@@ -3743,6 +3743,8 @@ const StatsView = {
         this.renderSummary(totals);
         this.renderMonthlyChart(byMonth);
         this.renderTypeChart(byType);
+        this.renderHeatmap();
+        this.renderCalendarHeatmap();
     },
 
     formatDuration(seconds) {
@@ -3940,6 +3942,353 @@ const StatsView = {
                 }
             }
         });
+    },
+
+    calculateHeatmapData(sessions) {
+        // Initialize 7x24 grid (days × hours)
+        // Index 0 = Sunday, 6 = Saturday (JavaScript Date convention)
+        const grid = Array(7).fill(null).map(() => Array(24).fill(0));
+
+        for (const session of sessions) {
+            // Use datetime_local for correct local time, fall back to datetime (UTC)
+            const datetime = session.datetime_local || session.datetime;
+            if (!datetime || datetime.length < 13) continue;
+
+            const year = parseInt(datetime.substring(0, 4));
+            const month = parseInt(datetime.substring(4, 6)) - 1;  // JS months are 0-indexed
+            const day = parseInt(datetime.substring(6, 8));
+            // Hour starts at position 9 (after separator)
+            const hour = parseInt(datetime.substring(9, 11));
+
+            if (isNaN(year) || isNaN(month) || isNaN(day) || isNaN(hour)) continue;
+            if (hour < 0 || hour > 23) continue;
+
+            const date = new Date(year, month, day);
+            const dayOfWeek = date.getDay();  // 0=Sunday, 6=Saturday
+
+            grid[dayOfWeek][hour]++;
+        }
+
+        return grid;
+    },
+
+    getHeatmapColor(intensity) {
+        if (intensity === 0) return '#ebedf0';  // Light gray for empty
+        // Interpolate from light orange to Strava orange (#fc4c02)
+        // Light: rgb(254, 235, 200) -> Dark: rgb(252, 76, 2)
+        const r = Math.round(254 - (254 - 252) * intensity);
+        const g = Math.round(235 - (235 - 76) * intensity);
+        const b = Math.round(200 - (200 - 2) * intensity);
+        return `rgb(${r}, ${g}, ${b})`;
+    },
+
+    // Day labels used by both heatmaps (Monday first)
+    dayLabels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    // Map display index to JS day index (0=Sun in JS)
+    dayIndexMap: [1, 2, 3, 4, 5, 6, 0],
+
+    /**
+     * Render a heatmap grid table
+     * @param {Object} config
+     * @param {string} config.wrapperId - ID of wrapper element
+     * @param {string} config.legendId - ID of legend element (for min/max values)
+     * @param {Array} config.columns - Column definitions [{label, showLabel, colspan?, clickData?}]
+     * @param {Function} config.getCellData - (dayIdx, colIdx) => {count, tooltip, clickData?, isEmpty?}
+     * @param {number} config.maxCount - Maximum count for color scaling
+     * @param {Function} config.onCellClick - Optional click handler (clickData) => void
+     * @param {Function} config.onHeaderClick - Optional header click handler (clickData) => void
+     */
+    renderHeatmapGrid(config) {
+        const wrapper = document.getElementById(config.wrapperId);
+        if (!wrapper) return;
+
+        const { columns, getCellData, maxCount, onCellClick, onHeaderClick } = config;
+
+        // Build table HTML
+        let html = '<table class="heatmap-grid-table"><thead><tr><th></th>';
+
+        // Column headers - skip columns spanned by previous colspan
+        for (const col of columns) {
+            // Skip columns that are covered by a previous colspan
+            if (col.spannedBy !== undefined) continue;
+
+            const colspanAttr = col.colspan ? ` colspan="${col.colspan}"` : '';
+            const clickClass = col.clickData ? ' heatmap-header-clickable' : '';
+            const clickAttr = col.clickData ? ` data-click='${JSON.stringify(col.clickData)}'` : '';
+            const titleAttr = col.title ? ` title="${col.title}"` : '';
+
+            if (col.showLabel) {
+                html += `<th class="heatmap-col-label${clickClass}"${colspanAttr}${clickAttr}${titleAttr}>${col.label}</th>`;
+            } else {
+                html += `<th${colspanAttr}></th>`;
+            }
+        }
+        html += '</tr></thead><tbody>';
+
+        // Build rows (one per day of week) - render ALL columns
+        for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+            html += `<tr><td class="heatmap-day-label">${this.dayLabels[dayIdx]}</td>`;
+
+            for (let colIdx = 0; colIdx < columns.length; colIdx++) {
+                const cellData = getCellData(dayIdx, colIdx);
+                const intensity = maxCount > 0 ? cellData.count / maxCount : 0;
+                const color = cellData.isEmpty ? '#f6f8fa' : this.getHeatmapColor(intensity);
+                const clickClass = cellData.clickData ? ' heatmap-cell-clickable' : '';
+                const clickAttr = cellData.clickData ? ` data-click='${JSON.stringify(cellData.clickData)}'` : '';
+                const emptyClass = cellData.isEmpty ? ' heatmap-cell-empty' : '';
+
+                html += `<td class="heatmap-cell${clickClass}${emptyClass}" style="background:${color}" ` +
+                        `title="${cellData.tooltip}"${clickAttr}></td>`;
+            }
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+
+        wrapper.innerHTML = html;
+
+        // Update legend with actual values
+        if (config.legendId) {
+            const legend = document.getElementById(config.legendId);
+            if (legend) {
+                const minSpan = legend.querySelector('.legend-min');
+                const maxSpan = legend.querySelector('.legend-max');
+                if (minSpan) minSpan.textContent = '0';
+                if (maxSpan) maxSpan.textContent = String(maxCount);
+            }
+        }
+
+        // Add click handlers
+        if (onCellClick) {
+            wrapper.querySelectorAll('.heatmap-cell-clickable').forEach(cell => {
+                cell.addEventListener('click', () => {
+                    const clickData = JSON.parse(cell.dataset.click);
+                    onCellClick(clickData);
+                });
+            });
+        }
+
+        if (onHeaderClick) {
+            wrapper.querySelectorAll('.heatmap-header-clickable').forEach(th => {
+                th.addEventListener('click', () => {
+                    const clickData = JSON.parse(th.dataset.click);
+                    onHeaderClick(clickData);
+                });
+            });
+        }
+    },
+
+    renderHeatmap() {
+        const data = this.calculateHeatmapData(this.filtered);
+        const maxCount = Math.max(...data.flat());
+
+        // Build column definitions for hours 0-23
+        const columns = [];
+        for (let hour = 0; hour < 24; hour++) {
+            columns.push({
+                label: String(hour),
+                showLabel: hour % 3 === 0  // Show label every 3 hours
+            });
+        }
+
+        this.renderHeatmapGrid({
+            wrapperId: 'heatmap-wrapper',
+            legendId: 'heatmap-legend',
+            columns,
+            maxCount,
+            getCellData: (dayIdx, colIdx) => {
+                const jsDay = this.dayIndexMap[dayIdx];
+                const count = data[jsDay][colIdx];
+                return {
+                    count,
+                    tooltip: `${this.dayLabels[dayIdx]} ${colIdx}:00 - ${count} ${count === 1 ? 'activity' : 'activities'}`
+                };
+            }
+        });
+    },
+
+    calculateCalendarHeatmapData(sessions) {
+        // Build a map of date strings to activity counts
+        const dateMap = {};
+
+        for (const session of sessions) {
+            const datetime = session.datetime;
+            if (!datetime || datetime.length < 8) continue;
+
+            // Extract YYYY-MM-DD
+            const dateKey = `${datetime.substring(0, 4)}-${datetime.substring(4, 6)}-${datetime.substring(6, 8)}`;
+            dateMap[dateKey] = (dateMap[dateKey] || 0) + 1;
+        }
+
+        return dateMap;
+    },
+
+    getWeekStart(date) {
+        // Get Monday of the week containing this date
+        const d = new Date(date);
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1);  // Adjust for Sunday
+        return new Date(d.setDate(diff));
+    },
+
+    formatDateKey(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    },
+
+    handleWeekClick(weekStart) {
+        // Navigate to sessions view filtered to this week
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+
+        const params = new URLSearchParams();
+        params.set('from', this.formatDateKey(weekStart));
+        params.set('to', this.formatDateKey(weekEnd));
+
+        // Preserve current athlete
+        const athlete = document.getElementById('athlete-selector')?.value;
+        if (athlete) params.set('a', athlete);
+
+        location.hash = `#/sessions?${params.toString()}`;
+    },
+
+    parseLocalDate(dateStr) {
+        // Parse "YYYY-MM-DD" as local date (not UTC)
+        const [year, month, day] = dateStr.split('-').map(Number);
+        return new Date(year, month - 1, day);
+    },
+
+    renderCalendarHeatmap() {
+        const wrapper = document.getElementById('calendar-heatmap-wrapper');
+        if (!wrapper) return;
+
+        const data = this.calculateCalendarHeatmapData(this.filtered);
+
+        // Determine date range from filtered sessions
+        const dates = Object.keys(data).sort();
+        if (dates.length === 0) {
+            wrapper.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">No activities in selected period</div>';
+            return;
+        }
+
+        // Find range: from first activity's week start to last activity's date
+        const firstDate = this.parseLocalDate(dates[0]);
+        const lastDate = this.parseLocalDate(dates[dates.length - 1]);
+        const startWeek = this.getWeekStart(firstDate);
+
+        // Calculate number of weeks
+        const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+        const endWeek = this.getWeekStart(lastDate);
+        const numWeeks = Math.ceil((endWeek - startWeek) / msPerWeek) + 1;
+
+        // Calculate max for color scaling
+        const maxCount = Math.max(...Object.values(data));
+
+        // Month names for labels
+        const monthNames = [
+            'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+            'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+        ];
+
+        // Build columns array (one per week, with month headers)
+        const columns = [];
+        let currentMonth = -1;
+
+        for (let week = 0; week < numWeeks; week++) {
+            const weekStartDate = new Date(startWeek);
+            weekStartDate.setDate(weekStartDate.getDate() + week * 7);
+            const weekMonth = weekStartDate.getMonth();
+            const year = weekStartDate.getFullYear();
+
+            // Check if this week starts a new month
+            const isNewMonth = weekMonth !== currentMonth;
+            if (isNewMonth) {
+                currentMonth = weekMonth;
+            }
+
+            // Calculate colspan for month label (how many weeks in this month)
+            let colspan = 1;
+            const showLabel = isNewMonth;
+            if (isNewMonth) {
+                // Count how many weeks until next month change
+                for (let w = week + 1; w < numWeeks; w++) {
+                    const checkDate = new Date(startWeek);
+                    checkDate.setDate(checkDate.getDate() + w * 7);
+                    if (checkDate.getMonth() !== weekMonth) break;
+                    colspan++;
+                }
+            }
+
+            // Calculate month date range for click handler
+            const monthStart = `${year}-${String(weekMonth + 1).padStart(2, '0')}-01`;
+            const lastDay = new Date(year, weekMonth + 1, 0).getDate();
+            const monthEnd = `${year}-${String(weekMonth + 1).padStart(2, '0')}-${lastDay}`;
+
+            columns.push({
+                label: monthNames[weekMonth],
+                showLabel,
+                colspan: showLabel ? colspan : undefined,
+                spannedBy: !showLabel ? week - 1 : undefined,
+                title: showLabel ? `Filter to ${monthNames[weekMonth]} ${year}` : undefined,
+                clickData: showLabel ? { monthStart, monthEnd } : undefined,
+                weekIndex: week,
+                weekStartDate: this.formatDateKey(weekStartDate)
+            });
+        }
+
+        // Store for getCellData access
+        const calendarStartWeek = startWeek;
+
+        this.renderHeatmapGrid({
+            wrapperId: 'calendar-heatmap-wrapper',
+            legendId: 'calendar-heatmap-legend',
+            columns,
+            maxCount,
+            getCellData: (dayIdx, colIdx) => {
+                const col = columns[colIdx];
+                const weekStartDate = new Date(calendarStartWeek);
+                weekStartDate.setDate(weekStartDate.getDate() + col.weekIndex * 7);
+
+                const cellDate = new Date(weekStartDate);
+                cellDate.setDate(cellDate.getDate() + dayIdx);
+
+                const dateKey = this.formatDateKey(cellDate);
+                const count = data[dateKey] || 0;
+
+                // Check if within data range
+                const inRange = cellDate >= firstDate && cellDate <= lastDate;
+
+                return {
+                    count,
+                    isEmpty: !inRange,
+                    tooltip: inRange
+                        ? `${this.dayLabels[dayIdx]}, ${dateKey}: ${count} ${count === 1 ? 'activity' : 'activities'}`
+                        : '',
+                    clickData: inRange && count > 0 ? { weekStart: col.weekStartDate } : undefined
+                };
+            },
+            onCellClick: (clickData) => {
+                const weekStart = this.parseLocalDate(clickData.weekStart);
+                this.handleWeekClick(weekStart);
+            },
+            onHeaderClick: (clickData) => {
+                this.handleMonthClick(clickData.monthStart, clickData.monthEnd);
+            }
+        });
+    },
+
+    handleMonthClick(monthStart, monthEnd) {
+        // Navigate to sessions view filtered to this month
+        const params = new URLSearchParams();
+        params.set('from', monthStart);
+        params.set('to', monthEnd);
+
+        // Preserve current athlete
+        const athlete = document.getElementById('athlete-selector')?.value;
+        if (athlete) params.set('a', athlete);
+
+        location.hash = `#/sessions?${params.toString()}`;
     }
 };
 

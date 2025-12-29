@@ -2088,6 +2088,85 @@ def generate_browser(_data_dir: Path) -> str:
             height: 250px !important;
         }}
 
+        /* Heatmap specific styles */
+        .heatmap-container {{
+            grid-column: 1 / -1;
+        }}
+
+        .heatmap-scroll-wrapper {{
+            overflow-x: auto;
+        }}
+
+        /* Unified heatmap grid table (both timing and calendar) */
+        .heatmap-grid-table {{
+            border-collapse: separate;
+            border-spacing: 2px;
+            font-size: 9px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }}
+
+        .heatmap-grid-table .heatmap-col-label {{
+            font-weight: normal;
+            color: #666;
+            text-align: left;
+            padding: 0 2px 2px 0;
+            font-size: 9px;
+        }}
+
+        .heatmap-grid-table .heatmap-header-clickable {{
+            cursor: pointer;
+        }}
+
+        .heatmap-grid-table .heatmap-header-clickable:hover {{
+            color: #fc4c02;
+            text-decoration: underline;
+        }}
+
+        .heatmap-grid-table .heatmap-day-label {{
+            color: #666;
+            text-align: right;
+            padding-right: 4px;
+            font-size: 9px;
+            white-space: nowrap;
+        }}
+
+        .heatmap-grid-table .heatmap-cell {{
+            width: 10px;
+            height: 10px;
+            min-width: 10px;
+            min-height: 10px;
+            border-radius: 2px;
+        }}
+
+        .heatmap-grid-table .heatmap-cell-clickable {{
+            cursor: pointer;
+        }}
+
+        .heatmap-grid-table .heatmap-cell-clickable:hover {{
+            outline: 1px solid #fc4c02;
+        }}
+
+        .heatmap-grid-table .heatmap-cell-empty {{
+            opacity: 0.4;
+        }}
+
+        .heatmap-legend {{
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #666;
+        }}
+
+        .legend-scale {{
+            width: 80px;
+            height: 10px;
+            background: linear-gradient(to right, #ebedf0, #fc4c02);
+            border-radius: 2px;
+        }}
+
         @media (max-width: 900px) {{
             .summary-cards {{
                 grid-template-columns: repeat(2, 1fr);
@@ -2273,6 +2352,24 @@ def generate_browser(_data_dir: Path) -> str:
                     <div class="chart-container">
                         <h3>By Activity Type</h3>
                         <canvas id="type-chart"></canvas>
+                    </div>
+                    <div class="chart-container heatmap-container">
+                        <h3>Activity Timing</h3>
+                        <div id="heatmap-wrapper" class="heatmap-scroll-wrapper"></div>
+                        <div class="heatmap-legend" id="heatmap-legend">
+                            <span class="legend-min">0</span>
+                            <div class="legend-scale"></div>
+                            <span class="legend-max"></span>
+                        </div>
+                    </div>
+                    <div class="chart-container heatmap-container">
+                        <h3>Activity Calendar</h3>
+                        <div id="calendar-heatmap-wrapper" class="heatmap-scroll-wrapper"></div>
+                        <div class="heatmap-legend" id="calendar-heatmap-legend">
+                            <span class="legend-min">0</span>
+                            <div class="legend-scale"></div>
+                            <span class="legend-max"></span>
+                        </div>
                     </div>
                 </div>
                 <div id="stats-session-list" class="stats-session-panel"></div>

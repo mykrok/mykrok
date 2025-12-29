@@ -391,6 +391,7 @@ def activity_exists(data_dir: Path, username: str, start_date: datetime) -> bool
 # Sessions TSV columns per data-model.md
 SESSIONS_TSV_COLUMNS = [
     "datetime",
+    "datetime_local",  # Local time for display (Activity Timing heatmap)
     "type",
     "sport",
     "name",
@@ -457,9 +458,17 @@ def update_sessions_tsv(data_dir: Path, username: str) -> Path:
                         start_lat = str(round(coords[0][0], 6))
                         start_lng = str(round(coords[0][1], 6))
 
+            # Local time for Activity Timing heatmap
+            datetime_local = (
+                activity.start_date_local.strftime("%Y%m%dT%H%M%S")
+                if activity.start_date_local
+                else session_key
+            )
+
             writer.writerow(
                 {
                     "datetime": session_key,
+                    "datetime_local": datetime_local,
                     "type": activity.type,
                     "sport": activity.sport_type,
                     "name": activity.name,

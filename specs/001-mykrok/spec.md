@@ -161,6 +161,8 @@ As an athlete, I want to export my backed-up activities to a self-hosted FitTrac
 - **FR-010**: System MUST support heatmap visualization mode to show frequently-traveled routes.
 - **FR-011**: System MUST allow filtering activities by date range (year, month, custom range).
 - **FR-012**: System MUST calculate and display statistics (total distance, time, elevation, count) for filtered activity sets.
+- **FR-012a**: Stats view MUST display an activity timing heatmap showing distribution of activities by day-of-week (Y-axis) and hour-of-day (X-axis), with color intensity indicating activity frequency per time slot.
+- **FR-012b**: Stats view MUST display a GitHub-style calendar heatmap showing activity distribution by day-of-week (Y-axis) and week (X-axis) over time. Clicking any week column MUST filter the sessions view to that week's date range.
 - **FR-013**: System MUST provide an offline-capable interface to browse backed-up activities, photos, and route maps.
 - **FR-014**: System MUST support athlete exclusion via regex patterns to skip specific athletes during backup operations.
 - **FR-015**: Controller MUST efficiently update views incrementally based on model changes, avoiding full re-rendering of statistics and visualizations when only partial updates are needed.

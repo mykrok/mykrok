@@ -127,9 +127,29 @@ The Stats view shows aggregated statistics.
 
 ### Charts
 
-- **Distance by type**: Total distance for each activity type
-- **Activities by month**: Activity count over time
-- **Duration trends**: Time spent exercising
+- **Activities by month**: Bar chart showing activity count over time
+- **Activities by type**: Horizontal bar chart with activity types sorted by count
+
+### Activity Timing Heatmap
+
+The timing heatmap shows when you typically exercise:
+
+- **Y-axis**: Days of the week (Monday through Sunday)
+- **X-axis**: Hours of the day (0-23)
+- **Color intensity**: Darker cells indicate more activities at that time slot
+
+This helps identify your training patterns - whether you're a morning runner, lunchtime cyclist, or evening walker.
+
+### Activity Calendar Heatmap
+
+The calendar heatmap (GitHub contribution-style) shows your activity history over time:
+
+- **Y-axis**: Days of the week (Monday through Sunday)
+- **X-axis**: Weeks (scrollable if many weeks)
+- **Color intensity**: Darker cells indicate more activities on that day
+- **Clickable**: Click any cell or column to filter sessions to that week
+
+Month labels appear at the top when a new month starts. Hover over any cell to see the exact date and activity count.
 
 ### Filtering
 
