@@ -545,3 +545,95 @@ class TestLeanUpdate:
         state_after = load_sync_state(data_dir, "testuser")
         assert state_after.last_sync != initial_state.last_sync
         assert state_after.last_sync > initial_state.last_sync
+
+
+class TestAthletesTsvGeneration:
+    """Tests for athletes.tsv auto-generation during sync."""
+
+    @pytest.mark.ai_generated
+    def test_sync_generates_athletes_tsv_if_missing(
+        self, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """Sync should auto-generate athletes.tsv if it doesn't exist."""
+        from mykrok.lib.paths import get_athletes_tsv_path
+        from mykrok.services.backup import BackupService
+
+        _ = setup_athlete_dir  # Ensure athlete dir exists
+        data_dir = mock_config.data.directory
+
+        # Verify athletes.tsv does not exist initially
+        athletes_tsv = get_athletes_tsv_path(data_dir)
+        assert not athletes_tsv.exists(), "athletes.tsv should not exist before sync"
+
+        # Mock Strava client to return empty activities
+        mock_strava = MagicMock()
+        mock_strava.get_athlete.return_value = MagicMock(
+            username="testuser",
+            id=12345,
+            firstname="Test",
+            lastname="User",
+            profile="",
+            city="",
+            state="",
+            country="",
+        )
+        mock_strava.get_activities.return_value = iter([])
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.config = mock_config
+            service.strava = mock_strava
+            service.data_dir = data_dir
+
+            # Run sync
+            service.sync()
+
+        # Verify athletes.tsv was created
+        assert athletes_tsv.exists(), "athletes.tsv should be generated after sync"
+
+        # Verify it has content (at least header and one athlete)
+        content = athletes_tsv.read_text()
+        lines = content.strip().split("\n")
+        assert len(lines) >= 2, "athletes.tsv should have header and at least one athlete"
+        assert "username" in lines[0], "athletes.tsv should have username column"
+        assert "testuser" in content, "athletes.tsv should contain the athlete"
+
+    @pytest.mark.ai_generated
+    def test_sync_does_not_regenerate_existing_athletes_tsv(
+        self, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """Sync should not overwrite existing athletes.tsv."""
+        from mykrok.lib.paths import get_athletes_tsv_path
+        from mykrok.services.backup import BackupService
+
+        _ = setup_athlete_dir
+        data_dir = mock_config.data.directory
+
+        # Create athletes.tsv with known content
+        athletes_tsv = get_athletes_tsv_path(data_dir)
+        original_content = "username\noriginal_user\n"
+        athletes_tsv.write_text(original_content)
+
+        mock_strava = MagicMock()
+        mock_strava.get_athlete.return_value = MagicMock(
+            username="testuser",
+            id=12345,
+            firstname="Test",
+            lastname="User",
+            profile="",
+            city="",
+            state="",
+            country="",
+        )
+        mock_strava.get_activities.return_value = iter([])
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.config = mock_config
+            service.strava = mock_strava
+            service.data_dir = data_dir
+
+            service.sync()
+
+        # Verify athletes.tsv was NOT overwritten
+        assert athletes_tsv.read_text() == original_content

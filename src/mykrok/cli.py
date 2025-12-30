@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -484,8 +485,6 @@ def sync(
 
         # Refresh social data for recent activities (after main sync)
         if refresh_social_days > 0 and not dry_run and what in ("recent", "full"):
-            from datetime import datetime, timedelta
-
             social_after = datetime.now() - timedelta(days=refresh_social_days)
             ctx.log(f"\nRefreshing social data for activities from past {refresh_social_days} days...")
             social_result = service.refresh_social(

@@ -19,6 +19,7 @@ from mykrok.lib.paths import (
     ensure_photos_dir,
     ensure_session_dir,
     format_session_datetime,
+    get_athletes_tsv_path,
     get_photo_path,
 )
 from mykrok.models.activity import (
@@ -36,6 +37,7 @@ from mykrok.models.state import (
     save_sync_state,
 )
 from mykrok.models.tracking import save_tracking_data
+from mykrok.services.migrate import generate_athletes_tsv
 from mykrok.services.strava import StravaClient
 
 if TYPE_CHECKING:
@@ -483,9 +485,6 @@ class BackupService:
             update_sessions_tsv(self.data_dir, username)
 
             # Ensure athletes.tsv exists (needed for create-browser)
-            from mykrok.lib.paths import get_athletes_tsv_path
-            from mykrok.services.migrate import generate_athletes_tsv
-
             athletes_tsv = get_athletes_tsv_path(self.data_dir)
             if not athletes_tsv.exists():
                 generate_athletes_tsv(self.data_dir)
