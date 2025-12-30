@@ -482,6 +482,15 @@ class BackupService:
             # Update sessions.tsv
             update_sessions_tsv(self.data_dir, username)
 
+            # Ensure athletes.tsv exists (needed for create-browser)
+            from mykrok.lib.paths import get_athletes_tsv_path
+            from mykrok.services.migrate import generate_athletes_tsv
+
+            athletes_tsv = get_athletes_tsv_path(self.data_dir)
+            if not athletes_tsv.exists():
+                generate_athletes_tsv(self.data_dir)
+                logger.debug("Generated athletes.tsv")
+
             # Update sync state
             # When lean_update is True, only save if there were actual changes
             if not lean_update or has_changes:
