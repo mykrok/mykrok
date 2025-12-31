@@ -10,6 +10,157 @@ import {
     getClickDirection
 } from './photo-viewer-utils.js';
 
+// ===== Photo Popup Utility =====
+// Reusable component for generating photo popup HTML
+const PhotoPopup = {
+    /**
+     * Generate HTML for a photo popup
+     * @param {Object} options - Popup options
+     * @param {string} options.src - Photo source URL
+     * @param {number} options.index - Current photo index
+     * @param {number} options.total - Total number of photos
+     * @param {string} options.sessionKey - Session key (athlete/datetime)
+     * @param {string} options.sessionName - Session display name
+     * @param {string} options.date - Date string (YYYYMMDD format)
+     * @param {string} [options.context='map'] - Context: 'map', 'session', or 'chart'
+     * @param {Function} [options.onImageClick] - Custom click handler for image
+     * @param {Function} [options.onPrev] - Custom prev button handler
+     * @param {Function} [options.onNext] - Custom next button handler
+     * @returns {string} HTML string for the popup
+     */
+    generateHTML(options) {
+        const {
+            src,
+            index,
+            total,
+            sessionKey,
+            sessionName,
+            date,
+            context = 'map'
+        } = options;
+
+        const [athlete, datetime] = sessionKey.split('/');
+        const dateForFilter = date ? `${date.substring(0, 4)}-${date.substring(4, 6)}-${date.substring(6, 8)}` : '';
+        const dateDisplay = date?.substring(0, 8) || '';
+
+        // Navigation buttons
+        const hasPrev = index > 0;
+        const hasNext = index < total - 1;
+
+        let navPrev, navNext;
+        if (context === 'map') {
+            navPrev = hasPrev
+                ? `<button class="photo-nav-btn" onclick="MapView.showPhotoAtIndex('${sessionKey}', ${index - 1})" title="Previous photo">&#8249;</button>`
+                : '<button class="photo-nav-btn" disabled>&#8249;</button>';
+            navNext = hasNext
+                ? `<button class="photo-nav-btn" onclick="MapView.showPhotoAtIndex('${sessionKey}', ${index + 1})" title="Next photo">&#8250;</button>`
+                : '<button class="photo-nav-btn" disabled>&#8250;</button>';
+        } else {
+            // For session/chart context, navigation is handled differently
+            navPrev = hasPrev
+                ? '<button class="photo-nav-btn" data-action="prev" title="Previous photo">&#8249;</button>'
+                : '<button class="photo-nav-btn" disabled>&#8249;</button>';
+            navNext = hasNext
+                ? '<button class="photo-nav-btn" data-action="next" title="Next photo">&#8250;</button>'
+                : '<button class="photo-nav-btn" disabled>&#8250;</button>';
+        }
+
+        // Image click handler
+        let imageOnClick;
+        if (context === 'map') {
+            imageOnClick = `onclick="MapView.openPhotoViewer('${sessionKey}', ${index})"`;
+        } else {
+            imageOnClick = 'data-action="view"';
+        }
+
+        // Build links section based on context
+        let linksHtml = '';
+        if (context === 'map') {
+            linksHtml = `
+                <div class="popup-links">
+                    <a href="javascript:void(0)" class="popup-zoom-link" onclick="MapView.zoomToSession('${athlete}', '${datetime}')">Zoom in</a>
+                    <a href="#/session/${athlete}/${datetime}" class="popup-activity-link">View Activity →</a>
+                </div>`;
+        }
+        // For 'session' and 'chart' contexts, no links needed (already on session page)
+
+        // Date display - filterable on map, plain text on session page
+        let dateHtml;
+        if (context === 'map') {
+            dateHtml = `<a href="javascript:void(0)" class="popup-date-link" onclick="MapView.filterByDate('${dateForFilter}')" title="Filter to this date">${dateDisplay}</a>`;
+        } else {
+            dateHtml = `<span class="popup-date">${dateDisplay}</span>`;
+        }
+
+        return `
+            <div class="photo-popup">
+                ${src ? `<img src="${src}" alt="Photo" style="cursor:pointer" ${imageOnClick}>` : '<p>No image available</p>'}
+                <div class="photo-nav-row">
+                    ${navPrev}
+                    <span class="photo-counter">${index + 1} / ${total}</span>
+                    ${navNext}
+                </div>
+                <div class="photo-meta">
+                    <strong>${sessionName}</strong><br>
+                    ${dateHtml}
+                    ${linksHtml}
+                </div>
+            </div>
+        `;
+    },
+
+    /**
+     * Create and show a floating popup element for charts
+     * @param {HTMLElement} chart - Chart canvas element
+     * @param {Object} position - {x, y} position relative to chart
+     * @param {Object} options - Same options as generateHTML
+     * @returns {HTMLElement} The popup element
+     */
+    showFloatingPopup(chart, position, options) {
+        // Remove any existing floating popup
+        this.hideFloatingPopup();
+
+        const popup = document.createElement('div');
+        popup.className = 'photo-popup-floating';
+        popup.innerHTML = this.generateHTML(options);
+
+        // Position the popup near the chart point
+        const chartRect = chart.getBoundingClientRect();
+        popup.style.position = 'fixed';
+        popup.style.left = `${chartRect.left + position.x}px`;
+        popup.style.top = `${chartRect.top + position.y - 10}px`;
+        popup.style.transform = 'translate(-50%, -100%)';
+        popup.style.zIndex = '10000';
+
+        document.body.appendChild(popup);
+
+        // Adjust if popup goes off screen
+        const popupRect = popup.getBoundingClientRect();
+        if (popupRect.left < 10) {
+            popup.style.left = `${10 + popupRect.width / 2}px`;
+        }
+        if (popupRect.right > window.innerWidth - 10) {
+            popup.style.left = `${window.innerWidth - 10 - popupRect.width / 2}px`;
+        }
+        if (popupRect.top < 10) {
+            popup.style.top = `${chartRect.top + position.y + 20}px`;
+            popup.style.transform = 'translate(-50%, 0)';
+        }
+
+        this._currentPopup = popup;
+        return popup;
+    },
+
+    hideFloatingPopup() {
+        if (this._currentPopup) {
+            this._currentPopup.remove();
+            this._currentPopup = null;
+        }
+    },
+
+    _currentPopup: null
+};
+
 // ===== Photo Viewer Modal =====
 const PhotoViewer = {
     photos: [],
@@ -1542,34 +1693,18 @@ const MapView = {
                 });
 
                 const marker = L.marker([photoData.lat, photoData.lng], { icon: photoIcon });
-                const photoDateForFilter = `${session.substring(0, 4)}-${session.substring(4, 6)}-${session.substring(6, 8)}`;
 
-                // Build navigation buttons
-                const navPrev = currentIndex > 0
-                    ? `<button class="photo-nav-btn" onclick="MapView.showPhotoAtIndex('${sessionKey}', ${currentIndex - 1})" title="Previous photo">&#8249;</button>`
-                    : '<button class="photo-nav-btn" disabled>&#8249;</button>';
-                const navNext = currentIndex < totalPhotos - 1
-                    ? `<button class="photo-nav-btn" onclick="MapView.showPhotoAtIndex('${sessionKey}', ${currentIndex + 1})" title="Next photo">&#8250;</button>`
-                    : '<button class="photo-nav-btn" disabled>&#8250;</button>';
-
-                marker.bindPopup(`
-                    <div class="photo-popup">
-                        ${photoData.src ? `<img src="${photoData.src}" alt="Photo" style="cursor:pointer" onclick="MapView.openPhotoViewer('${sessionKey}', ${currentIndex})">` : '<p>No image available</p>'}
-                        <div class="photo-nav-row">
-                            ${navPrev}
-                            <span class="photo-counter">${currentIndex + 1} / ${totalPhotos}</span>
-                            ${navNext}
-                        </div>
-                        <div class="photo-meta">
-                            <strong>${sessionName}</strong><br>
-                            <a href="javascript:void(0)" class="popup-date-link" onclick="MapView.filterByDate('${photoDateForFilter}')" title="Filter to this date">${session.substring(0, 8)}</a>
-                            <div class="popup-links">
-                                <a href="javascript:void(0)" class="popup-zoom-link" onclick="MapView.zoomToSession('${athlete}', '${session}')">Zoom in</a>
-                                <a href="#/session/${athlete}/${session}" class="popup-activity-link">View Activity →</a>
-                            </div>
-                        </div>
-                    </div>
-                `, { maxWidth: 350 });
+                // Use PhotoPopup utility for consistent popup HTML
+                const popupHtml = PhotoPopup.generateHTML({
+                    src: photoData.src,
+                    index: currentIndex,
+                    total: totalPhotos,
+                    sessionKey: sessionKey,
+                    sessionName: sessionName,
+                    date: session,
+                    context: 'map'
+                });
+                marker.bindPopup(popupHtml, { maxWidth: 350 });
 
                 // Focus this activity in the Activities list when photo is clicked
                 marker.on('click', () => {
@@ -3116,15 +3251,26 @@ const FullSessionView = {
         document.getElementById('full-session-stats').innerHTML = html;
     },
 
+    sessionPhotoMarkers: [],  // Photo markers on session map for navigation
+
+    // Navigate to a specific photo popup on the session map
+    showSessionPhotoPopup(index) {
+        const markerData = this.sessionPhotoMarkers.find(m => m.index === index);
+        if (markerData) {
+            markerData.marker.openPopup();
+        }
+    },
+
     async loadMap(athlete, datetime) {
         const container = document.getElementById('full-session-map-container');
         container.innerHTML = '';
 
-        // Clean up previous map
+        // Clean up previous map and photo markers
         if (this.map) {
             this.map.remove();
             this.map = null;
         }
+        this.sessionPhotoMarkers = [];
 
         // Create map
         this.map = L.map(container).setView([40, 0], 3);
@@ -3162,6 +3308,19 @@ const FullSessionView = {
                 const info = await infoResponse.json();
                 const photos = info.photos || [];
                 const self = this;
+                const totalPhotos = photos.length;
+                const sessionName = info.name || 'Activity';
+                const sessionKey = `${athlete}/${datetime}`;
+
+                // Build photo src paths for popups
+                const photoSrcs = photos.map(photo => {
+                    const createdAt = photo.created_at || '';
+                    if (createdAt) {
+                        const dt = createdAt.replace(/[-:]/g, '').replace(/\+.*$/, '').substring(0, 15);
+                        return `athl=${athlete}/ses=${datetime}/photos/${dt}.jpg`;
+                    }
+                    return '';
+                });
 
                 // Add photo markers for photos with GPS location
                 photos.forEach((photo, index) => {
@@ -3194,16 +3353,48 @@ const FullSessionView = {
                     });
 
                     const marker = L.marker([lat, lng], { icon: photoIcon });
-                    marker.on('click', () => {
-                        if (self.sessionPhotos && self.sessionPhotos.length > index) {
-                            PhotoViewer.open(self.sessionPhotos, index, {
-                                athlete: self.currentAthlete,
-                                datetime: self.currentSession,
-                                source: 'session'
-                            });
-                        }
+
+                    // Use PhotoPopup utility for consistent popup HTML
+                    const popupHtml = PhotoPopup.generateHTML({
+                        src: photoSrcs[index],
+                        index: index,
+                        total: totalPhotos,
+                        sessionKey: sessionKey,
+                        sessionName: sessionName,
+                        date: datetime,
+                        context: 'session'
                     });
+                    marker.bindPopup(popupHtml, { maxWidth: 350 });
+
+                    // Handle popup button clicks for session context
+                    marker.on('popupopen', () => {
+                        const popup = marker.getPopup().getElement();
+                        if (!popup) return;
+
+                        // Handle image click to open PhotoViewer
+                        popup.querySelector('img[data-action="view"]')?.addEventListener('click', () => {
+                            if (self.sessionPhotos && self.sessionPhotos.length > index) {
+                                PhotoViewer.open(self.sessionPhotos, index, {
+                                    athlete: self.currentAthlete,
+                                    datetime: self.currentSession,
+                                    source: 'session'
+                                });
+                            }
+                        });
+
+                        // Handle prev/next navigation
+                        popup.querySelector('[data-action="prev"]')?.addEventListener('click', () => {
+                            self.showSessionPhotoPopup(index - 1);
+                        });
+                        popup.querySelector('[data-action="next"]')?.addEventListener('click', () => {
+                            self.showSessionPhotoPopup(index + 1);
+                        });
+                    });
+
                     marker.addTo(this.map);
+                    // Store marker reference for navigation
+                    if (!this.sessionPhotoMarkers) this.sessionPhotoMarkers = [];
+                    this.sessionPhotoMarkers.push({ marker, index });
                 });
             }
         } catch (e) {
@@ -3442,6 +3633,11 @@ const FullSessionView = {
         // Get camera icon for markers
         const cameraIcon = this.getCameraIcon();
 
+        // Session info for photo popups
+        const self = this;
+        const sessionKey = `${this.currentAthlete}/${this.currentSession}`;
+        const sessionName = document.getElementById('full-session-name')?.textContent || 'Activity';
+
         // Create elevation chart
         if (hasElevation) {
             const elevData = sampled.map(r => r.altitude);
@@ -3481,7 +3677,6 @@ const FullSessionView = {
                 });
             }
 
-            const self = this;
             const elevChart = new Chart(document.getElementById('elevation-chart'), {
                 type: 'line',
                 data: {
@@ -3493,6 +3688,44 @@ const FullSessionView = {
                     interaction: {
                         mode: 'nearest',
                         intersect: true
+                    },
+                    onHover: (event, elements) => {
+                        // Show photo popup on hover
+                        if (elements.length > 0) {
+                            const element = elements[0];
+                            const dataset = elevChart.data.datasets[element.datasetIndex];
+                            if (dataset.photoIndices) {
+                                const photoIndex = dataset.photoIndices[element.index];
+                                if (photoIndex !== undefined && self.sessionPhotos.length > photoIndex) {
+                                    const meta = elevChart.getDatasetMeta(element.datasetIndex);
+                                    const point = meta.data[element.index];
+                                    const popup = PhotoPopup.showFloatingPopup(
+                                        elevChart.canvas,
+                                        { x: point.x, y: point.y },
+                                        {
+                                            src: self.sessionPhotos[photoIndex]?.src || '',
+                                            index: photoIndex,
+                                            total: self.sessionPhotos.length,
+                                            sessionKey: sessionKey,
+                                            sessionName: sessionName,
+                                            date: self.currentSession,
+                                            context: 'chart'
+                                        }
+                                    );
+                                    // Handle popup button clicks
+                                    popup.querySelector('img[data-action="view"]')?.addEventListener('click', () => {
+                                        PhotoViewer.open(self.sessionPhotos, photoIndex, {
+                                            athlete: self.currentAthlete,
+                                            datetime: self.currentSession,
+                                            source: 'session'
+                                        });
+                                        PhotoPopup.hideFloatingPopup();
+                                    });
+                                    return;
+                                }
+                            }
+                        }
+                        PhotoPopup.hideFloatingPopup();
                     },
                     onClick: (event, elements) => {
                         // Handle click on photo markers
@@ -3507,19 +3740,14 @@ const FullSessionView = {
                                         datetime: self.currentSession,
                                         source: 'session'
                                     });
+                                    PhotoPopup.hideFloatingPopup();
                                 }
                             }
                         }
                     },
                     plugins: {
                         legend: { display: false },
-                        tooltip: {
-                            filter: (item) => item.dataset.label === 'Photos',
-                            callbacks: {
-                                title: () => 'Photo',
-                                label: () => 'Click to view'
-                            }
-                        }
+                        tooltip: { enabled: false }  // Disable default tooltip, using PhotoPopup instead
                     },
                     scales: {
                         x: {
@@ -3680,7 +3908,6 @@ const FullSessionView = {
                 });
             }
 
-            const self = this;
             const activityChart = new Chart(document.getElementById('activity-chart'), {
                 type: 'line',
                 data: {
@@ -3692,6 +3919,44 @@ const FullSessionView = {
                     interaction: {
                         mode: 'nearest',
                         intersect: true
+                    },
+                    onHover: (event, elements) => {
+                        // Show photo popup on hover
+                        if (elements.length > 0) {
+                            const element = elements[0];
+                            const dataset = activityChart.data.datasets[element.datasetIndex];
+                            if (dataset.photoIndices) {
+                                const photoIndex = dataset.photoIndices[element.index];
+                                if (photoIndex !== undefined && self.sessionPhotos.length > photoIndex) {
+                                    const meta = activityChart.getDatasetMeta(element.datasetIndex);
+                                    const point = meta.data[element.index];
+                                    const popup = PhotoPopup.showFloatingPopup(
+                                        activityChart.canvas,
+                                        { x: point.x, y: point.y },
+                                        {
+                                            src: self.sessionPhotos[photoIndex]?.src || '',
+                                            index: photoIndex,
+                                            total: self.sessionPhotos.length,
+                                            sessionKey: sessionKey,
+                                            sessionName: sessionName,
+                                            date: self.currentSession,
+                                            context: 'chart'
+                                        }
+                                    );
+                                    // Handle popup button clicks
+                                    popup.querySelector('img[data-action="view"]')?.addEventListener('click', () => {
+                                        PhotoViewer.open(self.sessionPhotos, photoIndex, {
+                                            athlete: self.currentAthlete,
+                                            datetime: self.currentSession,
+                                            source: 'session'
+                                        });
+                                        PhotoPopup.hideFloatingPopup();
+                                    });
+                                    return;
+                                }
+                            }
+                        }
+                        PhotoPopup.hideFloatingPopup();
                     },
                     onClick: (event, elements) => {
                         // Handle click on photo markers
@@ -3706,6 +3971,7 @@ const FullSessionView = {
                                         datetime: self.currentSession,
                                         source: 'session'
                                     });
+                                    PhotoPopup.hideFloatingPopup();
                                 }
                             }
                         }
@@ -3721,13 +3987,7 @@ const FullSessionView = {
                                 filter: (item) => item.text !== 'Photos'  // Hide Photos from legend
                             }
                         },
-                        tooltip: {
-                            filter: (item) => item.dataset.label === 'Photos',
-                            callbacks: {
-                                title: () => 'Photo',
-                                label: () => 'Click to view'
-                            }
-                        }
+                        tooltip: { enabled: false }  // Disable default tooltip, using PhotoPopup instead
                     },
                     scales: scales
                 }

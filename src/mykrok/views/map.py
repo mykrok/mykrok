@@ -572,6 +572,25 @@ def generate_browser(_data_dir: Path) -> str:
             cursor: default;
         }}
 
+        /* Floating photo popup for charts */
+        .photo-popup-floating {{
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+            padding: 8px;
+            pointer-events: auto;
+        }}
+
+        .photo-popup-floating .photo-popup {{
+            max-width: 280px;
+        }}
+
+        .photo-popup-floating .photo-popup img {{
+            max-width: 100%;
+            max-height: 200px;
+            object-fit: contain;
+        }}
+
         /* Photo Viewer Modal */
         .photo-viewer-modal {{
             display: none;
