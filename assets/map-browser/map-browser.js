@@ -10,6 +10,157 @@ import {
     getClickDirection
 } from './photo-viewer-utils.js';
 
+// ===== Photo Popup Utility =====
+// Reusable component for generating photo popup HTML
+const PhotoPopup = {
+    /**
+     * Generate HTML for a photo popup
+     * @param {Object} options - Popup options
+     * @param {string} options.src - Photo source URL
+     * @param {number} options.index - Current photo index
+     * @param {number} options.total - Total number of photos
+     * @param {string} options.sessionKey - Session key (athlete/datetime)
+     * @param {string} options.sessionName - Session display name
+     * @param {string} options.date - Date string (YYYYMMDD format)
+     * @param {string} [options.context='map'] - Context: 'map', 'session', or 'chart'
+     * @param {Function} [options.onImageClick] - Custom click handler for image
+     * @param {Function} [options.onPrev] - Custom prev button handler
+     * @param {Function} [options.onNext] - Custom next button handler
+     * @returns {string} HTML string for the popup
+     */
+    generateHTML(options) {
+        const {
+            src,
+            index,
+            total,
+            sessionKey,
+            sessionName,
+            date,
+            context = 'map'
+        } = options;
+
+        const [athlete, datetime] = sessionKey.split('/');
+        const dateForFilter = date ? `${date.substring(0, 4)}-${date.substring(4, 6)}-${date.substring(6, 8)}` : '';
+        const dateDisplay = date?.substring(0, 8) || '';
+
+        // Navigation buttons
+        const hasPrev = index > 0;
+        const hasNext = index < total - 1;
+
+        let navPrev, navNext;
+        if (context === 'map') {
+            navPrev = hasPrev
+                ? `<button class="photo-nav-btn" onclick="MapView.showPhotoAtIndex('${sessionKey}', ${index - 1})" title="Previous photo">&#8249;</button>`
+                : '<button class="photo-nav-btn" disabled>&#8249;</button>';
+            navNext = hasNext
+                ? `<button class="photo-nav-btn" onclick="MapView.showPhotoAtIndex('${sessionKey}', ${index + 1})" title="Next photo">&#8250;</button>`
+                : '<button class="photo-nav-btn" disabled>&#8250;</button>';
+        } else {
+            // For session/chart context, navigation is handled differently
+            navPrev = hasPrev
+                ? '<button class="photo-nav-btn" data-action="prev" title="Previous photo">&#8249;</button>'
+                : '<button class="photo-nav-btn" disabled>&#8249;</button>';
+            navNext = hasNext
+                ? '<button class="photo-nav-btn" data-action="next" title="Next photo">&#8250;</button>'
+                : '<button class="photo-nav-btn" disabled>&#8250;</button>';
+        }
+
+        // Image click handler
+        let imageOnClick;
+        if (context === 'map') {
+            imageOnClick = `onclick="MapView.openPhotoViewer('${sessionKey}', ${index})"`;
+        } else {
+            imageOnClick = 'data-action="view"';
+        }
+
+        // Build links section based on context
+        let linksHtml = '';
+        if (context === 'map') {
+            linksHtml = `
+                <div class="popup-links">
+                    <a href="javascript:void(0)" class="popup-zoom-link" onclick="MapView.zoomToSession('${athlete}', '${datetime}')">Zoom in</a>
+                    <a href="#/session/${athlete}/${datetime}" class="popup-activity-link">View Activity →</a>
+                </div>`;
+        }
+        // For 'session' and 'chart' contexts, no links needed (already on session page)
+
+        // Date display - filterable on map, plain text on session page
+        let dateHtml;
+        if (context === 'map') {
+            dateHtml = `<a href="javascript:void(0)" class="popup-date-link" onclick="MapView.filterByDate('${dateForFilter}')" title="Filter to this date">${dateDisplay}</a>`;
+        } else {
+            dateHtml = `<span class="popup-date">${dateDisplay}</span>`;
+        }
+
+        return `
+            <div class="photo-popup">
+                ${src ? `<img src="${src}" alt="Photo" style="cursor:pointer" ${imageOnClick}>` : '<p>No image available</p>'}
+                <div class="photo-nav-row">
+                    ${navPrev}
+                    <span class="photo-counter">${index + 1} / ${total}</span>
+                    ${navNext}
+                </div>
+                <div class="photo-meta">
+                    <strong>${sessionName}</strong><br>
+                    ${dateHtml}
+                    ${linksHtml}
+                </div>
+            </div>
+        `;
+    },
+
+    /**
+     * Create and show a floating popup element for charts
+     * @param {HTMLElement} chart - Chart canvas element
+     * @param {Object} position - {x, y} position relative to chart
+     * @param {Object} options - Same options as generateHTML
+     * @returns {HTMLElement} The popup element
+     */
+    showFloatingPopup(chart, position, options) {
+        // Remove any existing floating popup
+        this.hideFloatingPopup();
+
+        const popup = document.createElement('div');
+        popup.className = 'photo-popup-floating';
+        popup.innerHTML = this.generateHTML(options);
+
+        // Position the popup near the chart point
+        const chartRect = chart.getBoundingClientRect();
+        popup.style.position = 'fixed';
+        popup.style.left = `${chartRect.left + position.x}px`;
+        popup.style.top = `${chartRect.top + position.y - 10}px`;
+        popup.style.transform = 'translate(-50%, -100%)';
+        popup.style.zIndex = '10000';
+
+        document.body.appendChild(popup);
+
+        // Adjust if popup goes off screen
+        const popupRect = popup.getBoundingClientRect();
+        if (popupRect.left < 10) {
+            popup.style.left = `${10 + popupRect.width / 2}px`;
+        }
+        if (popupRect.right > window.innerWidth - 10) {
+            popup.style.left = `${window.innerWidth - 10 - popupRect.width / 2}px`;
+        }
+        if (popupRect.top < 10) {
+            popup.style.top = `${chartRect.top + position.y + 20}px`;
+            popup.style.transform = 'translate(-50%, 0)';
+        }
+
+        this._currentPopup = popup;
+        return popup;
+    },
+
+    hideFloatingPopup() {
+        if (this._currentPopup) {
+            this._currentPopup.remove();
+            this._currentPopup = null;
+        }
+    },
+
+    _currentPopup: null
+};
+
 // ===== Photo Viewer Modal =====
 const PhotoViewer = {
     photos: [],
@@ -1542,34 +1693,18 @@ const MapView = {
                 });
 
                 const marker = L.marker([photoData.lat, photoData.lng], { icon: photoIcon });
-                const photoDateForFilter = `${session.substring(0, 4)}-${session.substring(4, 6)}-${session.substring(6, 8)}`;
 
-                // Build navigation buttons
-                const navPrev = currentIndex > 0
-                    ? `<button class="photo-nav-btn" onclick="MapView.showPhotoAtIndex('${sessionKey}', ${currentIndex - 1})" title="Previous photo">&#8249;</button>`
-                    : '<button class="photo-nav-btn" disabled>&#8249;</button>';
-                const navNext = currentIndex < totalPhotos - 1
-                    ? `<button class="photo-nav-btn" onclick="MapView.showPhotoAtIndex('${sessionKey}', ${currentIndex + 1})" title="Next photo">&#8250;</button>`
-                    : '<button class="photo-nav-btn" disabled>&#8250;</button>';
-
-                marker.bindPopup(`
-                    <div class="photo-popup">
-                        ${photoData.src ? `<img src="${photoData.src}" alt="Photo" style="cursor:pointer" onclick="MapView.openPhotoViewer('${sessionKey}', ${currentIndex})">` : '<p>No image available</p>'}
-                        <div class="photo-nav-row">
-                            ${navPrev}
-                            <span class="photo-counter">${currentIndex + 1} / ${totalPhotos}</span>
-                            ${navNext}
-                        </div>
-                        <div class="photo-meta">
-                            <strong>${sessionName}</strong><br>
-                            <a href="javascript:void(0)" class="popup-date-link" onclick="MapView.filterByDate('${photoDateForFilter}')" title="Filter to this date">${session.substring(0, 8)}</a>
-                            <div class="popup-links">
-                                <a href="javascript:void(0)" class="popup-zoom-link" onclick="MapView.zoomToSession('${athlete}', '${session}')">Zoom in</a>
-                                <a href="#/session/${athlete}/${session}" class="popup-activity-link">View Activity →</a>
-                            </div>
-                        </div>
-                    </div>
-                `, { maxWidth: 350 });
+                // Use PhotoPopup utility for consistent popup HTML
+                const popupHtml = PhotoPopup.generateHTML({
+                    src: photoData.src,
+                    index: currentIndex,
+                    total: totalPhotos,
+                    sessionKey: sessionKey,
+                    sessionName: sessionName,
+                    date: session,
+                    context: 'map'
+                });
+                marker.bindPopup(popupHtml, { maxWidth: 350 });
 
                 // Focus this activity in the Activities list when photo is clicked
                 marker.on('click', () => {
@@ -2605,6 +2740,9 @@ const SessionsView = {
         // Load track for mini-map
         this.loadDetailMap(athlete, sessionId);
 
+        // Load description from info.json
+        this.loadDetailDescription(athlete, sessionId);
+
         // Load photos if available
         const photoCount = parseInt(session.photo_count) || 0;
         if (photoCount > 0) {
@@ -2744,6 +2882,42 @@ const SessionsView = {
         } catch (e) {
             console.warn('Failed to load detail map:', e);
             mapContainer.style.display = 'none';
+        }
+    },
+
+    // Convert URLs in text to clickable links (with HTML escaping for safety)
+    linkifyText(text) {
+        // First escape HTML entities to prevent XSS
+        const escapeHtml = (str) => str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+
+        const escaped = escapeHtml(text);
+
+        // Then convert URLs to links
+        // Match http:// or https:// URLs
+        const urlPattern = /(https?:\/\/[^\s<>&"]+)/g;
+        return escaped.replace(urlPattern, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+    },
+
+    async loadDetailDescription(athlete, sessionId) {
+        const container = document.getElementById('detail-description');
+        container.innerHTML = '';
+
+        try {
+            const response = await fetch(`athl=${athlete}/ses=${sessionId}/info.json`);
+            if (!response.ok) return;
+
+            const info = await response.json();
+            const description = info.description;
+
+            if (description && description.trim()) {
+                container.innerHTML = this.linkifyText(description);
+            }
+        } catch (e) {
+            console.warn('Failed to load description:', e);
         }
     },
 
@@ -3038,6 +3212,9 @@ const FullSessionView = {
             }
         };
 
+        // Load description from info.json
+        this.loadDescription(athlete, datetime);
+
         // Render stats
         this.renderStats(session);
 
@@ -3071,6 +3248,26 @@ const FullSessionView = {
         const m = Math.floor((seconds % 3600) / 60);
         if (h > 0) return `${h}h ${m}m`;
         return `${m}m`;
+    },
+
+    async loadDescription(athlete, datetime) {
+        const container = document.getElementById('full-session-description');
+        container.innerHTML = '';
+
+        try {
+            const response = await fetch(`athl=${athlete}/ses=${datetime}/info.json`);
+            if (!response.ok) return;
+
+            const info = await response.json();
+            const description = info.description;
+
+            if (description && description.trim()) {
+                // Use SessionsView's linkifyText helper
+                container.innerHTML = SessionsView.linkifyText(description);
+            }
+        } catch (e) {
+            console.warn('Failed to load description:', e);
+        }
     },
 
     renderStats(session) {
@@ -3116,15 +3313,26 @@ const FullSessionView = {
         document.getElementById('full-session-stats').innerHTML = html;
     },
 
+    sessionPhotoMarkers: [],  // Photo markers on session map for navigation
+
+    // Navigate to a specific photo popup on the session map
+    showSessionPhotoPopup(index) {
+        const markerData = this.sessionPhotoMarkers.find(m => m.index === index);
+        if (markerData) {
+            markerData.marker.openPopup();
+        }
+    },
+
     async loadMap(athlete, datetime) {
         const container = document.getElementById('full-session-map-container');
         container.innerHTML = '';
 
-        // Clean up previous map
+        // Clean up previous map and photo markers
         if (this.map) {
             this.map.remove();
             this.map = null;
         }
+        this.sessionPhotoMarkers = [];
 
         // Create map
         this.map = L.map(container).setView([40, 0], 3);
@@ -3153,6 +3361,106 @@ const FullSessionView = {
             }
         } catch (e) {
             console.warn('Could not load track:', e);
+        }
+
+        // Load photo markers from info.json
+        try {
+            const infoResponse = await fetch(`athl=${athlete}/ses=${datetime}/info.json`);
+            if (infoResponse.ok) {
+                const info = await infoResponse.json();
+                const photos = info.photos || [];
+                const self = this;
+                const totalPhotos = photos.length;
+                const sessionName = info.name || 'Activity';
+                const sessionKey = `${athlete}/${datetime}`;
+
+                // Build photo src paths for popups
+                const photoSrcs = photos.map(photo => {
+                    const createdAt = photo.created_at || '';
+                    if (createdAt) {
+                        const dt = createdAt.replace(/[-:]/g, '').replace(/\+.*$/, '').substring(0, 15);
+                        return `athl=${athlete}/ses=${datetime}/photos/${dt}.jpg`;
+                    }
+                    return '';
+                });
+
+                // Add photo markers for photos with GPS location
+                photos.forEach((photo, index) => {
+                    const locationRaw = photo.location;
+                    if (!locationRaw || !locationRaw.length || !locationRaw[0] || locationRaw[0].length < 2) {
+                        return;
+                    }
+                    // Photo location format: [[timestamp?, [lat, lng]]] or [[lat, lng]]
+                    let lat, lng;
+                    if (Array.isArray(locationRaw[0]) && locationRaw[0].length >= 2) {
+                        if (Array.isArray(locationRaw[0][1])) {
+                            // Format: [[timestamp, [lat, lng]]]
+                            [lat, lng] = locationRaw[0][1];
+                        } else {
+                            // Format: [[lat, lng]]
+                            [lat, lng] = locationRaw[0];
+                        }
+                    }
+
+                    if (lat == null || lng == null) return;
+
+                    // Create photo icon (same as used in MapView)
+                    const photoIcon = L.divIcon({
+                        html: '<div class="photo-icon" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;">' +
+                              '<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>' +
+                              '</div>',
+                        className: '',
+                        iconSize: [28, 28],
+                        iconAnchor: [14, 14]
+                    });
+
+                    const marker = L.marker([lat, lng], { icon: photoIcon });
+
+                    // Use PhotoPopup utility for consistent popup HTML
+                    const popupHtml = PhotoPopup.generateHTML({
+                        src: photoSrcs[index],
+                        index: index,
+                        total: totalPhotos,
+                        sessionKey: sessionKey,
+                        sessionName: sessionName,
+                        date: datetime,
+                        context: 'session'
+                    });
+                    marker.bindPopup(popupHtml, { maxWidth: 350 });
+
+                    // Handle popup button clicks for session context
+                    marker.on('popupopen', () => {
+                        const popup = marker.getPopup().getElement();
+                        if (!popup) return;
+
+                        // Handle image click to open PhotoViewer
+                        popup.querySelector('img[data-action="view"]')?.addEventListener('click', () => {
+                            if (self.sessionPhotos && self.sessionPhotos.length > index) {
+                                PhotoViewer.open(self.sessionPhotos, index, {
+                                    athlete: self.currentAthlete,
+                                    datetime: self.currentSession,
+                                    source: 'session'
+                                });
+                            }
+                        });
+
+                        // Handle prev/next navigation
+                        popup.querySelector('[data-action="prev"]')?.addEventListener('click', () => {
+                            self.showSessionPhotoPopup(index - 1);
+                        });
+                        popup.querySelector('[data-action="next"]')?.addEventListener('click', () => {
+                            self.showSessionPhotoPopup(index + 1);
+                        });
+                    });
+
+                    marker.addTo(this.map);
+                    // Store marker reference for navigation
+                    if (!this.sessionPhotoMarkers) this.sessionPhotoMarkers = [];
+                    this.sessionPhotoMarkers.push({ marker, index });
+                });
+            }
+        } catch (e) {
+            console.warn('Could not load photo markers:', e);
         }
     },
 
@@ -3207,7 +3515,8 @@ const FullSessionView = {
             const hasTime = sampled.some(r => r.time !== undefined);
 
             // Store data for re-rendering when X-axis changes
-            this.streamData = { sampled, hasElevation, hasHr, hasCadence, hasWatts, hasDistance, hasTime };
+            // Keep full data for photo position interpolation
+            this.streamData = { sampled, fullData: data, hasElevation, hasHr, hasCadence, hasWatts, hasDistance, hasTime };
 
             // Build HTML with X-axis selector
             let html = '<div class="stream-header">';
@@ -3261,9 +3570,109 @@ const FullSessionView = {
 
     xAxisMode: 'distance',  // Default mode
 
+    // Calculate photo X-axis positions by interpolating from stream data
+    getPhotoChartPositions(fullData, useDistance) {
+        if (!this.photoPositions || this.photoPositions.length === 0 || !fullData || fullData.length === 0) {
+            return [];
+        }
+
+        const positions = [];
+        for (const photo of this.photoPositions) {
+            const { elapsedSeconds, index } = photo;
+
+            // Find the stream data points around this elapsed time
+            let prevPoint = null;
+            let nextPoint = null;
+            for (let i = 0; i < fullData.length; i++) {
+                const point = fullData[i];
+                if (point.time === undefined) continue;
+
+                if (point.time <= elapsedSeconds) {
+                    prevPoint = point;
+                } else {
+                    nextPoint = point;
+                    break;
+                }
+            }
+
+            // Interpolate position
+            let xValue, yValue;
+            if (prevPoint && nextPoint && prevPoint.time !== nextPoint.time) {
+                // Linear interpolation
+                const ratio = (elapsedSeconds - prevPoint.time) / (nextPoint.time - prevPoint.time);
+                if (useDistance) {
+                    const prevDist = prevPoint.distance || 0;
+                    const nextDist = nextPoint.distance || 0;
+                    xValue = (prevDist + ratio * (nextDist - prevDist)) / 1000;  // km
+                } else {
+                    xValue = elapsedSeconds / 60;  // minutes
+                }
+                // Interpolate altitude for y position
+                const prevAlt = prevPoint.altitude || 0;
+                const nextAlt = nextPoint.altitude || 0;
+                yValue = prevAlt + ratio * (nextAlt - prevAlt);
+            } else if (prevPoint) {
+                xValue = useDistance ? (prevPoint.distance || 0) / 1000 : elapsedSeconds / 60;
+                yValue = prevPoint.altitude || 0;
+            } else if (nextPoint) {
+                xValue = useDistance ? (nextPoint.distance || 0) / 1000 : elapsedSeconds / 60;
+                yValue = nextPoint.altitude || 0;
+            } else {
+                continue;  // No valid stream data for this photo
+            }
+
+            positions.push({ x: xValue, y: yValue, index });
+        }
+        return positions;
+    },
+
+    // Create camera icon for chart markers
+    getCameraIcon() {
+        if (this._cameraIcon) return this._cameraIcon;
+
+        // Create a canvas with camera icon
+        const canvas = document.createElement('canvas');
+        canvas.width = 24;
+        canvas.height = 24;
+        const ctx = canvas.getContext('2d');
+
+        // Draw circular background
+        ctx.beginPath();
+        ctx.arc(12, 12, 11, 0, 2 * Math.PI);
+        ctx.fillStyle = '#fc5200';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Draw camera icon (scaled and centered)
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        // Simple camera shape
+        ctx.moveTo(6, 9);
+        ctx.lineTo(6, 17);
+        ctx.lineTo(18, 17);
+        ctx.lineTo(18, 9);
+        ctx.lineTo(15, 9);
+        ctx.lineTo(14, 7);
+        ctx.lineTo(10, 7);
+        ctx.lineTo(9, 9);
+        ctx.closePath();
+        ctx.fill();
+
+        // Camera lens (circle cutout)
+        ctx.beginPath();
+        ctx.arc(12, 13, 3, 0, 2 * Math.PI);
+        ctx.fillStyle = '#fc5200';
+        ctx.fill();
+
+        this._cameraIcon = canvas;
+        return canvas;
+    },
+
     renderStreamCharts() {
         if (!this.streamData) return;
-        const { sampled, hasElevation, hasHr, hasCadence, hasWatts, hasDistance } = this.streamData;
+        const { sampled, fullData, hasElevation, hasHr, hasCadence, hasWatts, hasDistance } = this.streamData;
 
         // Destroy existing charts
         this.streamCharts.forEach(chart => chart.destroy());
@@ -3273,12 +3682,23 @@ const FullSessionView = {
         const selector = document.getElementById('xaxis-selector');
         const useDistance = selector ? selector.value === 'distance' : hasDistance;
 
-        // Calculate X-axis data
+        // Calculate X-axis data as {x, y} points for proper linear axis
         const xData = sampled.map(r => {
             if (useDistance && r.distance) return Math.round(r.distance / 100) / 10;  // km, 1 decimal
             return Math.round((r.time || 0) / 60);  // minutes, whole numbers
         });
         const xLabel = useDistance ? 'Distance (km)' : 'Time (min)';
+
+        // Calculate photo marker positions
+        const photoPositions = this.getPhotoChartPositions(fullData, useDistance);
+
+        // Get camera icon for markers
+        const cameraIcon = this.getCameraIcon();
+
+        // Session info for photo popups
+        const self = this;
+        const sessionKey = `${this.currentAthlete}/${this.currentSession}`;
+        const sessionName = document.getElementById('full-session-name')?.textContent || 'Activity';
 
         // Create elevation chart
         if (hasElevation) {
@@ -3286,39 +3706,114 @@ const FullSessionView = {
             const minElev = Math.min(...elevData.filter(e => e != null));
             const maxElev = Math.max(...elevData.filter(e => e != null));
 
+            // Convert to {x, y} format for linear scale
+            const elevPoints = sampled.map((r, i) => ({
+                x: xData[i],
+                y: r.altitude
+            }));
+
+            // Build datasets array
+            const elevDatasets = [{
+                label: 'Elevation',
+                data: elevPoints,
+                borderColor: '#888',
+                backgroundColor: 'rgba(100, 100, 100, 0.2)',
+                fill: true,
+                tension: 0.3,
+                borderWidth: 1,
+                pointRadius: 0,
+            }];
+
+            // Add photo markers if available
+            if (photoPositions.length > 0) {
+                elevDatasets.push({
+                    label: 'Photos',
+                    data: photoPositions.map(p => ({ x: p.x, y: p.y })),
+                    type: 'scatter',
+                    pointStyle: cameraIcon,
+                    pointRadius: 12,
+                    pointHoverRadius: 14,
+                    order: 0,  // Render on top
+                    // Store photo indices for click handler
+                    photoIndices: photoPositions.map(p => p.index)
+                });
+            }
+
             const elevChart = new Chart(document.getElementById('elevation-chart'), {
                 type: 'line',
                 data: {
-                    labels: xData,
-                    datasets: [{
-                        label: 'Elevation',
-                        data: elevData,
-                        borderColor: '#888',
-                        backgroundColor: 'rgba(100, 100, 100, 0.2)',
-                        fill: true,
-                        tension: 0.3,
-                        borderWidth: 1,
-                        pointRadius: 0,
-                    }]
+                    datasets: elevDatasets
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     interaction: {
-                        mode: 'index',
-                        intersect: false
+                        mode: 'nearest',
+                        intersect: true
                     },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                title: (items) => `${items[0].parsed.x.toFixed(1)} ${useDistance ? 'km' : 'min'}`,
-                                label: (item) => `${item.parsed.y.toFixed(0)} m`
+                    onHover: (event, elements) => {
+                        // Show photo popup on hover
+                        if (elements.length > 0) {
+                            const element = elements[0];
+                            const dataset = elevChart.data.datasets[element.datasetIndex];
+                            if (dataset.photoIndices) {
+                                const photoIndex = dataset.photoIndices[element.index];
+                                if (photoIndex !== undefined && self.sessionPhotos.length > photoIndex) {
+                                    const meta = elevChart.getDatasetMeta(element.datasetIndex);
+                                    const point = meta.data[element.index];
+                                    const popup = PhotoPopup.showFloatingPopup(
+                                        elevChart.canvas,
+                                        { x: point.x, y: point.y },
+                                        {
+                                            src: self.sessionPhotos[photoIndex]?.src || '',
+                                            index: photoIndex,
+                                            total: self.sessionPhotos.length,
+                                            sessionKey: sessionKey,
+                                            sessionName: sessionName,
+                                            date: self.currentSession,
+                                            context: 'chart'
+                                        }
+                                    );
+                                    // Handle popup button clicks
+                                    popup.querySelector('img[data-action="view"]')?.addEventListener('click', () => {
+                                        PhotoViewer.open(self.sessionPhotos, photoIndex, {
+                                            athlete: self.currentAthlete,
+                                            datetime: self.currentSession,
+                                            source: 'session'
+                                        });
+                                        PhotoPopup.hideFloatingPopup();
+                                    });
+                                    return;
+                                }
+                            }
+                        }
+                        PhotoPopup.hideFloatingPopup();
+                    },
+                    onClick: (event, elements) => {
+                        // Handle click on photo markers
+                        if (elements.length > 0) {
+                            const element = elements[0];
+                            const dataset = elevChart.data.datasets[element.datasetIndex];
+                            if (dataset.photoIndices) {
+                                const photoIndex = dataset.photoIndices[element.index];
+                                if (photoIndex !== undefined && self.sessionPhotos.length > 0) {
+                                    PhotoViewer.open(self.sessionPhotos, photoIndex, {
+                                        athlete: self.currentAthlete,
+                                        datetime: self.currentSession,
+                                        source: 'session'
+                                    });
+                                    PhotoPopup.hideFloatingPopup();
+                                }
                             }
                         }
                     },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }  // Disable default tooltip, using PhotoPopup instead
+                    },
                     scales: {
                         x: {
+                            type: 'linear',
                             display: true,
                             title: { display: false },
                             ticks: { font: { size: 10 }, maxTicksLimit: 8 }
@@ -3342,14 +3837,15 @@ const FullSessionView = {
 
             if (hasHr) {
                 // Filter out initial 0 HR readings (common sensor artifact)
-                const hrData = sampled.map((r, i) => {
+                // Convert to {x, y} format for linear scale
+                const hrPoints = sampled.map((r, i) => {
                     // Skip first point if HR is 0 or very low (sensor warming up)
-                    if (i === 0 && (!r.heartrate || r.heartrate < 30)) return null;
-                    return r.heartrate || null;
+                    if (i === 0 && (!r.heartrate || r.heartrate < 30)) return { x: xData[i], y: null };
+                    return { x: xData[i], y: r.heartrate || null };
                 });
                 datasets.push({
                     label: 'Heart Rate',
-                    data: hrData,
+                    data: hrPoints,
                     borderColor: '#e63946',
                     backgroundColor: 'rgba(230, 57, 70, 0.1)',
                     fill: false,
@@ -3362,9 +3858,13 @@ const FullSessionView = {
             }
 
             if (hasCadence) {
+                const cadPoints = sampled.map((r, i) => ({
+                    x: xData[i],
+                    y: r.cadence
+                }));
                 datasets.push({
                     label: 'Cadence',
-                    data: sampled.map(r => r.cadence),
+                    data: cadPoints,
                     borderColor: '#457b9d',
                     backgroundColor: 'rgba(69, 123, 157, 0.1)',
                     fill: false,
@@ -3376,9 +3876,13 @@ const FullSessionView = {
             }
 
             if (hasWatts) {
+                const wattsPoints = sampled.map((r, i) => ({
+                    x: xData[i],
+                    y: r.watts
+                }));
                 datasets.push({
                     label: 'Power',
-                    data: sampled.map(r => r.watts),
+                    data: wattsPoints,
                     borderColor: '#f4a261',
                     backgroundColor: 'rgba(244, 162, 97, 0.1)',
                     fill: false,
@@ -3392,6 +3896,7 @@ const FullSessionView = {
             // Configure scales based on available data
             const scales = {
                 x: {
+                    type: 'linear',
                     display: true,
                     title: { display: true, text: xLabel, font: { size: 10 } },
                     ticks: { font: { size: 10 }, maxTicksLimit: 8 }
@@ -3431,30 +3936,120 @@ const FullSessionView = {
                 };
             }
 
+            // Add photo markers to activity chart if available
+            // Place them at the top of the primary Y-axis
+            if (photoPositions.length > 0) {
+                // Determine which Y-axis to use and calculate max value
+                let yAxisId = 'yHr';
+                let maxValue = 200;  // Default max HR
+
+                if (hasHr) {
+                    const hrVals = sampled.map(r => r.heartrate).filter(v => v);
+                    maxValue = Math.max(...hrVals) * 1.05;
+                    yAxisId = 'yHr';
+                } else if (hasCadence) {
+                    const cadVals = sampled.map(r => r.cadence).filter(v => v);
+                    maxValue = Math.max(...cadVals) * 1.05;
+                    yAxisId = 'yCadence';
+                } else if (hasWatts) {
+                    const wattsVals = sampled.map(r => r.watts).filter(v => v);
+                    maxValue = Math.max(...wattsVals) * 1.05;
+                    yAxisId = 'yPower';
+                }
+
+                datasets.push({
+                    label: 'Photos',
+                    data: photoPositions.map(p => ({ x: p.x, y: maxValue })),
+                    type: 'scatter',
+                    pointStyle: cameraIcon,
+                    pointRadius: 12,
+                    pointHoverRadius: 14,
+                    order: 0,  // Render on top
+                    yAxisID: yAxisId,
+                    photoIndices: photoPositions.map(p => p.index)
+                });
+            }
+
             const activityChart = new Chart(document.getElementById('activity-chart'), {
                 type: 'line',
                 data: {
-                    labels: xData,
                     datasets: datasets
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     interaction: {
-                        mode: 'index',
-                        intersect: false
+                        mode: 'nearest',
+                        intersect: true
+                    },
+                    onHover: (event, elements) => {
+                        // Show photo popup on hover
+                        if (elements.length > 0) {
+                            const element = elements[0];
+                            const dataset = activityChart.data.datasets[element.datasetIndex];
+                            if (dataset.photoIndices) {
+                                const photoIndex = dataset.photoIndices[element.index];
+                                if (photoIndex !== undefined && self.sessionPhotos.length > photoIndex) {
+                                    const meta = activityChart.getDatasetMeta(element.datasetIndex);
+                                    const point = meta.data[element.index];
+                                    const popup = PhotoPopup.showFloatingPopup(
+                                        activityChart.canvas,
+                                        { x: point.x, y: point.y },
+                                        {
+                                            src: self.sessionPhotos[photoIndex]?.src || '',
+                                            index: photoIndex,
+                                            total: self.sessionPhotos.length,
+                                            sessionKey: sessionKey,
+                                            sessionName: sessionName,
+                                            date: self.currentSession,
+                                            context: 'chart'
+                                        }
+                                    );
+                                    // Handle popup button clicks
+                                    popup.querySelector('img[data-action="view"]')?.addEventListener('click', () => {
+                                        PhotoViewer.open(self.sessionPhotos, photoIndex, {
+                                            athlete: self.currentAthlete,
+                                            datetime: self.currentSession,
+                                            source: 'session'
+                                        });
+                                        PhotoPopup.hideFloatingPopup();
+                                    });
+                                    return;
+                                }
+                            }
+                        }
+                        PhotoPopup.hideFloatingPopup();
+                    },
+                    onClick: (event, elements) => {
+                        // Handle click on photo markers
+                        if (elements.length > 0) {
+                            const element = elements[0];
+                            const dataset = activityChart.data.datasets[element.datasetIndex];
+                            if (dataset.photoIndices) {
+                                const photoIndex = dataset.photoIndices[element.index];
+                                if (photoIndex !== undefined && self.sessionPhotos.length > 0) {
+                                    PhotoViewer.open(self.sessionPhotos, photoIndex, {
+                                        athlete: self.currentAthlete,
+                                        datetime: self.currentSession,
+                                        source: 'session'
+                                    });
+                                    PhotoPopup.hideFloatingPopup();
+                                }
+                            }
+                        }
                     },
                     plugins: {
                         legend: {
                             display: true,
                             position: 'top',
-                            labels: { font: { size: 11 }, usePointStyle: true, boxWidth: 6 }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                title: (items) => `${items[0].parsed.x.toFixed(1)} ${useDistance ? 'km' : 'min'}`
+                            labels: {
+                                font: { size: 11 },
+                                usePointStyle: true,
+                                boxWidth: 6,
+                                filter: (item) => item.text !== 'Photos'  // Hide Photos from legend
                             }
-                        }
+                        },
+                        tooltip: { enabled: false }  // Disable default tooltip, using PhotoPopup instead
                     },
                     scales: scales
                 }
@@ -3464,11 +4059,13 @@ const FullSessionView = {
     },
 
     sessionPhotos: [],  // Store photos for PhotoViewer
+    photoPositions: [],  // Store photo elapsed times for chart markers
 
     async loadPhotos(athlete, datetime, session) {
         const container = document.getElementById('full-session-photos');
         const photoCount = parseInt(session?.photo_count) || 0;
         this.sessionPhotos = [];
+        this.photoPositions = [];
 
         if (photoCount === 0) {
             container.innerHTML = '';
@@ -3496,8 +4093,12 @@ const FullSessionView = {
                 return;
             }
 
+            // Parse activity start time for calculating photo elapsed times
+            const startDateLocal = info.start_date_local;
+            const activityStart = startDateLocal ? new Date(startDateLocal).getTime() : null;
+
             // Build photo data array for PhotoViewer
-            this.sessionPhotos = photos.map(photo => {
+            this.sessionPhotos = photos.map((photo, index) => {
                 const urls = photo.urls || {};
                 const thumbUrl = urls['600'] || urls['256'] || Object.values(urls)[0] || '';
                 const fullUrl = urls['2048'] || urls['1024'] || urls['600'] || thumbUrl;
@@ -3505,9 +4106,20 @@ const FullSessionView = {
                 // Build local path from created_at timestamp
                 const createdAt = photo.created_at || '';
                 let localPath = '';
+                let elapsedSeconds = null;
                 if (createdAt) {
                     const dt = createdAt.replace(/[-:]/g, '').replace(/\+.*$/, '').substring(0, 15);
                     localPath = `athl=${athlete}/ses=${datetime}/photos/${dt}.jpg`;
+
+                    // Calculate elapsed seconds from activity start
+                    if (activityStart) {
+                        const photoTime = new Date(createdAt).getTime();
+                        elapsedSeconds = Math.round((photoTime - activityStart) / 1000);
+                        // Only keep positive elapsed times (photo taken during activity)
+                        if (elapsedSeconds >= 0) {
+                            this.photoPositions.push({ elapsedSeconds, index });
+                        }
+                    }
                 }
 
                 return {
@@ -3515,6 +4127,11 @@ const FullSessionView = {
                     fullUrl: localPath || fullUrl
                 };
             }).filter(p => p.src);
+
+            // Re-render charts if stream data is available (to add photo markers)
+            if (this.streamData && this.photoPositions.length > 0) {
+                this.renderStreamCharts();
+            }
 
             const grid = document.getElementById('full-session-photo-grid');
             grid.innerHTML = this.sessionPhotos.map((photo, index) => `

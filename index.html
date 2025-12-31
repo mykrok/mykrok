@@ -473,6 +473,25 @@
             cursor: default;
         }
 
+        /* Floating photo popup for charts */
+        .photo-popup-floating {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+            padding: 8px;
+            pointer-events: auto;
+        }
+
+        .photo-popup-floating .photo-popup {
+            max-width: 280px;
+        }
+
+        .photo-popup-floating .photo-popup img {
+            max-width: 100%;
+            max-height: 200px;
+            object-fit: contain;
+        }
+
         /* Photo Viewer Modal */
         .photo-viewer-modal {
             display: none;
@@ -1035,6 +1054,33 @@
             margin-bottom: 16px;
         }
 
+        .detail-description {
+            font-size: 14px;
+            color: #444;
+            line-height: 1.5;
+            margin-bottom: 16px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-left: 3px solid #fc4c02;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .detail-description:empty {
+            display: none;
+        }
+
+        .detail-description a {
+            color: #fc4c02;
+            text-decoration: none;
+            word-break: break-all;
+        }
+
+        .detail-description a:hover {
+            text-decoration: underline;
+        }
+
         .detail-stats {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -1352,6 +1398,34 @@
             padding: 24px;
             max-width: 1200px;
             margin: 0 auto;
+        }
+
+        .full-session-description {
+            font-size: 15px;
+            color: #444;
+            line-height: 1.6;
+            margin-bottom: 24px;
+            padding: 16px 20px;
+            background: #fff;
+            border-left: 4px solid #fc4c02;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .full-session-description:empty {
+            display: none;
+        }
+
+        .full-session-description a {
+            color: #fc4c02;
+            text-decoration: none;
+            word-break: break-all;
+        }
+
+        .full-session-description a:hover {
+            text-decoration: underline;
         }
 
         .full-session-stats {
@@ -2166,7 +2240,7 @@
             <img src="assets/mykrok-icon.svg" alt="Logo">
             <span class="app-logo-text">
                 MyKrok
-                <span class="app-version">v1.3.1.dev8+g4dfb6a028</span>
+                <span class="app-version">v1.3.1.dev14+gc614ccc58</span>
             </span>
         </a>
         <nav class="app-nav">
@@ -2221,6 +2295,7 @@
                 </div>
                 <div class="detail-content">
                     <div class="detail-meta" id="detail-meta"></div>
+                    <div class="detail-description" id="detail-description"></div>
                     <div class="detail-stats" id="detail-stats"></div>
                     <div class="detail-map" id="detail-map"></div>
                     <div class="detail-streams" id="detail-streams"></div>
@@ -2302,6 +2377,7 @@
                     </button>
                 </header>
                 <div class="full-session-content">
+                    <section class="full-session-description" id="full-session-description"></section>
                     <section class="full-session-stats" id="full-session-stats"></section>
                     <section class="full-session-map">
                         <div id="full-session-map-container"></div>
