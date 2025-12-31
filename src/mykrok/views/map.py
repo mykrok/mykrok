@@ -1153,6 +1153,33 @@ def generate_browser(_data_dir: Path) -> str:
             margin-bottom: 16px;
         }}
 
+        .detail-description {{
+            font-size: 14px;
+            color: #444;
+            line-height: 1.5;
+            margin-bottom: 16px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-left: 3px solid #fc4c02;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }}
+
+        .detail-description:empty {{
+            display: none;
+        }}
+
+        .detail-description a {{
+            color: #fc4c02;
+            text-decoration: none;
+            word-break: break-all;
+        }}
+
+        .detail-description a:hover {{
+            text-decoration: underline;
+        }}
+
         .detail-stats {{
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -1470,6 +1497,34 @@ def generate_browser(_data_dir: Path) -> str:
             padding: 24px;
             max-width: 1200px;
             margin: 0 auto;
+        }}
+
+        .full-session-description {{
+            font-size: 15px;
+            color: #444;
+            line-height: 1.6;
+            margin-bottom: 24px;
+            padding: 16px 20px;
+            background: #fff;
+            border-left: 4px solid #fc4c02;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }}
+
+        .full-session-description:empty {{
+            display: none;
+        }}
+
+        .full-session-description a {{
+            color: #fc4c02;
+            text-decoration: none;
+            word-break: break-all;
+        }}
+
+        .full-session-description a:hover {{
+            text-decoration: underline;
         }}
 
         .full-session-stats {{
@@ -2339,6 +2394,7 @@ def generate_browser(_data_dir: Path) -> str:
                 </div>
                 <div class="detail-content">
                     <div class="detail-meta" id="detail-meta"></div>
+                    <div class="detail-description" id="detail-description"></div>
                     <div class="detail-stats" id="detail-stats"></div>
                     <div class="detail-map" id="detail-map"></div>
                     <div class="detail-streams" id="detail-streams"></div>
@@ -2420,6 +2476,7 @@ def generate_browser(_data_dir: Path) -> str:
                     </button>
                 </header>
                 <div class="full-session-content">
+                    <section class="full-session-description" id="full-session-description"></section>
                     <section class="full-session-stats" id="full-session-stats"></section>
                     <section class="full-session-map">
                         <div id="full-session-map-container"></div>

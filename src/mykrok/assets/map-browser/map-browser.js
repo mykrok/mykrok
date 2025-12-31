@@ -2740,6 +2740,9 @@ const SessionsView = {
         // Load track for mini-map
         this.loadDetailMap(athlete, sessionId);
 
+        // Load description from info.json
+        this.loadDetailDescription(athlete, sessionId);
+
         // Load photos if available
         const photoCount = parseInt(session.photo_count) || 0;
         if (photoCount > 0) {
@@ -2879,6 +2882,42 @@ const SessionsView = {
         } catch (e) {
             console.warn('Failed to load detail map:', e);
             mapContainer.style.display = 'none';
+        }
+    },
+
+    // Convert URLs in text to clickable links (with HTML escaping for safety)
+    linkifyText(text) {
+        // First escape HTML entities to prevent XSS
+        const escapeHtml = (str) => str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+
+        const escaped = escapeHtml(text);
+
+        // Then convert URLs to links
+        // Match http:// or https:// URLs
+        const urlPattern = /(https?:\/\/[^\s<>&"]+)/g;
+        return escaped.replace(urlPattern, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+    },
+
+    async loadDetailDescription(athlete, sessionId) {
+        const container = document.getElementById('detail-description');
+        container.innerHTML = '';
+
+        try {
+            const response = await fetch(`athl=${athlete}/ses=${sessionId}/info.json`);
+            if (!response.ok) return;
+
+            const info = await response.json();
+            const description = info.description;
+
+            if (description && description.trim()) {
+                container.innerHTML = this.linkifyText(description);
+            }
+        } catch (e) {
+            console.warn('Failed to load description:', e);
         }
     },
 
@@ -3173,6 +3212,9 @@ const FullSessionView = {
             }
         };
 
+        // Load description from info.json
+        this.loadDescription(athlete, datetime);
+
         // Render stats
         this.renderStats(session);
 
@@ -3206,6 +3248,26 @@ const FullSessionView = {
         const m = Math.floor((seconds % 3600) / 60);
         if (h > 0) return `${h}h ${m}m`;
         return `${m}m`;
+    },
+
+    async loadDescription(athlete, datetime) {
+        const container = document.getElementById('full-session-description');
+        container.innerHTML = '';
+
+        try {
+            const response = await fetch(`athl=${athlete}/ses=${datetime}/info.json`);
+            if (!response.ok) return;
+
+            const info = await response.json();
+            const description = info.description;
+
+            if (description && description.trim()) {
+                // Use SessionsView's linkifyText helper
+                container.innerHTML = SessionsView.linkifyText(description);
+            }
+        } catch (e) {
+            console.warn('Failed to load description:', e);
+        }
     },
 
     renderStats(session) {
