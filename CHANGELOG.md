@@ -1,5 +1,35 @@
 # Changelog
 
+## v1.4.0 (2025-12-31)
+
+#### 🚀 Features
+
+- Add photo markers to session view charts and maps
+  - Camera icons on elevation and activity charts at positions where photos were taken
+  - Photo markers on session map along the track path
+  - Hover shows photo preview popup with thumbnail, navigation, and session info
+  - Click opens full PhotoViewer modal
+- Display activity description on session detail pages
+  - Shows Strava description with clickable links
+  - Styled with accent border matching app theme
+- Add automatic social refresh during sync
+  - Default syncs now update kudos/comments for activities from past 7 days
+  - Configurable via `--refresh-social-days` option
+- Auto-generate `athletes.tsv` during sync if missing
+  - Fixes `create-browser` failing after first sync
+
+#### 🔧 Improvements
+
+- Add reusable PhotoPopup component for consistent photo popups across map, session, and chart views
+- Add migration for old CLI commands in Makefile (`mykrok view map` → `mykrok create-browser`)
+- Move inline imports to module level per code style guidelines
+
+#### Authors: 1
+
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 ## v1.3.0 (2025-12-29)
 
 #### 🚀 Features
