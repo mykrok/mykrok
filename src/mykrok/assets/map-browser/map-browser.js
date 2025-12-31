@@ -3154,6 +3154,61 @@ const FullSessionView = {
         } catch (e) {
             console.warn('Could not load track:', e);
         }
+
+        // Load photo markers from info.json
+        try {
+            const infoResponse = await fetch(`athl=${athlete}/ses=${datetime}/info.json`);
+            if (infoResponse.ok) {
+                const info = await infoResponse.json();
+                const photos = info.photos || [];
+                const self = this;
+
+                // Add photo markers for photos with GPS location
+                photos.forEach((photo, index) => {
+                    const locationRaw = photo.location;
+                    if (!locationRaw || !locationRaw.length || !locationRaw[0] || locationRaw[0].length < 2) {
+                        return;
+                    }
+                    // Photo location format: [[timestamp?, [lat, lng]]] or [[lat, lng]]
+                    let lat, lng;
+                    if (Array.isArray(locationRaw[0]) && locationRaw[0].length >= 2) {
+                        if (Array.isArray(locationRaw[0][1])) {
+                            // Format: [[timestamp, [lat, lng]]]
+                            [lat, lng] = locationRaw[0][1];
+                        } else {
+                            // Format: [[lat, lng]]
+                            [lat, lng] = locationRaw[0];
+                        }
+                    }
+
+                    if (lat == null || lng == null) return;
+
+                    // Create photo icon (same as used in MapView)
+                    const photoIcon = L.divIcon({
+                        html: '<div class="photo-icon" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;">' +
+                              '<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>' +
+                              '</div>',
+                        className: '',
+                        iconSize: [28, 28],
+                        iconAnchor: [14, 14]
+                    });
+
+                    const marker = L.marker([lat, lng], { icon: photoIcon });
+                    marker.on('click', () => {
+                        if (self.sessionPhotos && self.sessionPhotos.length > index) {
+                            PhotoViewer.open(self.sessionPhotos, index, {
+                                athlete: self.currentAthlete,
+                                datetime: self.currentSession,
+                                source: 'session'
+                            });
+                        }
+                    });
+                    marker.addTo(this.map);
+                });
+            }
+        } catch (e) {
+            console.warn('Could not load photo markers:', e);
+        }
     },
 
     streamCharts: [],  // Track Chart.js instances for cleanup
@@ -3318,6 +3373,50 @@ const FullSessionView = {
         return positions;
     },
 
+    // Create camera icon for chart markers
+    getCameraIcon() {
+        if (this._cameraIcon) return this._cameraIcon;
+
+        // Create a canvas with camera icon
+        const canvas = document.createElement('canvas');
+        canvas.width = 24;
+        canvas.height = 24;
+        const ctx = canvas.getContext('2d');
+
+        // Draw circular background
+        ctx.beginPath();
+        ctx.arc(12, 12, 11, 0, 2 * Math.PI);
+        ctx.fillStyle = '#fc5200';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Draw camera icon (scaled and centered)
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        // Simple camera shape
+        ctx.moveTo(6, 9);
+        ctx.lineTo(6, 17);
+        ctx.lineTo(18, 17);
+        ctx.lineTo(18, 9);
+        ctx.lineTo(15, 9);
+        ctx.lineTo(14, 7);
+        ctx.lineTo(10, 7);
+        ctx.lineTo(9, 9);
+        ctx.closePath();
+        ctx.fill();
+
+        // Camera lens (circle cutout)
+        ctx.beginPath();
+        ctx.arc(12, 13, 3, 0, 2 * Math.PI);
+        ctx.fillStyle = '#fc5200';
+        ctx.fill();
+
+        this._cameraIcon = canvas;
+        return canvas;
+    },
+
     renderStreamCharts() {
         if (!this.streamData) return;
         const { sampled, fullData, hasElevation, hasHr, hasCadence, hasWatts, hasDistance } = this.streamData;
@@ -3330,7 +3429,7 @@ const FullSessionView = {
         const selector = document.getElementById('xaxis-selector');
         const useDistance = selector ? selector.value === 'distance' : hasDistance;
 
-        // Calculate X-axis data
+        // Calculate X-axis data as {x, y} points for proper linear axis
         const xData = sampled.map(r => {
             if (useDistance && r.distance) return Math.round(r.distance / 100) / 10;  // km, 1 decimal
             return Math.round((r.time || 0) / 60);  // minutes, whole numbers
@@ -3340,16 +3439,25 @@ const FullSessionView = {
         // Calculate photo marker positions
         const photoPositions = this.getPhotoChartPositions(fullData, useDistance);
 
+        // Get camera icon for markers
+        const cameraIcon = this.getCameraIcon();
+
         // Create elevation chart
         if (hasElevation) {
             const elevData = sampled.map(r => r.altitude);
             const minElev = Math.min(...elevData.filter(e => e != null));
             const maxElev = Math.max(...elevData.filter(e => e != null));
 
+            // Convert to {x, y} format for linear scale
+            const elevPoints = sampled.map((r, i) => ({
+                x: xData[i],
+                y: r.altitude
+            }));
+
             // Build datasets array
             const elevDatasets = [{
                 label: 'Elevation',
-                data: elevData,
+                data: elevPoints,
                 borderColor: '#888',
                 backgroundColor: 'rgba(100, 100, 100, 0.2)',
                 fill: true,
@@ -3364,12 +3472,9 @@ const FullSessionView = {
                     label: 'Photos',
                     data: photoPositions.map(p => ({ x: p.x, y: p.y })),
                     type: 'scatter',
-                    backgroundColor: '#fc5200',
-                    borderColor: '#fff',
-                    borderWidth: 2,
-                    pointRadius: 8,
-                    pointStyle: 'circle',
-                    pointHoverRadius: 10,
+                    pointStyle: cameraIcon,
+                    pointRadius: 12,
+                    pointHoverRadius: 14,
                     order: 0,  // Render on top
                     // Store photo indices for click handler
                     photoIndices: photoPositions.map(p => p.index)
@@ -3380,15 +3485,14 @@ const FullSessionView = {
             const elevChart = new Chart(document.getElementById('elevation-chart'), {
                 type: 'line',
                 data: {
-                    labels: xData,
                     datasets: elevDatasets
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     interaction: {
-                        mode: 'index',
-                        intersect: false
+                        mode: 'nearest',
+                        intersect: true
                     },
                     onClick: (event, elements) => {
                         // Handle click on photo markers
@@ -3410,24 +3514,16 @@ const FullSessionView = {
                     plugins: {
                         legend: { display: false },
                         tooltip: {
+                            filter: (item) => item.dataset.label === 'Photos',
                             callbacks: {
-                                title: (items) => {
-                                    if (items[0].dataset.label === 'Photos') {
-                                        return 'Photo';
-                                    }
-                                    return `${items[0].parsed.x.toFixed(1)} ${useDistance ? 'km' : 'min'}`;
-                                },
-                                label: (item) => {
-                                    if (item.dataset.label === 'Photos') {
-                                        return 'Click to view';
-                                    }
-                                    return `${item.parsed.y.toFixed(0)} m`;
-                                }
+                                title: () => 'Photo',
+                                label: () => 'Click to view'
                             }
                         }
                     },
                     scales: {
                         x: {
+                            type: 'linear',
                             display: true,
                             title: { display: false },
                             ticks: { font: { size: 10 }, maxTicksLimit: 8 }
@@ -3451,14 +3547,15 @@ const FullSessionView = {
 
             if (hasHr) {
                 // Filter out initial 0 HR readings (common sensor artifact)
-                const hrData = sampled.map((r, i) => {
+                // Convert to {x, y} format for linear scale
+                const hrPoints = sampled.map((r, i) => {
                     // Skip first point if HR is 0 or very low (sensor warming up)
-                    if (i === 0 && (!r.heartrate || r.heartrate < 30)) return null;
-                    return r.heartrate || null;
+                    if (i === 0 && (!r.heartrate || r.heartrate < 30)) return { x: xData[i], y: null };
+                    return { x: xData[i], y: r.heartrate || null };
                 });
                 datasets.push({
                     label: 'Heart Rate',
-                    data: hrData,
+                    data: hrPoints,
                     borderColor: '#e63946',
                     backgroundColor: 'rgba(230, 57, 70, 0.1)',
                     fill: false,
@@ -3471,9 +3568,13 @@ const FullSessionView = {
             }
 
             if (hasCadence) {
+                const cadPoints = sampled.map((r, i) => ({
+                    x: xData[i],
+                    y: r.cadence
+                }));
                 datasets.push({
                     label: 'Cadence',
-                    data: sampled.map(r => r.cadence),
+                    data: cadPoints,
                     borderColor: '#457b9d',
                     backgroundColor: 'rgba(69, 123, 157, 0.1)',
                     fill: false,
@@ -3485,9 +3586,13 @@ const FullSessionView = {
             }
 
             if (hasWatts) {
+                const wattsPoints = sampled.map((r, i) => ({
+                    x: xData[i],
+                    y: r.watts
+                }));
                 datasets.push({
                     label: 'Power',
-                    data: sampled.map(r => r.watts),
+                    data: wattsPoints,
                     borderColor: '#f4a261',
                     backgroundColor: 'rgba(244, 162, 97, 0.1)',
                     fill: false,
@@ -3501,6 +3606,7 @@ const FullSessionView = {
             // Configure scales based on available data
             const scales = {
                 x: {
+                    type: 'linear',
                     display: true,
                     title: { display: true, text: xLabel, font: { size: 10 } },
                     ticks: { font: { size: 10 }, maxTicksLimit: 8 }
@@ -3548,16 +3654,16 @@ const FullSessionView = {
                 let maxValue = 200;  // Default max HR
 
                 if (hasHr) {
-                    const hrData = sampled.map(r => r.heartrate).filter(v => v);
-                    maxValue = Math.max(...hrData) * 1.05;
+                    const hrVals = sampled.map(r => r.heartrate).filter(v => v);
+                    maxValue = Math.max(...hrVals) * 1.05;
                     yAxisId = 'yHr';
                 } else if (hasCadence) {
-                    const cadData = sampled.map(r => r.cadence).filter(v => v);
-                    maxValue = Math.max(...cadData) * 1.05;
+                    const cadVals = sampled.map(r => r.cadence).filter(v => v);
+                    maxValue = Math.max(...cadVals) * 1.05;
                     yAxisId = 'yCadence';
                 } else if (hasWatts) {
-                    const wattsData = sampled.map(r => r.watts).filter(v => v);
-                    maxValue = Math.max(...wattsData) * 1.05;
+                    const wattsVals = sampled.map(r => r.watts).filter(v => v);
+                    maxValue = Math.max(...wattsVals) * 1.05;
                     yAxisId = 'yPower';
                 }
 
@@ -3565,12 +3671,9 @@ const FullSessionView = {
                     label: 'Photos',
                     data: photoPositions.map(p => ({ x: p.x, y: maxValue })),
                     type: 'scatter',
-                    backgroundColor: '#fc5200',
-                    borderColor: '#fff',
-                    borderWidth: 2,
-                    pointRadius: 8,
-                    pointStyle: 'circle',
-                    pointHoverRadius: 10,
+                    pointStyle: cameraIcon,
+                    pointRadius: 12,
+                    pointHoverRadius: 14,
                     order: 0,  // Render on top
                     yAxisID: yAxisId,
                     photoIndices: photoPositions.map(p => p.index)
@@ -3581,15 +3684,14 @@ const FullSessionView = {
             const activityChart = new Chart(document.getElementById('activity-chart'), {
                 type: 'line',
                 data: {
-                    labels: xData,
                     datasets: datasets
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     interaction: {
-                        mode: 'index',
-                        intersect: false
+                        mode: 'nearest',
+                        intersect: true
                     },
                     onClick: (event, elements) => {
                         // Handle click on photo markers
@@ -3620,21 +3722,10 @@ const FullSessionView = {
                             }
                         },
                         tooltip: {
+                            filter: (item) => item.dataset.label === 'Photos',
                             callbacks: {
-                                title: (items) => {
-                                    if (items[0].dataset.label === 'Photos') {
-                                        return 'Photo';
-                                    }
-                                    return `${items[0].parsed.x.toFixed(1)} ${useDistance ? 'km' : 'min'}`;
-                                },
-                                label: (item) => {
-                                    if (item.dataset.label === 'Photos') {
-                                        return 'Click to view';
-                                    }
-                                    const unit = item.dataset.label === 'Heart Rate' ? 'bpm'
-                                        : item.dataset.label === 'Cadence' ? 'rpm' : 'W';
-                                    return `${item.dataset.label}: ${item.parsed.y} ${unit}`;
-                                }
+                                title: () => 'Photo',
+                                label: () => 'Click to view'
                             }
                         }
                     },
