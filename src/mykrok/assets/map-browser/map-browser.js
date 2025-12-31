@@ -3207,7 +3207,8 @@ const FullSessionView = {
             const hasTime = sampled.some(r => r.time !== undefined);
 
             // Store data for re-rendering when X-axis changes
-            this.streamData = { sampled, hasElevation, hasHr, hasCadence, hasWatts, hasDistance, hasTime };
+            // Keep full data for photo position interpolation
+            this.streamData = { sampled, fullData: data, hasElevation, hasHr, hasCadence, hasWatts, hasDistance, hasTime };
 
             // Build HTML with X-axis selector
             let html = '<div class="stream-header">';
@@ -3261,9 +3262,65 @@ const FullSessionView = {
 
     xAxisMode: 'distance',  // Default mode
 
+    // Calculate photo X-axis positions by interpolating from stream data
+    getPhotoChartPositions(fullData, useDistance) {
+        if (!this.photoPositions || this.photoPositions.length === 0 || !fullData || fullData.length === 0) {
+            return [];
+        }
+
+        const positions = [];
+        for (const photo of this.photoPositions) {
+            const { elapsedSeconds, index } = photo;
+
+            // Find the stream data points around this elapsed time
+            let prevPoint = null;
+            let nextPoint = null;
+            for (let i = 0; i < fullData.length; i++) {
+                const point = fullData[i];
+                if (point.time === undefined) continue;
+
+                if (point.time <= elapsedSeconds) {
+                    prevPoint = point;
+                } else {
+                    nextPoint = point;
+                    break;
+                }
+            }
+
+            // Interpolate position
+            let xValue, yValue;
+            if (prevPoint && nextPoint && prevPoint.time !== nextPoint.time) {
+                // Linear interpolation
+                const ratio = (elapsedSeconds - prevPoint.time) / (nextPoint.time - prevPoint.time);
+                if (useDistance) {
+                    const prevDist = prevPoint.distance || 0;
+                    const nextDist = nextPoint.distance || 0;
+                    xValue = (prevDist + ratio * (nextDist - prevDist)) / 1000;  // km
+                } else {
+                    xValue = elapsedSeconds / 60;  // minutes
+                }
+                // Interpolate altitude for y position
+                const prevAlt = prevPoint.altitude || 0;
+                const nextAlt = nextPoint.altitude || 0;
+                yValue = prevAlt + ratio * (nextAlt - prevAlt);
+            } else if (prevPoint) {
+                xValue = useDistance ? (prevPoint.distance || 0) / 1000 : elapsedSeconds / 60;
+                yValue = prevPoint.altitude || 0;
+            } else if (nextPoint) {
+                xValue = useDistance ? (nextPoint.distance || 0) / 1000 : elapsedSeconds / 60;
+                yValue = nextPoint.altitude || 0;
+            } else {
+                continue;  // No valid stream data for this photo
+            }
+
+            positions.push({ x: xValue, y: yValue, index });
+        }
+        return positions;
+    },
+
     renderStreamCharts() {
         if (!this.streamData) return;
-        const { sampled, hasElevation, hasHr, hasCadence, hasWatts, hasDistance } = this.streamData;
+        const { sampled, fullData, hasElevation, hasHr, hasCadence, hasWatts, hasDistance } = this.streamData;
 
         // Destroy existing charts
         this.streamCharts.forEach(chart => chart.destroy());
@@ -3280,26 +3337,51 @@ const FullSessionView = {
         });
         const xLabel = useDistance ? 'Distance (km)' : 'Time (min)';
 
+        // Calculate photo marker positions
+        const photoPositions = this.getPhotoChartPositions(fullData, useDistance);
+
         // Create elevation chart
         if (hasElevation) {
             const elevData = sampled.map(r => r.altitude);
             const minElev = Math.min(...elevData.filter(e => e != null));
             const maxElev = Math.max(...elevData.filter(e => e != null));
 
+            // Build datasets array
+            const elevDatasets = [{
+                label: 'Elevation',
+                data: elevData,
+                borderColor: '#888',
+                backgroundColor: 'rgba(100, 100, 100, 0.2)',
+                fill: true,
+                tension: 0.3,
+                borderWidth: 1,
+                pointRadius: 0,
+            }];
+
+            // Add photo markers if available
+            if (photoPositions.length > 0) {
+                elevDatasets.push({
+                    label: 'Photos',
+                    data: photoPositions.map(p => ({ x: p.x, y: p.y })),
+                    type: 'scatter',
+                    backgroundColor: '#fc5200',
+                    borderColor: '#fff',
+                    borderWidth: 2,
+                    pointRadius: 8,
+                    pointStyle: 'circle',
+                    pointHoverRadius: 10,
+                    order: 0,  // Render on top
+                    // Store photo indices for click handler
+                    photoIndices: photoPositions.map(p => p.index)
+                });
+            }
+
+            const self = this;
             const elevChart = new Chart(document.getElementById('elevation-chart'), {
                 type: 'line',
                 data: {
                     labels: xData,
-                    datasets: [{
-                        label: 'Elevation',
-                        data: elevData,
-                        borderColor: '#888',
-                        backgroundColor: 'rgba(100, 100, 100, 0.2)',
-                        fill: true,
-                        tension: 0.3,
-                        borderWidth: 1,
-                        pointRadius: 0,
-                    }]
+                    datasets: elevDatasets
                 },
                 options: {
                     responsive: true,
@@ -3308,12 +3390,39 @@ const FullSessionView = {
                         mode: 'index',
                         intersect: false
                     },
+                    onClick: (event, elements) => {
+                        // Handle click on photo markers
+                        if (elements.length > 0) {
+                            const element = elements[0];
+                            const dataset = elevChart.data.datasets[element.datasetIndex];
+                            if (dataset.photoIndices) {
+                                const photoIndex = dataset.photoIndices[element.index];
+                                if (photoIndex !== undefined && self.sessionPhotos.length > 0) {
+                                    PhotoViewer.open(self.sessionPhotos, photoIndex, {
+                                        athlete: self.currentAthlete,
+                                        datetime: self.currentSession,
+                                        source: 'session'
+                                    });
+                                }
+                            }
+                        }
+                    },
                     plugins: {
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
-                                title: (items) => `${items[0].parsed.x.toFixed(1)} ${useDistance ? 'km' : 'min'}`,
-                                label: (item) => `${item.parsed.y.toFixed(0)} m`
+                                title: (items) => {
+                                    if (items[0].dataset.label === 'Photos') {
+                                        return 'Photo';
+                                    }
+                                    return `${items[0].parsed.x.toFixed(1)} ${useDistance ? 'km' : 'min'}`;
+                                },
+                                label: (item) => {
+                                    if (item.dataset.label === 'Photos') {
+                                        return 'Click to view';
+                                    }
+                                    return `${item.parsed.y.toFixed(0)} m`;
+                                }
                             }
                         }
                     },
@@ -3431,6 +3540,44 @@ const FullSessionView = {
                 };
             }
 
+            // Add photo markers to activity chart if available
+            // Place them at the top of the primary Y-axis
+            if (photoPositions.length > 0) {
+                // Determine which Y-axis to use and calculate max value
+                let yAxisId = 'yHr';
+                let maxValue = 200;  // Default max HR
+
+                if (hasHr) {
+                    const hrData = sampled.map(r => r.heartrate).filter(v => v);
+                    maxValue = Math.max(...hrData) * 1.05;
+                    yAxisId = 'yHr';
+                } else if (hasCadence) {
+                    const cadData = sampled.map(r => r.cadence).filter(v => v);
+                    maxValue = Math.max(...cadData) * 1.05;
+                    yAxisId = 'yCadence';
+                } else if (hasWatts) {
+                    const wattsData = sampled.map(r => r.watts).filter(v => v);
+                    maxValue = Math.max(...wattsData) * 1.05;
+                    yAxisId = 'yPower';
+                }
+
+                datasets.push({
+                    label: 'Photos',
+                    data: photoPositions.map(p => ({ x: p.x, y: maxValue })),
+                    type: 'scatter',
+                    backgroundColor: '#fc5200',
+                    borderColor: '#fff',
+                    borderWidth: 2,
+                    pointRadius: 8,
+                    pointStyle: 'circle',
+                    pointHoverRadius: 10,
+                    order: 0,  // Render on top
+                    yAxisID: yAxisId,
+                    photoIndices: photoPositions.map(p => p.index)
+                });
+            }
+
+            const self = this;
             const activityChart = new Chart(document.getElementById('activity-chart'), {
                 type: 'line',
                 data: {
@@ -3444,15 +3591,50 @@ const FullSessionView = {
                         mode: 'index',
                         intersect: false
                     },
+                    onClick: (event, elements) => {
+                        // Handle click on photo markers
+                        if (elements.length > 0) {
+                            const element = elements[0];
+                            const dataset = activityChart.data.datasets[element.datasetIndex];
+                            if (dataset.photoIndices) {
+                                const photoIndex = dataset.photoIndices[element.index];
+                                if (photoIndex !== undefined && self.sessionPhotos.length > 0) {
+                                    PhotoViewer.open(self.sessionPhotos, photoIndex, {
+                                        athlete: self.currentAthlete,
+                                        datetime: self.currentSession,
+                                        source: 'session'
+                                    });
+                                }
+                            }
+                        }
+                    },
                     plugins: {
                         legend: {
                             display: true,
                             position: 'top',
-                            labels: { font: { size: 11 }, usePointStyle: true, boxWidth: 6 }
+                            labels: {
+                                font: { size: 11 },
+                                usePointStyle: true,
+                                boxWidth: 6,
+                                filter: (item) => item.text !== 'Photos'  // Hide Photos from legend
+                            }
                         },
                         tooltip: {
                             callbacks: {
-                                title: (items) => `${items[0].parsed.x.toFixed(1)} ${useDistance ? 'km' : 'min'}`
+                                title: (items) => {
+                                    if (items[0].dataset.label === 'Photos') {
+                                        return 'Photo';
+                                    }
+                                    return `${items[0].parsed.x.toFixed(1)} ${useDistance ? 'km' : 'min'}`;
+                                },
+                                label: (item) => {
+                                    if (item.dataset.label === 'Photos') {
+                                        return 'Click to view';
+                                    }
+                                    const unit = item.dataset.label === 'Heart Rate' ? 'bpm'
+                                        : item.dataset.label === 'Cadence' ? 'rpm' : 'W';
+                                    return `${item.dataset.label}: ${item.parsed.y} ${unit}`;
+                                }
                             }
                         }
                     },
@@ -3464,11 +3646,13 @@ const FullSessionView = {
     },
 
     sessionPhotos: [],  // Store photos for PhotoViewer
+    photoPositions: [],  // Store photo elapsed times for chart markers
 
     async loadPhotos(athlete, datetime, session) {
         const container = document.getElementById('full-session-photos');
         const photoCount = parseInt(session?.photo_count) || 0;
         this.sessionPhotos = [];
+        this.photoPositions = [];
 
         if (photoCount === 0) {
             container.innerHTML = '';
@@ -3496,8 +3680,12 @@ const FullSessionView = {
                 return;
             }
 
+            // Parse activity start time for calculating photo elapsed times
+            const startDateLocal = info.start_date_local;
+            const activityStart = startDateLocal ? new Date(startDateLocal).getTime() : null;
+
             // Build photo data array for PhotoViewer
-            this.sessionPhotos = photos.map(photo => {
+            this.sessionPhotos = photos.map((photo, index) => {
                 const urls = photo.urls || {};
                 const thumbUrl = urls['600'] || urls['256'] || Object.values(urls)[0] || '';
                 const fullUrl = urls['2048'] || urls['1024'] || urls['600'] || thumbUrl;
@@ -3505,9 +3693,20 @@ const FullSessionView = {
                 // Build local path from created_at timestamp
                 const createdAt = photo.created_at || '';
                 let localPath = '';
+                let elapsedSeconds = null;
                 if (createdAt) {
                     const dt = createdAt.replace(/[-:]/g, '').replace(/\+.*$/, '').substring(0, 15);
                     localPath = `athl=${athlete}/ses=${datetime}/photos/${dt}.jpg`;
+
+                    // Calculate elapsed seconds from activity start
+                    if (activityStart) {
+                        const photoTime = new Date(createdAt).getTime();
+                        elapsedSeconds = Math.round((photoTime - activityStart) / 1000);
+                        // Only keep positive elapsed times (photo taken during activity)
+                        if (elapsedSeconds >= 0) {
+                            this.photoPositions.push({ elapsedSeconds, index });
+                        }
+                    }
                 }
 
                 return {
@@ -3515,6 +3714,11 @@ const FullSessionView = {
                     fullUrl: localPath || fullUrl
                 };
             }).filter(p => p.src);
+
+            // Re-render charts if stream data is available (to add photo markers)
+            if (this.streamData && this.photoPositions.length > 0) {
+                this.renderStreamCharts();
+            }
 
             const grid = document.getElementById('full-session-photo-grid');
             grid.innerHTML = this.sessionPhotos.map((photo, index) => `
