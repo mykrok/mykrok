@@ -1430,8 +1430,8 @@ const MapView = {
             }
         }
         if (this.bounds.isValid()) {
-            // Use flyToBounds for smooth animation
-            this.map.flyToBounds(this.bounds, { padding: [20, 20], duration: 0.8 });
+            // Use flyToBounds for smooth animation (maxZoom prevents over-zooming on single point)
+            this.map.flyToBounds(this.bounds, { padding: [20, 20], duration: 0.8, maxZoom: 14 });
         }
     },
 
@@ -1930,7 +1930,7 @@ const MapView = {
 
             // Only fit bounds if not restoring from URL
             if (this.bounds.isValid() && !this.restoringFromURL) {
-                this.map.fitBounds(this.bounds, { padding: [20, 20] });
+                this.map.fitBounds(this.bounds, { padding: [20, 20], maxZoom: 14 });
             }
             this.restoringFromURL = false;  // Reset flag after first load
 
@@ -2862,22 +2862,21 @@ const SessionsView = {
                 const session = this.selectedSession;
                 const color = this.typeColors[session?.type] || '#fc4c02';
                 const polyline = L.polyline(coords, { color, weight: 3 }).addTo(this.detailMapInstance);
-                this.detailMapInstance.fitBounds(polyline.getBounds(), { padding: [10, 10] });
+                this.detailMapInstance.fitBounds(polyline.getBounds(), { padding: [10, 10], maxZoom: 17 });
 
                 // Add "View on Map" button with proper navigation
-                const lat = coords[0][0];
-                const lng = coords[0][1];
                 const btn = document.createElement('button');
                 btn.className = 'view-on-map-btn';
                 btn.textContent = 'View on Map';
                 btn.onclick = () => {
                     const session = this.selectedSession;
                     if (session) {
-                        // Include track parameter to load the track on the map
+                        // Navigate to map view with track loaded - map will fit to track bounds
                         const trackKey = `${session.athlete}/${session.datetime}`;
-                        location.hash = `#/map?z=14&lat=${lat}&lng=${lng}&track=${encodeURIComponent(trackKey)}`;
+                        location.hash = `#/map?track=${encodeURIComponent(trackKey)}`;
                     } else {
-                        location.hash = `#/map?z=14&lat=${lat}&lng=${lng}`;
+                        // Fallback to default map view
+                        location.hash = '#/map';
                     }
                 };
                 mapContainer.insertAdjacentElement('afterend', btn);
@@ -3358,7 +3357,7 @@ const FullSessionView = {
                     color: MapView.typeColors[this.currentSession?.type] || '#fc4c02',
                     weight: 3
                 }).addTo(this.map);
-                this.map.fitBounds(polyline.getBounds(), { padding: [20, 20] });
+                this.map.fitBounds(polyline.getBounds(), { padding: [20, 20], maxZoom: 17 });
             }
         } catch (e) {
             console.warn('Could not load track:', e);
