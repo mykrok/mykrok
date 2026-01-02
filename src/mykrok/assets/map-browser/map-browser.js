@@ -3202,14 +3202,9 @@ const FullSessionView = {
         // Update "View on Map" button
         const mapBtn = document.getElementById('full-session-map-btn');
         mapBtn.onclick = () => {
-            // Navigate to map view centered on this session
-            const lat = parseFloat(session.start_lat);
-            const lng = parseFloat(session.start_lng);
-            if (!isNaN(lat) && !isNaN(lng)) {
-                location.hash = `#/map?z=14&lat=${lat}&lng=${lng}`;
-            } else {
-                location.hash = '#/map';
-            }
+            // Navigate to map view with track loaded - map will fit to track bounds
+            const trackKey = `${athlete}/${datetime}`;
+            location.hash = `#/map?track=${encodeURIComponent(trackKey)}`;
         };
 
         // Load description from info.json
