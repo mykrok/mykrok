@@ -329,10 +329,9 @@ const URLState = {
         if (state.dateTo) params.set('to', state.dateTo);
 
         // Map-specific params - only include for map view
+        // Note: zoom/lat/lng are NOT persisted - map always fits to activities
+        // unless a specific track is selected
         if (state.view === 'map') {
-            if (state.zoom) params.set('z', state.zoom);
-            if (state.lat) params.set('lat', state.lat.toFixed(4));
-            if (state.lng) params.set('lng', state.lng.toFixed(4));
             // Track selection on map: track=athlete/datetime
             if (state.track) params.set('track', state.track);
             // Photo popup on map: popup=athlete/datetime/photoIndex
@@ -971,10 +970,20 @@ const Router = {
         }
 
         // Apply map position if on map view
-        if (state.view === 'map' && state.zoom && state.lat && state.lng) {
-            if (MapView.map) {
+        if (state.view === 'map' && MapView.map) {
+            if (state.zoom && state.lat && state.lng) {
+                // Explicit position from URL (backward compatibility with bookmarks)
                 MapView.map.setView([state.lat, state.lng], state.zoom);
+            } else if (!state.track) {
+                // No specific track or position - fit to all filtered activities
+                // Delay to run after invalidateSize (100ms in showView) completes
+                setTimeout(() => {
+                    if (MapView.allMarkers.length > 0) {
+                        MapView.fitToVisibleMarkers();
+                    }
+                }, 150);
             }
+            // If track is specified, restoreTrackFromURL will handle positioning
         }
 
         // Sync shared FilterState from URL (applies to all views)
@@ -1285,17 +1294,6 @@ const MapView = {
         this.map.on('zoomend', () => {
             this.loadVisibleTracks();
             this.updateInfo();
-        });
-
-        // Update URL when map position changes (debounced)
-        let urlUpdateTimeout = null;
-        this.map.on('moveend', () => {
-            clearTimeout(urlUpdateTimeout);
-            urlUpdateTimeout = setTimeout(() => {
-                const center = this.map.getCenter();
-                const zoom = this.map.getZoom();
-                URLState.update({ zoom, lat: center.lat, lng: center.lng });
-            }, 500);
         });
 
         // Update activities list when viewport filter is enabled (debounced)

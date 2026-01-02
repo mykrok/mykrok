@@ -6,6 +6,7 @@
  */
 
 // URLState.encode logic extracted from map-browser.js
+// Note: zoom/lat/lng are intentionally NOT persisted - map always fits to activities
 const URLStateEncode = (state) => {
     const params = new URLSearchParams();
     // Common params for all views
@@ -17,10 +18,9 @@ const URLStateEncode = (state) => {
     if (state.dateTo) params.set('to', state.dateTo);
 
     // Map-specific params - only include for map view
+    // Note: zoom/lat/lng are NOT persisted - map always fits to activities
+    // unless a specific track is selected
     if (state.view === 'map') {
-        if (state.zoom) params.set('z', state.zoom);
-        if (state.lat) params.set('lat', state.lat.toFixed(4));
-        if (state.lng) params.set('lng', state.lng.toFixed(4));
         if (state.track) params.set('track', state.track);
         if (state.popup) params.set('popup', state.popup);
         if (state.viewportFilter) params.set('vp', '1');
@@ -31,8 +31,8 @@ const URLStateEncode = (state) => {
 };
 
 describe('URLState.encode', () => {
-    describe('map view includes map-specific params', () => {
-        test('includes zoom, lat, lng when view is map', () => {
+    describe('map view - zoom/lat/lng are never persisted', () => {
+        test('does NOT include zoom, lat, lng - map always fits to activities', () => {
             const state = {
                 view: 'map',
                 zoom: 14,
@@ -42,9 +42,11 @@ describe('URLState.encode', () => {
 
             const result = URLStateEncode(state);
 
-            expect(result).toContain('z=14');
-            expect(result).toContain('lat=39.1234');
-            expect(result).toContain('lng=-77.5678');
+            // zoom/lat/lng should NOT be in URL - map fits to activities by default
+            expect(result).toBe('#/map');
+            expect(result).not.toContain('z=');
+            expect(result).not.toContain('lat=');
+            expect(result).not.toContain('lng=');
         });
 
         test('includes track param when view is map', () => {
@@ -215,13 +217,13 @@ describe('URLState.encode', () => {
             const mapResult = URLStateEncode(mapState);
             const sessionsResult = URLStateEncode(sessionsState);
 
-            // Map view should have all params
-            expect(mapResult).toContain('z=14');
-            expect(mapResult).toContain('lat=');
+            // Map view should have common params but NOT zoom/lat/lng (not persisted)
             expect(mapResult).toContain('a=john_doe');
             expect(mapResult).toContain('q=park');
+            expect(mapResult).not.toContain('z=14');
+            expect(mapResult).not.toContain('lat=');
 
-            // Sessions view should have common params but not map params
+            // Sessions view should have common params
             expect(sessionsResult).toContain('a=john_doe');
             expect(sessionsResult).toContain('q=park');
             expect(sessionsResult).toContain('t=Run');
@@ -282,16 +284,16 @@ describe('URLState.encode', () => {
 });
 
 describe('URL state navigation scenarios', () => {
-    // These tests simulate the bug scenario where z=19 appeared after view switching
+    // These tests verify that zoom/lat/lng never appear in URLs
+    // The map always fits to activities unless a specific track is selected
 
-    test('scenario: reload sessions page then navigate to map', () => {
-        // Step 1: User is on sessions page (after reload, map has some position from fitBounds)
-        // The map's moveend would try to update state
+    test('scenario: reload sessions page then navigate to map - no zoom in URL', () => {
+        // Step 1: User is on sessions page
         const stateOnSessions = {
             view: 'sessions',
             zoom: 3,
             lat: 20.0,
-            lng: 10.0  // Non-zero to be truthy
+            lng: 10.0
         };
 
         // Sessions URL should not include map params
@@ -299,20 +301,19 @@ describe('URL state navigation scenarios', () => {
         expect(sessionsUrl).toBe('#/sessions');
 
         // Step 2: User clicks Map tab, view changes to map
-        // Same state but view is now map
+        // Map URL should NOT include zoom/lat/lng - map fits to activities
         const stateOnMap = { ...stateOnSessions, view: 'map' };
-
-        // Map URL should now include map params
         const mapUrl = URLStateEncode(stateOnMap);
-        expect(mapUrl).toContain('z=3');
-        expect(mapUrl).toContain('lat=20.0000');
-        expect(mapUrl).toContain('lng=10.0000');
+        expect(mapUrl).toBe('#/map');
+        expect(mapUrl).not.toContain('z=');
+        expect(mapUrl).not.toContain('lat=');
+        expect(mapUrl).not.toContain('lng=');
     });
 
-    test('scenario: high zoom (z=19) should not leak to sessions/stats', () => {
-        // Simulate fitBounds zooming to max when single point
+    test('scenario: zoom level never appears in any URL', () => {
+        // Even high zoom should never appear
         const stateWithHighZoom = {
-            view: 'sessions',
+            view: 'map',
             zoom: 19,
             lat: 18.6043,
             lng: -2.2845
@@ -320,8 +321,26 @@ describe('URL state navigation scenarios', () => {
 
         const url = URLStateEncode(stateWithHighZoom);
 
-        // URL should not contain high zoom
-        expect(url).toBe('#/sessions');
+        // URL should never contain zoom
+        expect(url).toBe('#/map');
         expect(url).not.toContain('19');
+        expect(url).not.toContain('z=');
+    });
+
+    test('scenario: track param is the only way to specify map focus', () => {
+        const stateWithTrack = {
+            view: 'map',
+            zoom: 14,
+            lat: 39.0,
+            lng: -77.0,
+            track: 'athlete1/20251230T120000'
+        };
+
+        const url = URLStateEncode(stateWithTrack);
+
+        // Only track param should be in URL, not zoom/lat/lng
+        expect(url).toContain('track=');
+        expect(url).not.toContain('z=');
+        expect(url).not.toContain('lat=');
     });
 });
