@@ -320,21 +320,27 @@ const URLState = {
     // Encode state to URL hash with query params
     encode(state) {
         const params = new URLSearchParams();
+        // Common params for all views
         if (state.athlete) params.set('a', state.athlete);
-        if (state.zoom) params.set('z', state.zoom);
-        if (state.lat) params.set('lat', state.lat.toFixed(4));
-        if (state.lng) params.set('lng', state.lng.toFixed(4));
         if (state.session) params.set('s', state.session);
         if (state.search) params.set('q', state.search);
         if (state.type) params.set('t', state.type);
         if (state.dateFrom) params.set('from', state.dateFrom);
         if (state.dateTo) params.set('to', state.dateTo);
-        // Track selection on map: track=athlete/datetime
-        if (state.track) params.set('track', state.track);
-        // Photo popup on map: popup=athlete/datetime/photoIndex
-        if (state.popup) params.set('popup', state.popup);
-        // Viewport filter: vp=1 when enabled
-        if (state.viewportFilter) params.set('vp', '1');
+
+        // Map-specific params - only include for map view
+        if (state.view === 'map') {
+            if (state.zoom) params.set('z', state.zoom);
+            if (state.lat) params.set('lat', state.lat.toFixed(4));
+            if (state.lng) params.set('lng', state.lng.toFixed(4));
+            // Track selection on map: track=athlete/datetime
+            if (state.track) params.set('track', state.track);
+            // Photo popup on map: popup=athlete/datetime/photoIndex
+            if (state.popup) params.set('popup', state.popup);
+            // Viewport filter: vp=1 when enabled
+            if (state.viewportFilter) params.set('vp', '1');
+        }
+
         const queryStr = params.toString();
         return '#/' + state.view + (queryStr ? '?' + queryStr : '');
     },
