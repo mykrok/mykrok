@@ -58,9 +58,7 @@ jobs:
         run: uv pip install --system -e ".[ci]"
 
       - name: Run tox
-        run: tox
-        env:
-          TOX_JOB: misc
+        run: tox -e lint,type
 
   js:
     runs-on: ubuntu-latest
@@ -84,6 +82,4 @@ jobs:
         run: uv pip install --system -e ".[ci]"
 
       - name: Run tox
-        run: tox
-        env:
-          TOX_JOB: js
+        run: tox -e jslint,jstest
