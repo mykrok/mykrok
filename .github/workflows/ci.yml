@@ -25,12 +25,6 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v4
 
-      - name: Set up Node.js
-        if: matrix.python-version == '3.12'
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
       - name: Install CI dependencies
         run: |
             # Since datalad allows for system-wide git-annex, install explicitly
@@ -41,8 +35,55 @@ jobs:
         run: tox
 
       - name: Upload coverage reports
-        if: matrix.python-version == '3.12'
         uses: codecov/codecov-action@v4
         with:
           files: coverage.xml
+          flags: py${{ matrix.python-version }}
           fail_ci_if_error: false
+
+  misc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install CI dependencies
+        run: uv pip install --system -e ".[ci]"
+
+      - name: Run tox
+        run: tox
+        env:
+          TOX_JOB: misc
+
+  js:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install CI dependencies
+        run: uv pip install --system -e ".[ci]"
+
+      - name: Run tox
+        run: tox
+        env:
+          TOX_JOB: js
