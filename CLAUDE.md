@@ -30,6 +30,12 @@ Python 3.10+ (type hints required per constitution): Follow standard conventions
 
 <!-- MANUAL ADDITIONS START -->
 
+## Git Workflow
+
+**CRITICAL**: NEVER checkout or modify any branch other than the one you are
+currently working on unless explicitly requested by the user. Stay on the
+current branch for all operations.
+
 ## Pre-commit Checks
 
 **IMPORTANT**: Before every commit, run lint and type checks:
