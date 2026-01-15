@@ -52,11 +52,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Install CI dependencies
-        run: uv pip install --system -e ".[ci]"
+      - name: Install tox
+        run: pip install tox tox-uv
 
       - name: Run tox
         run: tox -e lint,type
@@ -71,16 +68,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Install CI dependencies
-        run: uv pip install --system -e ".[ci]"
+      - name: Install tox
+        run: pip install tox
 
       - name: Run tox
         run: tox -e jslint,jstest
