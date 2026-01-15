@@ -37,6 +37,7 @@ jobs:
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
           flags: py${{ matrix.python-version }}
           fail_ci_if_error: false
