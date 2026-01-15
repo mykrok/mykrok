@@ -51,13 +51,15 @@ def pytest_configure(config: pytest.Config) -> None:  # noqa: ARG001
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
-    """Skip all e2e tests if browser isn't available."""
+    """Skip e2e tests if browser isn't available."""
     if not _BROWSER_AVAILABLE:
         skip_marker = pytest.mark.skip(
             reason="Playwright browser not available (missing system deps)"
         )
         for item in items:
-            item.add_marker(skip_marker)
+            # Only skip tests in the e2e directory
+            if "/e2e/" in str(item.fspath):
+                item.add_marker(skip_marker)
 
 
 @pytest.fixture(scope="session")
