@@ -41,7 +41,8 @@ current branch for all operations.
 **IMPORTANT**: Before every commit, run lint and type checks:
 
 ```bash
-uv run tox -e lint,type
+make lint type
+# Or: hatch run lint:check && hatch run types:check
 ```
 
 Both must pass before committing. Fix any issues before proceeding.
@@ -55,8 +56,8 @@ Minimum verification before release:
 
 ```bash
 # Run ALL tests (Python + JavaScript)
-uv run tox
-npm test
+make all
+# Or: make test-all
 
 # Verify JavaScript assets exist
 ls src/mykrok/assets/map-browser/*.js
