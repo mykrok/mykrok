@@ -637,3 +637,557 @@ class TestAthletesTsvGeneration:
 
         # Verify athletes.tsv was NOT overwritten
         assert athletes_tsv.read_text() == original_content
+
+
+class TestDownloadPhotos:
+    """Tests for _download_photos method."""
+
+    @pytest.mark.ai_generated
+    def test_download_photos_empty_list(
+        self, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """Empty photo list should return zeros."""
+        from mykrok.services.backup import BackupService
+
+        session_dir = setup_athlete_dir / "ses=20240115T100000"
+        session_dir.mkdir()
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.data_dir = mock_config.data.directory
+
+            result = service._download_photos(
+                session_dir, [], lambda _msg, _lvl: None
+            )
+
+            assert result == {
+                "downloaded": 0,
+                "already_exists": 0,
+                "placeholder": 0,
+                "failed": 0,
+            }
+
+    @pytest.mark.ai_generated
+    def test_download_photos_no_urls(
+        self, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """Photos without URLs should fail gracefully."""
+        from mykrok.services.backup import BackupService
+
+        session_dir = setup_athlete_dir / "ses=20240115T100000"
+        session_dir.mkdir()
+
+        photos = [{"unique_id": "photo1"}]  # No "urls" key
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.data_dir = mock_config.data.directory
+
+            result = service._download_photos(
+                session_dir, photos, lambda _msg, _lvl: None
+            )
+
+            assert result["failed"] == 1
+            assert result["downloaded"] == 0
+
+    @pytest.mark.ai_generated
+    def test_download_photos_placeholder_url_skipped(
+        self, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """Placeholder URLs should be skipped, not downloaded."""
+        from mykrok.services.backup import BackupService
+
+        session_dir = setup_athlete_dir / "ses=20240115T100000"
+        session_dir.mkdir()
+
+        photos = [
+            {
+                "unique_id": "photo1",
+                "urls": {"600": "https://example.com/placeholder-image.jpg"},
+            }
+        ]
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.data_dir = mock_config.data.directory
+
+            result = service._download_photos(
+                session_dir, photos, lambda _msg, _lvl: None
+            )
+
+            assert result["placeholder"] == 1
+            assert result["downloaded"] == 0
+
+    @pytest.mark.ai_generated
+    def test_download_photos_already_exists(
+        self, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """Already downloaded photos should be skipped."""
+        from mykrok.lib.paths import format_session_datetime
+        from mykrok.services.backup import BackupService
+
+        session_dir = setup_athlete_dir / "ses=20240115T100000"
+        session_dir.mkdir()
+        photos_dir = session_dir / "photos"
+        photos_dir.mkdir()
+
+        # Pre-create the photo file using the same naming scheme as the code
+        photo_dt = datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
+        expected_name = format_session_datetime(photo_dt) + ".jpg"  # 20240115T100000.jpg
+        (photos_dir / expected_name).write_bytes(b"existing photo")
+
+        photos = [
+            {
+                "unique_id": "photo1",
+                "urls": {"600": "https://example.com/real-photo.jpg"},
+                "created_at": "2024-01-15T10:00:00Z",
+            }
+        ]
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.data_dir = mock_config.data.directory
+
+            result = service._download_photos(
+                session_dir, photos, lambda _msg, _lvl: None
+            )
+
+            assert result["already_exists"] == 1
+            assert result["downloaded"] == 0
+
+    @pytest.mark.ai_generated
+    @patch("mykrok.services.backup.requests.get")
+    def test_download_photos_success(
+        self, mock_get: MagicMock, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """Successful photo download."""
+        from mykrok.services.backup import BackupService
+
+        session_dir = setup_athlete_dir / "ses=20240115T100000"
+        session_dir.mkdir()
+
+        # Mock successful HTTP response
+        mock_response = MagicMock()
+        mock_response.content = b"fake image data"
+        mock_response.raise_for_status = MagicMock()
+        mock_get.return_value = mock_response
+
+        photos = [
+            {
+                "unique_id": "photo1",
+                "urls": {"600": "https://example.com/real-photo.jpg"},
+                "created_at": "2024-01-15T10:00:00Z",
+            }
+        ]
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.data_dir = mock_config.data.directory
+
+            result = service._download_photos(
+                session_dir, photos, lambda _msg, _lvl: None
+            )
+
+            assert result["downloaded"] == 1
+            assert result["failed"] == 0
+
+            # Verify file was created
+            photos_dir = session_dir / "photos"
+            assert photos_dir.exists()
+            photo_files = list(photos_dir.glob("*.jpg"))
+            assert len(photo_files) == 1
+
+    @pytest.mark.ai_generated
+    @patch("mykrok.services.backup.requests.get")
+    def test_download_photos_http_error(
+        self, mock_get: MagicMock, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """HTTP error during download should be handled gracefully."""
+        import requests
+
+        from mykrok.services.backup import BackupService
+
+        session_dir = setup_athlete_dir / "ses=20240115T100000"
+        session_dir.mkdir()
+
+        # Mock HTTP error
+        mock_get.side_effect = requests.RequestException("Network error")
+
+        photos = [
+            {
+                "unique_id": "photo1",
+                "urls": {"600": "https://example.com/real-photo.jpg"},
+                "created_at": "2024-01-15T10:00:00Z",
+            }
+        ]
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.data_dir = mock_config.data.directory
+
+            result = service._download_photos(
+                session_dir, photos, lambda _msg, _lvl: None
+            )
+
+            assert result["failed"] == 1
+            assert result["downloaded"] == 0
+
+
+class TestCheckAndFix:
+    """Tests for check_and_fix method."""
+
+    @pytest.mark.ai_generated
+    def test_check_and_fix_empty_data_dir(self, mock_config: MagicMock) -> None:
+        """Empty data directory should return zeros."""
+        from mykrok.services.backup import BackupService
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.data_dir = mock_config.data.directory
+            service.strava = MagicMock()
+
+            result = service.check_and_fix(dry_run=True)
+
+            assert result["sessions_checked"] == 0
+            assert result["issues_found"] == 0
+            assert result["issues_fixed"] == 0
+
+    @pytest.mark.ai_generated
+    def test_check_and_fix_finds_missing_photos_dir(
+        self, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """Session with has_photos=True but no photos dir should be flagged."""
+        from mykrok.services.backup import BackupService
+
+        # Create session with has_photos=True but no photos directory
+        activity = create_activity(
+            "20240115T100000",
+            activity_id=1001,
+            has_photos=True,
+            photo_count=2,
+        )
+        create_session_on_disk(
+            setup_athlete_dir, "20240115T100000", activity, create_photos=False
+        )
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.data_dir = mock_config.data.directory
+            service.strava = MagicMock()
+
+            result = service.check_and_fix(dry_run=True)
+
+            assert result["sessions_checked"] == 1
+            assert result["issues_found"] >= 1
+            assert any("missing_photos" in str(i) for i in result.get("issues", []))
+
+    @pytest.mark.ai_generated
+    def test_check_and_fix_finds_missing_tracking(
+        self, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """Session with has_gps=True but no tracking file should be flagged."""
+        from mykrok.services.backup import BackupService
+
+        # Create session with has_gps=True but no tracking file
+        activity = create_activity(
+            "20240115T100000",
+            activity_id=1001,
+            has_gps=True,
+        )
+        create_session_on_disk(
+            setup_athlete_dir, "20240115T100000", activity, create_tracking=False
+        )
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.data_dir = mock_config.data.directory
+            service.strava = MagicMock()
+
+            result = service.check_and_fix(dry_run=True)
+
+            assert result["sessions_checked"] == 1
+            assert result["issues_found"] >= 1
+            assert any("missing_tracking" in str(i) for i in result.get("issues", []))
+
+    @pytest.mark.ai_generated
+    def test_check_and_fix_no_issues_when_complete(
+        self, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """Complete session should have no issues."""
+        from mykrok.services.backup import BackupService
+
+        # Create complete session
+        activity = create_activity(
+            "20240115T100000",
+            activity_id=1001,
+            has_gps=True,
+            has_photos=True,
+            photo_count=2,
+        )
+        create_session_on_disk(
+            setup_athlete_dir,
+            "20240115T100000",
+            activity,
+            create_tracking=True,
+            create_photos=True,
+        )
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.data_dir = mock_config.data.directory
+            service.strava = MagicMock()
+
+            result = service.check_and_fix(dry_run=True)
+
+            assert result["sessions_checked"] == 1
+            assert result["issues_found"] == 0
+
+
+class TestRefreshSocial:
+    """Tests for refresh_social method."""
+
+    @pytest.mark.ai_generated
+    def test_refresh_social_dry_run(
+        self, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """Dry run should not call API for updates."""
+        from mykrok.services.backup import BackupService
+
+        # Create session
+        activity = create_activity(
+            "20240115T100000",
+            activity_id=1001,
+        )
+        create_session_on_disk(setup_athlete_dir, "20240115T100000", activity)
+
+        mock_strava = MagicMock()
+        mock_strava.get_athlete.return_value = MagicMock(
+            username="testuser",
+            id=12345,
+            firstname="Test",
+            lastname="User",
+            profile="",
+            city="",
+            state="",
+            country="",
+        )
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.data_dir = mock_config.data.directory
+            service.strava = mock_strava
+
+            result = service.refresh_social(dry_run=True)
+
+            assert result["activities_scanned"] == 1
+            assert result["activities_updated"] == 0
+            # API should not be called for comments/kudos in dry run
+            mock_strava.get_activity_comments.assert_not_called()
+            mock_strava.get_activity_kudos.assert_not_called()
+
+    @pytest.mark.ai_generated
+    def test_refresh_social_updates_activity(
+        self, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """Refresh should update activity with new comments/kudos."""
+        from mykrok.services.backup import BackupService
+
+        # Create session
+        activity = create_activity(
+            "20240115T100000",
+            activity_id=1001,
+        )
+        create_session_on_disk(setup_athlete_dir, "20240115T100000", activity)
+
+        mock_strava = MagicMock()
+        mock_strava.get_athlete.return_value = MagicMock(
+            username="testuser",
+            id=12345,
+            firstname="Test",
+            lastname="User",
+            profile="",
+            city="",
+            state="",
+            country="",
+        )
+        mock_strava.get_activity_comments.return_value = [
+            {"text": "Great run!", "athlete": {"id": 123}}
+        ]
+        mock_strava.get_activity_kudos.return_value = [
+            {"athlete_id": 456}
+        ]
+
+        with (
+            patch.object(BackupService, "__init__", lambda _self, _cfg: None),
+            patch("mykrok.services.backup.update_sessions_tsv"),
+        ):
+            service = BackupService.__new__(BackupService)
+            service.data_dir = mock_config.data.directory
+            service.strava = mock_strava
+
+            result = service.refresh_social()
+
+            assert result["activities_scanned"] == 1
+            assert result["activities_updated"] == 1
+
+    @pytest.mark.ai_generated
+    def test_refresh_social_respects_limit(
+        self, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """Limit parameter should restrict number of activities processed."""
+        from mykrok.services.backup import BackupService
+
+        # Create multiple sessions
+        for i in range(5):
+            activity = create_activity(
+                f"20240115T10{i:02d}00",
+                activity_id=1001 + i,
+            )
+            create_session_on_disk(setup_athlete_dir, f"20240115T10{i:02d}00", activity)
+
+        mock_strava = MagicMock()
+        mock_strava.get_athlete.return_value = MagicMock(
+            username="testuser",
+            id=12345,
+            firstname="Test",
+            lastname="User",
+            profile="",
+            city="",
+            state="",
+            country="",
+        )
+        mock_strava.get_activity_comments.return_value = []
+        mock_strava.get_activity_kudos.return_value = []
+
+        with (
+            patch.object(BackupService, "__init__", lambda _self, _cfg: None),
+            patch("mykrok.services.backup.update_sessions_tsv"),
+        ):
+            service = BackupService.__new__(BackupService)
+            service.data_dir = mock_config.data.directory
+            service.strava = mock_strava
+
+            result = service.refresh_social(limit=2)
+
+            assert result["activities_scanned"] == 2
+            # Only 2 activities should have been processed
+            assert mock_strava.get_activity_comments.call_count == 2
+
+    @pytest.mark.ai_generated
+    def test_refresh_social_handles_rate_limit(
+        self, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """Rate limit error should stop processing gracefully."""
+        from mykrok.services.backup import BackupService
+        from mykrok.services.strava import StravaRateLimitError
+
+        # Create session
+        activity = create_activity(
+            "20240115T100000",
+            activity_id=1001,
+        )
+        create_session_on_disk(setup_athlete_dir, "20240115T100000", activity)
+
+        mock_strava = MagicMock()
+        mock_strava.get_athlete.return_value = MagicMock(
+            username="testuser",
+            id=12345,
+            firstname="Test",
+            lastname="User",
+            profile="",
+            city="",
+            state="",
+            country="",
+        )
+        mock_strava.get_activity_comments.side_effect = StravaRateLimitError(
+            "Rate limit exceeded"
+        )
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.data_dir = mock_config.data.directory
+            service.strava = mock_strava
+
+            result = service.refresh_social()
+
+            assert result["activities_updated"] == 0
+            assert len(result["errors"]) == 1
+            assert "Rate limit" in result["errors"][0]["error"]
+
+
+class TestRefreshAthleteProfiles:
+    """Tests for refresh_athlete_profiles method."""
+
+    @pytest.mark.ai_generated
+    def test_refresh_athlete_profiles_dry_run(
+        self, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """Dry run should not save any files."""
+        from mykrok.services.backup import BackupService
+
+        # setup_athlete_dir creates the athlete directory needed by the test
+        assert setup_athlete_dir.exists()
+
+        mock_strava = MagicMock()
+        mock_strava.get_athlete.return_value = MagicMock(
+            username="testuser",
+            id=12345,
+            firstname="Test",
+            lastname="User",
+            profile="https://example.com/avatar.jpg",
+            city="New York",
+            state="NY",
+            country="USA",
+        )
+
+        with patch.object(BackupService, "__init__", lambda _self, _cfg: None):
+            service = BackupService.__new__(BackupService)
+            service.data_dir = mock_config.data.directory
+            service.strava = mock_strava
+
+            result = service.refresh_athlete_profiles(dry_run=True)
+
+            assert result["profiles_updated"] == 0
+            assert result["avatars_downloaded"] == 0
+
+    @pytest.mark.ai_generated
+    @patch("mykrok.services.backup.requests.get")
+    def test_refresh_athlete_profiles_downloads_avatar(
+        self, mock_get: MagicMock, mock_config: MagicMock, setup_athlete_dir: Path
+    ) -> None:
+        """Avatar should be downloaded when profile_url is available."""
+        from mykrok.services.backup import BackupService
+
+        mock_response = MagicMock()
+        mock_response.content = b"avatar image data"
+        mock_response.raise_for_status = MagicMock()
+        mock_get.return_value = mock_response
+
+        mock_strava = MagicMock()
+        mock_strava.get_athlete.return_value = MagicMock(
+            username="testuser",
+            id=12345,
+            firstname="Test",
+            lastname="User",
+            profile="https://example.com/avatar.jpg",
+            city="New York",
+            state="NY",
+            country="USA",
+        )
+
+        with (
+            patch.object(BackupService, "__init__", lambda _self, _cfg: None),
+            patch("mykrok.services.backup.generate_athletes_tsv"),
+        ):
+            service = BackupService.__new__(BackupService)
+            service.data_dir = mock_config.data.directory
+            service.strava = mock_strava
+
+            result = service.refresh_athlete_profiles()
+
+            assert result["profiles_updated"] == 1
+            assert result["avatars_downloaded"] == 1
+
+            # Verify avatar file was created
+            avatar_files = list(setup_athlete_dir.glob("avatar.*"))
+            assert len(avatar_files) == 1
