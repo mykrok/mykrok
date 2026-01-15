@@ -16,6 +16,25 @@ uv run tox -e py3,lint,type,jslint,jstest
 
 All tests must pass before proceeding.
 
+### 1b. Verify Coverage Gate
+
+```bash
+# Check coverage meets minimum threshold
+uv run tox -e cov
+
+# Review coverage report
+# Coverage MUST be >= 60% for any release
+# Target: 70% for stable releases
+```
+
+**Coverage Gates** (REQUIRED):
+- [ ] Overall Python coverage >= 60%
+- [ ] No service module (in services/) has 0% coverage
+- [ ] CLI commands have integration tests (see contracts/cli.md)
+- [ ] cli.py coverage >= 30% (high-impact module)
+
+If coverage is below threshold, see `specs/001-mykrok/testing.md` for improvement strategy.
+
 ### 2. Verify JavaScript Assets
 
 ```bash

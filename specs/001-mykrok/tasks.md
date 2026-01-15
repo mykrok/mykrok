@@ -49,6 +49,20 @@
 
 ---
 
+## Phase 2b: CLI Test Infrastructure (REQUIRED)
+
+**Purpose**: Set up CLI testing infrastructure before any command implementation.
+Tests are written WITH commands, not after.
+
+- [ ] T018a Create CLI test fixtures using `generate_fixtures.py` in tests/cli/conftest.py
+- [ ] T018b Create `cli_data_dir` fixture with realistic athlete data (2 athletes, 10+ sessions)
+- [ ] T018c Create `cli_runner` fixture wrapping Click's CliRunner
+- [ ] T018d Create helper functions for verifying file system changes
+
+**Checkpoint**: CLI test infrastructure ready - command tests can now be written alongside commands
+
+---
+
 ## Phase 3: User Story 1 - Backup My Own Activities (Priority: P1)
 
 **Goal**: Back up all Strava activities (metadata, GPS tracks, photos) with incremental sync
@@ -69,7 +83,17 @@
 - [X] T028 [US1] Add rate limit handling and graceful pause/resume in src/mykrok/services/backup.py
 - [X] T029 [US1] Handle edge cases: no GPS data, expired photo URLs, large histories
 
+### Tests for User Story 1 (REQUIRED before checkpoint)
+
+- [ ] T029a [US1] CLI test: `mykrok sync` creates activity files with fixture data
+- [ ] T029b [US1] CLI test: `mykrok sync --dry-run` makes no file changes
+- [ ] T029c [US1] CLI test: `mykrok sync --json` produces valid JSON output
+- [ ] T029d [US1] CLI test: `mykrok gpx` generates valid GPX files
+- [ ] T029e [US1] Unit test: backup.py sync orchestration logic
+- [ ] T029f [US1] Unit test: strava.py API client with mocks
+
 **Checkpoint**: User Story 1 complete - can backup activities with GPS tracks and photos
+**Gate**: Tests T029a-T029f must pass; coverage of backup.py >= 50%
 
 ---
 
@@ -90,7 +114,14 @@
 - [X] T036 [US2] Implement local HTTP server for map viewing in src/mykrok/views/map.py
 - [X] T037 [US2] Implement `mykrok view map` command in src/mykrok/cli.py
 
+### Tests for User Story 2 (REQUIRED before checkpoint)
+
+- [ ] T037a [US2] CLI test: `mykrok create-browser` generates index.html and assets
+- [ ] T037b [US2] CLI test: `mykrok create-browser -o <dir>` respects output directory
+- [ ] T037c [US2] Unit test: map.py generates valid HTML with routes
+
 **Checkpoint**: User Story 2 complete - can visualize activities on interactive map with heatmap
+**Gate**: Tests T037a-T037c must pass; coverage of map.py >= 50%
 
 ---
 
@@ -109,7 +140,15 @@
 - [X] T042 [US3] Implement text and JSON output formatting for statistics
 - [X] T043 [US3] Implement `mykrok view stats` command in src/mykrok/cli.py
 
+### Tests for User Story 3 (REQUIRED before checkpoint)
+
+- [ ] T043a [US3] CLI test: `mykrok view stats` outputs correct totals
+- [ ] T043b [US3] CLI test: `mykrok view stats --json` produces valid JSON
+- [ ] T043c [US3] CLI test: `mykrok view stats --year 2025` filters correctly
+- [ ] T043d [US3] Unit test: stats.py calculates correct aggregates
+
 **Checkpoint**: User Story 3 complete - can view statistics filtered by time period
+**Gate**: Tests T043a-T043d must pass; coverage of stats.py >= 50%
 
 ---
 
@@ -127,7 +166,14 @@
 - [X] T047 [US4] Update sessions.tsv to include kudos_count and comment_count columns
 - [X] T048 [US4] Add --no-comments option to sync command for skipping social data
 
+### Tests for User Story 4 (REQUIRED before checkpoint)
+
+- [ ] T048a [US4] CLI test: `mykrok sync --what=social` updates social data
+- [ ] T048b [US4] CLI test: `mykrok sync --no-comments` skips social data
+- [ ] T048c [US4] Unit test: backup.py social data refresh logic
+
 **Checkpoint**: User Story 4 complete - comments and kudos are backed up
+**Gate**: Tests T048a-T048c must pass
 
 ---
 
@@ -146,7 +192,13 @@
 - [X] T053 [US5] Implement route display on detail page using Leaflet
 - [X] T054 [US5] Implement `mykrok browse` command in src/mykrok/cli.py
 
+### Tests for User Story 5 (REQUIRED before checkpoint)
+
+- [ ] T054a [US5] CLI test: `mykrok create-browser --serve` starts HTTP server
+- [ ] T054b [US5] CLI test: Generated browser loads without JS errors (E2E)
+
 **Checkpoint**: User Story 5 complete - can browse activities offline
+**Gate**: Tests T054a-T054b must pass
 
 ---
 
@@ -169,7 +221,15 @@
 - [X] T063 [US6] Implement `mykrok export fittrackee` command with all options in src/mykrok/cli.py
 - [X] T064 [US6] Handle edge cases: no GPS (skip), unmapped sport types (fallback + warning)
 
+### Tests for User Story 6 (REQUIRED before checkpoint)
+
+- [ ] T064a [US6] CLI test: `mykrok export fittrackee --dry-run` shows export plan
+- [ ] T064b [US6] CLI test: `mykrok export fittrackee --json` produces valid JSON
+- [ ] T064c [US6] Unit test: fittrackee.py API client with mocks
+- [ ] T064d [US6] Integration test: FitTrackee export via Docker (pytest-docker)
+
 **Checkpoint**: User Story 6 complete - can export to FitTrackee with incremental sync
+**Gate**: Tests T064a-T064d must pass; coverage of fittrackee.py >= 50%
 
 ---
 
@@ -197,13 +257,21 @@
 - [X] T086 [US7] Suppress spurious stravalib warnings about environment variables
 - [X] T087 [US7] Fix unclosed socket warning after OAuth authentication
 
+### Tests for User Story 7 (already implemented)
+
+- [X] T083 [US7] [P] Create unit tests for DataLad dataset creation in tests/unit/test_datalad.py
+
 **Checkpoint**: User Story 7 complete - can create reproducible DataLad datasets for backups
+**Gate**: Test T083 passes; coverage of datalad.py >= 70%
 
 ---
 
-## Phase 9: Polish & Cross-Cutting Concerns
+## Phase 9: Coverage Gate & Cross-Cutting Concerns (REQUIRED for Release)
 
-**Purpose**: Improvements that affect multiple user stories
+**Purpose**: Ensure minimum coverage and cross-cutting quality before release.
+This phase is NOT optional polish - it gates releases.
+
+### Cross-Cutting Implementation
 
 - [X] T065 [P] Add comprehensive logging across all modules
 - [X] T066 [P] Implement --json output format for all commands in src/mykrok/cli.py
@@ -211,12 +279,25 @@
 - [X] T068 [P] Implement --verbose levels for debugging
 - [X] T069 Run quickstart.md validation (verify all documented commands work)
 - [X] T070 [P] Add type hints and docstrings to all public functions
+
+### Coverage Gate (REQUIRED)
+
+- [ ] T090 Verify overall coverage >= 60%: `tox -e cov`
+- [ ] T091 Verify CLI tests exist for all commands in contracts/cli.md
+- [ ] T092 Verify no service module has 0% coverage
+- [ ] T093 Create CLI integration tests in tests/cli/ using fixture data
+
+### Existing Tests (from earlier implementation)
+
 - [X] T071 [P] Create integration tests for Strava API (mocked) in tests/integration/test_strava_api.py
 - [X] T072 [P] Create integration tests for FitTrackee (Docker) in tests/integration/test_fittrackee.py
 - [X] T073 [P] Create unit tests for models in tests/unit/test_models.py
 - [X] T074 [P] Create unit tests for GPX generation in tests/unit/test_gpx.py
 - [X] T075 [P] Create unit tests for backup logic in tests/unit/test_backup.py
 - [X] T076 Final code review and cleanup
+
+**Checkpoint**: Release gate passed - coverage >= 60%, all CLI commands tested
+**BLOCKS**: Any release until T090-T093 complete
 
 ---
 
