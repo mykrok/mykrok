@@ -109,10 +109,31 @@ class RateLimiter:
             return max(0.0, wait_time)
 
     def acquire(self) -> None:
-        """Acquire a request slot, waiting if necessary."""
+        """Acquire a request slot, waiting if necessary.
+
+        Raises:
+            RuntimeError: If time appears frozen (e.g., due to incorrect mocking
+                in tests). This prevents infinite loops when time.time() returns
+                a constant value and time.sleep() is mocked to no-op.
+        """
+        last_now: float | None = None
+        frozen_count = 0
         while True:
             with self._lock:
                 now = time.time()
+
+                # Detect frozen time (protects against broken test mocks)
+                if now == last_now:
+                    frozen_count += 1
+                    if frozen_count > 100:
+                        raise RuntimeError(
+                            "Time appears frozen in rate limiter - "
+                            "if testing, ensure time.time() returns advancing values"
+                        )
+                else:
+                    frozen_count = 0
+                last_now = now
+
                 self._cleanup_old_timestamps(now)
 
                 if len(self._timestamps) < self.config.requests_per_period:
