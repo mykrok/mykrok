@@ -50,10 +50,14 @@ CLI tool to backup fitness activities (metadata, GPS tracks, photos, comments, k
 - **Aggressive caching**: Track sync state to avoid re-downloading
 
 ### Principle V: Test-Driven Quality ✅
-- **pytest**: Unit tests for business logic
-- **Integration tests**: FitTrackee via Docker, Strava via mocks/fixtures
-- **Regression tests**: For bug fixes
+- **Coverage gates**: Minimum 60% enforced in CI; target 70% for stable releases
+- **CLI integration tests**: REQUIRED for all commands using real fixtures (not mocks)
+- **Test-first for CLI**: CLI tests written WITH command implementation, not after
+- **pytest**: Unit tests for business logic (models, services)
+- **Integration tests**: FitTrackee via Docker, Strava via mocks
+- **Regression tests**: Each bug fix requires a corresponding test
 - **Offline tests**: Network mocked except explicit integration tests
+- **No zero-coverage modules**: Every service module must have tests
 
 ### Technical Standards ✅
 - Python 3.10+ with type hints
@@ -176,9 +180,12 @@ No violations identified. Design follows all constitution principles.
 - Hive partitioning enables efficient DuckDB queries without full scans
 
 ### Principle V: Test-Driven Quality ✅ VERIFIED
-- Test structure defined: unit/, integration/, fixtures/
+- Coverage gates: 60% minimum, 70% target - enforced in CI
+- CLI integration tests: Required for all commands with real fixtures
+- Test structure defined: unit/, integration/, e2e/, fixtures/
 - pytest-docker for FitTrackee integration tests
 - Mocking strategy for Strava API tests
+- Test tasks integrated INTO each user story phase (not as "polish")
 
 **POST-DESIGN GATE: PASS** - All principles verified against concrete design artifacts
 

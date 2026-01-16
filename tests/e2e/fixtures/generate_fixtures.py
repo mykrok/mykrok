@@ -283,6 +283,46 @@ def track_to_parquet(track: list[dict[str, Any]], output_path: Path) -> None:
     pq.write_table(table, output_path)
 
 
+def write_tracking_manifest(track: list[dict[str, Any]], output_path: Path) -> None:
+    """Write tracking.json manifest file for a track.
+
+    The manifest describes what data is available in the tracking.parquet.
+    """
+    if not track:
+        return
+
+    # Determine what columns/data are present
+    columns = ["time", "distance", "lat", "lng"]
+    has_altitude = "altitude" in track[0]
+    has_hr = "heartrate" in track[0]
+    has_cadence = "cadence" in track[0]
+    has_power = "watts" in track[0]
+
+    if has_altitude:
+        columns.append("altitude")
+    if has_hr:
+        columns.append("heartrate")
+    if has_cadence:
+        columns.append("cadence")
+    if has_power:
+        columns.append("watts")
+
+    manifest = {
+        "columns": columns,
+        "row_count": len(track),
+        "has_gps": True,  # All generated tracks have GPS
+        "has_hr": has_hr,
+        "has_power": has_power,
+        "has_cadence": has_cadence,
+        "has_altitude": has_altitude,
+        "has_temp": False,
+    }
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=2)
+
+
 def generate_activity(
     activity_id: int,
     start_date: datetime,
@@ -539,6 +579,7 @@ def generate_fixtures(output_dir: Path) -> None:
                 activity["type"],
             )
             track_to_parquet(track, session_dir / "tracking.parquet")
+            write_tracking_manifest(track, session_dir / "tracking.json")
 
             # Update center coords
             row = generate_sessions_tsv_row(activity, session_key)
@@ -625,6 +666,7 @@ def generate_fixtures(output_dir: Path) -> None:
                 activity["type"],
             )
             track_to_parquet(track, session_dir / "tracking.parquet")
+            write_tracking_manifest(track, session_dir / "tracking.json")
 
             row = generate_sessions_tsv_row(activity, session_key)
             row["start_lat"] = track[0]["lat"]

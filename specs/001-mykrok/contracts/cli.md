@@ -6,6 +6,16 @@
 
 Command-line interface for backing up Strava activities and managing exports.
 
+## Testing Requirements
+
+All CLI commands MUST have integration tests that:
+1. Use Click's `CliRunner` for invocation
+2. Use real fixture data from `generate_fixtures.py`
+3. Verify exit codes match this contract
+4. Test both text and `--json` output formats where applicable
+
+See `specs/001-mykrok/testing.md` for detailed testing strategy.
+
 ## Global Options
 
 ```
@@ -48,6 +58,8 @@ Options:
   "token_expires_at": "2025-12-18T12:00:00Z"
 }
 ```
+
+**Testing Contract**: Auth requires real OAuth flow; skip in unit tests.
 
 ---
 
@@ -111,6 +123,28 @@ Synced 10 activities (3 new, 7 updated)
 }
 ```
 
+**Testing Contract**:
+```python
+def test_sync_creates_files(cli_runner, cli_data_dir):
+    """Verify sync creates expected directory structure."""
+    result = cli_runner.invoke(main, ["sync", "-d", cli_data_dir])
+    assert result.exit_code == 0
+    assert (cli_data_dir / "athl=alice/sessions.tsv").exists()
+
+def test_sync_dry_run(cli_runner, cli_data_dir):
+    """Verify --dry-run makes no changes."""
+    before = list(cli_data_dir.rglob("*"))
+    result = cli_runner.invoke(main, ["sync", "-d", cli_data_dir, "--dry-run"])
+    assert result.exit_code == 0
+    assert list(cli_data_dir.rglob("*")) == before
+
+def test_sync_json_output(cli_runner, cli_data_dir):
+    """Verify --json produces valid JSON with required fields."""
+    result = cli_runner.invoke(main, ["sync", "-d", cli_data_dir, "--json"])
+    data = json.loads(result.output)
+    assert "activities_synced" in data
+```
+
 ---
 
 ### `mykrok export fittrackee`
@@ -149,6 +183,20 @@ Options:
     {"ses": "20251217T180000", "status": "skipped", "reason": "no_gps"}
   ]
 }
+```
+
+**Testing Contract**:
+```python
+def test_export_fittrackee_dry_run(cli_runner, cli_data_dir):
+    """Verify --dry-run shows plan without uploading."""
+    result = cli_runner.invoke(main, ["export", "fittrackee", "-d", cli_data_dir, "--dry-run"])
+    assert result.exit_code in [0, 3]  # 0=success, 3=no activities
+
+def test_export_fittrackee_json(cli_runner, cli_data_dir):
+    """Verify --json output format."""
+    result = cli_runner.invoke(main, ["export", "fittrackee", "-d", cli_data_dir, "--json", "--dry-run"])
+    data = json.loads(result.output)
+    assert "exported" in data or "status" in data
 ```
 
 ---
@@ -203,6 +251,26 @@ Statistics for 2025:
 }
 ```
 
+**Testing Contract**:
+```python
+def test_view_stats_outputs_totals(cli_runner, cli_data_dir):
+    """Verify stats output includes totals."""
+    result = cli_runner.invoke(main, ["view", "stats", "-d", cli_data_dir])
+    assert result.exit_code == 0
+    assert "Total" in result.output or "activities" in result.output.lower()
+
+def test_view_stats_json(cli_runner, cli_data_dir):
+    """Verify --json produces valid stats JSON."""
+    result = cli_runner.invoke(main, ["view", "stats", "-d", cli_data_dir, "--json"])
+    data = json.loads(result.output)
+    assert "totals" in data
+
+def test_view_stats_year_filter(cli_runner, cli_data_dir):
+    """Verify --year filters correctly."""
+    result = cli_runner.invoke(main, ["view", "stats", "-d", cli_data_dir, "--year", "2025"])
+    assert result.exit_code == 0
+```
+
 ---
 
 ### `mykrok gpx`
@@ -225,6 +293,22 @@ Options:
 - 0: Success
 - 1: No activities to export
 - 2: Output write error
+
+**Testing Contract**:
+```python
+def test_gpx_generates_files(cli_runner, cli_data_dir, tmp_path):
+    """Verify GPX files are generated."""
+    result = cli_runner.invoke(main, ["gpx", "-d", cli_data_dir, "--output-dir", str(tmp_path)])
+    assert result.exit_code == 0
+    gpx_files = list(tmp_path.glob("*.gpx"))
+    assert len(gpx_files) > 0
+
+def test_gpx_valid_xml(cli_runner, cli_data_dir, tmp_path):
+    """Verify generated GPX is valid XML."""
+    cli_runner.invoke(main, ["gpx", "-d", cli_data_dir, "--output-dir", str(tmp_path)])
+    for gpx_file in tmp_path.glob("*.gpx"):
+        ET.parse(gpx_file)  # Raises if invalid XML
+```
 
 ---
 
@@ -254,6 +338,21 @@ sessions.tsv, tracking.parquet files).
 - 0: Success
 - 1: Invalid data directory (missing athletes.tsv)
 
+**Testing Contract**:
+```python
+def test_create_browser_generates_index(cli_runner, cli_data_dir, tmp_path):
+    """Verify create-browser generates index.html."""
+    result = cli_runner.invoke(main, ["create-browser", "-d", cli_data_dir, "-o", str(tmp_path)])
+    assert result.exit_code == 0
+    assert (tmp_path / "index.html").exists()
+
+def test_create_browser_copies_assets(cli_runner, cli_data_dir, tmp_path):
+    """Verify JavaScript assets are copied."""
+    cli_runner.invoke(main, ["create-browser", "-d", cli_data_dir, "-o", str(tmp_path)])
+    js_files = list(tmp_path.glob("*.js"))
+    assert len(js_files) > 0
+```
+
 ---
 
 ### `mykrok gh-pages`
@@ -277,6 +376,17 @@ mykrok web frontend using reproducible synthetic data.
 - 0: Success
 - 1: Git operation failed
 
+**Testing Contract**:
+```python
+def test_gh_pages_creates_branch(cli_runner, git_repo_with_data):
+    """Verify gh-pages branch is created."""
+    result = cli_runner.invoke(main, ["gh-pages", "-d", git_repo_with_data])
+    assert result.exit_code == 0
+    # Verify branch exists
+    branches = subprocess.check_output(["git", "branch", "-a"], cwd=git_repo_with_data)
+    assert b"gh-pages" in branches
+```
+
 ---
 
 ### `mykrok rebuild-sessions`
@@ -297,6 +407,25 @@ current schema. Useful after schema changes or data corruption.
 - 0: Success
 - 1: No activities found
 
+**Testing Contract**:
+```python
+def test_rebuild_sessions_creates_tsv(cli_runner, cli_data_dir):
+    """Verify rebuild-sessions creates sessions.tsv."""
+    # Remove existing sessions.tsv
+    for tsv in cli_data_dir.glob("**/sessions.tsv"):
+        tsv.unlink()
+    result = cli_runner.invoke(main, ["rebuild-sessions", "-d", cli_data_dir])
+    assert result.exit_code == 0
+    sessions_files = list(cli_data_dir.glob("**/sessions.tsv"))
+    assert len(sessions_files) > 0
+
+def test_rebuild_sessions_correct_count(cli_runner, cli_data_dir):
+    """Verify sessions.tsv has correct row count."""
+    result = cli_runner.invoke(main, ["rebuild-sessions", "-d", cli_data_dir])
+    assert result.exit_code == 0
+    # Count should match number of session directories
+```
+
 ---
 
 ### `mykrok migrate`
@@ -316,6 +445,25 @@ Available migrations:
 **Exit Codes**:
 - 0: Success (or no migrations needed)
 - 1: Migration failed
+
+**Testing Contract**:
+```python
+def test_migrate_dry_run_no_changes(cli_runner, cli_data_dir):
+    """Verify --dry-run makes no file changes."""
+    before_mtimes = {f: f.stat().st_mtime for f in cli_data_dir.rglob("*") if f.is_file()}
+    result = cli_runner.invoke(main, ["migrate", "-d", cli_data_dir, "--dry-run"])
+    assert result.exit_code == 0
+    after_mtimes = {f: f.stat().st_mtime for f in cli_data_dir.rglob("*") if f.is_file()}
+    assert before_mtimes == after_mtimes
+
+def test_migrate_idempotent(cli_runner, cli_data_dir):
+    """Verify running migrate twice produces same result."""
+    cli_runner.invoke(main, ["migrate", "-d", cli_data_dir])
+    first_state = {f: f.read_bytes() for f in cli_data_dir.rglob("*.tsv")}
+    cli_runner.invoke(main, ["migrate", "-d", cli_data_dir])
+    second_state = {f: f.read_bytes() for f in cli_data_dir.rglob("*.tsv")}
+    assert first_state == second_state
+```
 
 ---
 

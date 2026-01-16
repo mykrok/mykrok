@@ -129,6 +129,55 @@ As an athlete, I want to export my backed-up activities to a self-hosted FitTrac
 - What happens when FitTrackee authentication fails during export?
   - User is prompted with clear error message to verify FitTrackee URL and API token.
 
+---
+
+## Testing Requirements *(mandatory)*
+
+### Coverage Targets
+
+- **Minimum for release**: 60% line coverage enforced in CI
+- **Target for stable releases**: 70% line coverage
+- **CLI commands**: All commands MUST have integration tests with real fixtures
+- **No zero-coverage modules**: Every service module must have >0% coverage
+
+### Test Types
+
+| Type | Purpose | When Required |
+|------|---------|---------------|
+| **CLI Integration** | Test commands with real fixture data | WITH each command implementation |
+| **Unit Tests** | Test business logic in isolation | WITH each service/model |
+| **Mocked API Tests** | Test API clients without network | WITH API client implementation |
+| **Docker Integration** | Test against real services | For FitTrackee export |
+
+### Required Tests per User Story
+
+| User Story | CLI Tests Required | Unit Tests Required |
+|------------|-------------------|---------------------|
+| US1 Backup | `sync`, `gpx` | backup.py, strava.py |
+| US2 Map | `create-browser` | map.py |
+| US3 Stats | `view stats` | stats.py |
+| US4 Comments | `sync --what=social` | (extends backup.py) |
+| US5 Browse | `create-browser --serve` | - |
+| US6 FitTrackee | `export fittrackee` | fittrackee.py |
+
+### CLI Test Requirements
+
+CLI tests MUST:
+1. Use Click's `CliRunner` for command invocation
+2. Use real fixture data from `generate_fixtures.py` (not mocks)
+3. Verify exit codes match documented contracts
+4. Verify file system changes where applicable
+5. Test both text and `--json` output formats
+
+### Test-Code Coupling
+
+Tests are NOT optional polish - they are required WITH implementation:
+- Each CLI command task includes corresponding test task
+- User story checkpoint is BLOCKED until tests pass
+- Coverage regression blocks PR merge
+
+See `specs/001-mykrok/testing.md` for detailed implementation strategy.
+
 ## Clarifications
 
 ### Session 2025-12-18

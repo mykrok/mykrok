@@ -307,17 +307,24 @@ def iter_track_points(session_dir: Path) -> list[TrackPoint]:
     points: list[TrackPoint] = []
     row_count = len(data.get("time", []))
 
+    def safe_get(col: str, idx: int) -> Any:
+        """Get value at index, returning None if column missing or index out of bounds."""
+        values = data.get(col)
+        if values is None or idx >= len(values):
+            return None
+        return values[idx]
+
     for i in range(row_count):
         point = TrackPoint(
-            time=data.get("time", [None])[i] or 0.0,
-            lat=data.get("lat", [None])[i],
-            lng=data.get("lng", [None])[i],
-            altitude=data.get("altitude", [None])[i],
-            distance=data.get("distance", [None])[i],
-            heartrate=data.get("heartrate", [None])[i],
-            cadence=data.get("cadence", [None])[i],
-            watts=data.get("watts", [None])[i],
-            temp=data.get("temp", [None])[i],
+            time=safe_get("time", i) or 0.0,
+            lat=safe_get("lat", i),
+            lng=safe_get("lng", i),
+            altitude=safe_get("altitude", i),
+            distance=safe_get("distance", i),
+            heartrate=safe_get("heartrate", i),
+            cadence=safe_get("cadence", i),
+            watts=safe_get("watts", i),
+            temp=safe_get("temp", i),
         )
         points.append(point)
 
