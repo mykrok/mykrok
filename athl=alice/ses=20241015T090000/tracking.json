@@ -1,0 +1,17 @@
+{
+  "columns": [
+    "time",
+    "distance",
+    "lat",
+    "lng",
+    "altitude",
+    "cadence"
+  ],
+  "row_count": 1042,
+  "has_gps": true,
+  "has_hr": false,
+  "has_power": false,
+  "has_cadence": true,
+  "has_altitude": true,
+  "has_temp": false
+}
