@@ -23,10 +23,16 @@ class TestGpx:
     """Tests for mykrok gpx command."""
 
     @pytest.mark.ai_generated
-    def test_gpx_generates_files(
+    def test_gpx_generates_valid_xml_files(
         self, cli_runner, cli_env: dict[str, str], tmp_path: Path
     ) -> None:
-        """Verify GPX files are generated when exporting all sessions."""
+        """Verify GPX files are generated and valid.
+
+        This consolidated test verifies:
+        - GPX files are generated when exporting all sessions
+        - All generated GPX files are valid XML
+        - Output directory is created if needed
+        """
         output_dir = tmp_path / "gpx_output"
 
         # Export all sessions (no session filter)
@@ -37,88 +43,59 @@ class TestGpx:
         )
 
         assert result.exit_code == 0, f"Command failed: {result.output}"
+
+        # Verify output directory was created
+        assert output_dir.exists(), "Output directory not created"
+
+        # Verify GPX files were generated
         gpx_files = list(output_dir.glob("*.gpx"))
         assert len(gpx_files) > 0, f"No GPX files generated. Output: {result.output}"
 
-    @pytest.mark.ai_generated
-    def test_gpx_valid_xml(
-        self, cli_runner, cli_env: dict[str, str], tmp_path: Path
-    ) -> None:
-        """Verify generated GPX files are valid XML."""
-        output_dir = tmp_path / "gpx_output"
-
-        result = cli_runner.invoke(
-            main,
-            ["gpx", "--output-dir", str(output_dir)],
-            env=cli_env,
-        )
-
-        if result.exit_code == 0:
-            # Verify all generated GPX files are valid XML
-            for gpx_file in output_dir.glob("*.gpx"):
-                try:
-                    ET.parse(gpx_file)
-                except ET.ParseError as e:
-                    pytest.fail(f"Invalid XML in {gpx_file}: {e}")
+        # Verify all GPX files are valid XML
+        for gpx_file in gpx_files:
+            try:
+                ET.parse(gpx_file)
+            except ET.ParseError as e:
+                pytest.fail(f"Invalid XML in {gpx_file}: {e}")
 
     @pytest.mark.ai_generated
-    def test_gpx_with_extensions(
-        self, cli_runner, cli_env: dict[str, str], tmp_path: Path
+    def test_gpx_with_extensions_and_specific_session(
+        self, cli_runner, cli_data_dir: Path, cli_env: dict[str, str], tmp_path: Path
     ) -> None:
-        """Verify GPX generation with HR/cadence/power extensions."""
-        output_dir = tmp_path / "gpx_output"
+        """Verify GPX export options work correctly.
 
-        result = cli_runner.invoke(
+        This consolidated test verifies:
+        - Extension options (--with-hr, --with-cadence) are accepted
+        - Specific session export by key works
+        - Nested output directory is created
+        """
+        # Test with extension options
+        output_dir1 = tmp_path / "gpx_with_ext"
+        result_ext = cli_runner.invoke(
             main,
             [
                 "gpx",
                 "--output-dir",
-                str(output_dir),
+                str(output_dir1),
                 "--with-hr",
                 "--with-cadence",
             ],
             env=cli_env,
         )
-
         # Should not fail even if data doesn't have HR/cadence
-        assert result.exit_code in [0, 1], f"Unexpected error: {result.output}"
+        assert result_ext.exit_code in [0, 1], f"Unexpected error: {result_ext.output}"
 
-    @pytest.mark.ai_generated
-    def test_gpx_output_directory_created(
-        self, cli_runner, cli_env: dict[str, str], tmp_path: Path
-    ) -> None:
-        """Verify output directory is created if needed."""
-        output_dir = tmp_path / "new" / "nested" / "gpx"
-
-        cli_runner.invoke(
-            main,
-            ["gpx", "--output-dir", str(output_dir)],
-            env=cli_env,
-        )
-
-        # Directory should be created
-        assert output_dir.exists(), "Output directory not created"
-
-    @pytest.mark.ai_generated
-    def test_gpx_specific_session(
-        self, cli_runner, cli_data_dir: Path, cli_env: dict[str, str], tmp_path: Path
-    ) -> None:
-        """Verify GPX generation for a specific session by key."""
-        output_dir = tmp_path / "gpx_output"
-
-        # Find a session with GPS data
+        # Test specific session export
         sessions = list(cli_data_dir.glob("**/ses=*"))
-        if not sessions:
-            pytest.skip("No sessions in fixture data")
-
-        # Extract session key from directory name
-        session_key = extract_session_key(sessions[0])
-
-        result = cli_runner.invoke(
-            main,
-            ["gpx", session_key, "--output-dir", str(output_dir)],
-            env=cli_env,
-        )
-
-        # Should succeed (or skip if no GPS for this session)
-        assert result.exit_code in [0, 1], f"Unexpected error: {result.output}"
+        if sessions:
+            session_key = extract_session_key(sessions[0])
+            output_dir2 = tmp_path / "new" / "nested" / "gpx"
+            result_session = cli_runner.invoke(
+                main,
+                ["gpx", session_key, "--output-dir", str(output_dir2)],
+                env=cli_env,
+            )
+            # Should succeed or skip if no GPS for this session
+            assert result_session.exit_code in [0, 1], f"Unexpected error: {result_session.output}"
+            # Nested directory should be created
+            assert output_dir2.exists(), "Nested output directory not created"

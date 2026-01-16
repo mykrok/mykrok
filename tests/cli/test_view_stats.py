@@ -13,14 +13,20 @@ class TestViewStats:
     """Tests for mykrok view stats command."""
 
     @pytest.mark.ai_generated
-    def test_view_stats_outputs_totals(
+    def test_view_stats_text_output(
         self, cli_runner, cli_env: dict[str, str]
     ) -> None:
-        """Verify stats output includes totals."""
+        """Verify stats text output includes totals and works with verbose.
+
+        This consolidated test verifies:
+        - Command exits successfully
+        - Output includes statistics (totals, activities, distance)
+        - Verbose flag works without errors
+        """
+        # Test basic stats output
         result = cli_runner.invoke(main, ["view", "stats"], env=cli_env)
 
         assert result.exit_code == 0, f"Command failed: {result.output}"
-        # Should have some statistics in output
         output_lower = result.output.lower()
         assert (
             "total" in output_lower
@@ -28,62 +34,33 @@ class TestViewStats:
             or "distance" in output_lower
         ), f"No statistics found in output: {result.output}"
 
+        # Also verify verbose works
+        result_verbose = cli_runner.invoke(main, ["-v", "view", "stats"], env=cli_env)
+        assert result_verbose.exit_code == 0, f"Verbose command failed: {result_verbose.output}"
+
     @pytest.mark.ai_generated
     def test_view_stats_json_output(
         self, cli_runner, cli_env: dict[str, str]
     ) -> None:
-        """Verify --json produces valid JSON output."""
+        """Verify --json produces valid JSON output with expected structure.
+
+        This consolidated test verifies:
+        - JSON output is valid
+        - Output is a dict with totals/summary structure
+        """
         # --json is a global option, must come before subcommand
         result = cli_runner.invoke(main, ["--json", "view", "stats"], env=cli_env)
 
         assert result.exit_code == 0, f"Command failed: {result.output}"
 
-        # Should be valid JSON
+        # Verify valid JSON
         try:
             data = json.loads(result.output)
         except json.JSONDecodeError as e:
             pytest.fail(f"Invalid JSON output: {e}\nOutput: {result.output}")
 
-        # Should have some stats structure
+        # Verify structure
         assert isinstance(data, dict), "JSON output should be a dict"
-
-    @pytest.mark.ai_generated
-    def test_view_stats_year_filter(
-        self, cli_runner, cli_env: dict[str, str]
-    ) -> None:
-        """Verify --year filters correctly."""
-        result = cli_runner.invoke(
-            main, ["view", "stats", "--year", "2024"], env=cli_env
-        )
-
-        assert result.exit_code == 0, f"Command failed: {result.output}"
-
-    @pytest.mark.ai_generated
-    def test_view_stats_by_type(
-        self, cli_runner, cli_env: dict[str, str]
-    ) -> None:
-        """Verify --by-type shows breakdown by activity type."""
-        result = cli_runner.invoke(main, ["view", "stats", "--by-type"], env=cli_env)
-
-        assert result.exit_code == 0, f"Command failed: {result.output}"
-        # Should mention activity types
-        output_lower = result.output.lower()
-        assert (
-            "run" in output_lower or "ride" in output_lower or "type" in output_lower
-        ), f"No activity types in output: {result.output}"
-
-    @pytest.mark.ai_generated
-    def test_view_stats_json_has_totals(
-        self, cli_runner, cli_env: dict[str, str]
-    ) -> None:
-        """Verify JSON output includes totals structure."""
-        # --json is a global option, must come before subcommand
-        result = cli_runner.invoke(main, ["--json", "view", "stats"], env=cli_env)
-
-        assert result.exit_code == 0, f"Command failed: {result.output}"
-        data = json.loads(result.output)
-
-        # Should have totals or similar summary
         assert (
             "totals" in data
             or "total" in data
@@ -92,10 +69,25 @@ class TestViewStats:
         ), f"No totals in JSON: {data.keys()}"
 
     @pytest.mark.ai_generated
-    def test_view_stats_with_verbose(
+    def test_view_stats_filters(
         self, cli_runner, cli_env: dict[str, str]
     ) -> None:
-        """Verify stats works with verbose flag."""
-        result = cli_runner.invoke(main, ["-v", "view", "stats"], env=cli_env)
+        """Verify --year and --by-type filters work correctly.
 
-        assert result.exit_code == 0, f"Command failed: {result.output}"
+        This consolidated test verifies:
+        - Year filter is accepted and works
+        - By-type shows activity type breakdown
+        """
+        # Test year filter
+        result_year = cli_runner.invoke(
+            main, ["view", "stats", "--year", "2024"], env=cli_env
+        )
+        assert result_year.exit_code == 0, f"Year filter failed: {result_year.output}"
+
+        # Test by-type filter
+        result_type = cli_runner.invoke(main, ["view", "stats", "--by-type"], env=cli_env)
+        assert result_type.exit_code == 0, f"By-type failed: {result_type.output}"
+        output_lower = result_type.output.lower()
+        assert (
+            "run" in output_lower or "ride" in output_lower or "type" in output_lower
+        ), f"No activity types in output: {result_type.output}"

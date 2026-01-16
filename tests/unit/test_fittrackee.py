@@ -35,71 +35,57 @@ def exporter(tmp_path: Path, fittrackee_url: str) -> FitTrackeeExporter:
     )
 
 
-class TestSportTypeMapping:
-    """Tests for Strava to FitTrackee sport type mapping."""
+class TestSportTypeMappingAndExporter:
+    """Tests for sport type mapping and exporter initialization."""
 
     @pytest.mark.ai_generated
-    def test_run_maps_to_running(self) -> None:
-        """Verify Run maps to FitTrackee running sport."""
-        assert SPORT_TYPE_MAPPING["Run"] == 1
+    def test_sport_type_mappings_and_defaults(self) -> None:
+        """Verify all Strava to FitTrackee sport type mappings.
+
+        This consolidated test verifies:
+        - Run maps to running (1)
+        - Ride maps to cycling (2)
+        - Hike maps to hiking (4)
+        - Swim maps to swimming (8)
+        - Default sport ID is workout/general (9)
+        """
+        assert SPORT_TYPE_MAPPING["Run"] == 1, "Run should map to 1"
+        assert SPORT_TYPE_MAPPING["Ride"] == 2, "Ride should map to 2"
+        assert SPORT_TYPE_MAPPING["Hike"] == 4, "Hike should map to 4"
+        assert SPORT_TYPE_MAPPING["Swim"] == 8, "Swim should map to 8"
+        assert DEFAULT_SPORT_ID == 9, "Default sport ID should be 9"
 
     @pytest.mark.ai_generated
-    def test_ride_maps_to_cycling(self) -> None:
-        """Verify Ride maps to FitTrackee cycling sport."""
-        assert SPORT_TYPE_MAPPING["Ride"] == 2
-
-    @pytest.mark.ai_generated
-    def test_hike_maps_to_hiking(self) -> None:
-        """Verify Hike maps to FitTrackee hiking sport."""
-        assert SPORT_TYPE_MAPPING["Hike"] == 4
-
-    @pytest.mark.ai_generated
-    def test_swim_maps_to_swimming(self) -> None:
-        """Verify Swim maps to FitTrackee swimming sport."""
-        assert SPORT_TYPE_MAPPING["Swim"] == 8
-
-    @pytest.mark.ai_generated
-    def test_default_sport_id_is_workout(self) -> None:
-        """Verify default sport ID is workout/general."""
-        assert DEFAULT_SPORT_ID == 9
-
-
-class TestFitTrackeeExporter:
-    """Tests for FitTrackeeExporter class."""
-
-    @pytest.mark.ai_generated
-    def test_init_stores_url_without_trailing_slash(
+    def test_exporter_initialization_and_sport_id_methods(
         self, tmp_path: Path, fittrackee_url: str
     ) -> None:
-        """Verify URL trailing slash is stripped."""
+        """Verify exporter initialization and sport ID lookup methods.
+
+        This consolidated test verifies:
+        - URL trailing slash is stripped
+        - Known sport types are mapped correctly via _get_sport_id
+        - Unknown sport types return default ID
+        - get_sport_mapping returns complete mapping
+        """
+        # Test URL trailing slash stripped
         exporter = FitTrackeeExporter(
             data_dir=tmp_path,
             url=f"{fittrackee_url}/",
             email="test@example.com",
             password="password",
         )
-        assert exporter.url == fittrackee_url
+        assert exporter.url == fittrackee_url, "Trailing slash should be stripped"
 
-    @pytest.mark.ai_generated
-    def test_get_sport_id_maps_known_types(self, exporter: FitTrackeeExporter) -> None:
-        """Verify known sport types are mapped correctly."""
+        # Test known sport ID mapping
         assert exporter._get_sport_id("Run") == 1
         assert exporter._get_sport_id("Ride") == 2
         assert exporter._get_sport_id("Hike") == 4
 
-    @pytest.mark.ai_generated
-    def test_get_sport_id_returns_default_for_unknown(
-        self, exporter: FitTrackeeExporter
-    ) -> None:
-        """Verify unknown sport types return default ID."""
+        # Test unknown sport returns default
         assert exporter._get_sport_id("UnknownSport") == DEFAULT_SPORT_ID
         assert exporter._get_sport_id("") == DEFAULT_SPORT_ID
 
-    @pytest.mark.ai_generated
-    def test_get_sport_mapping_returns_all_mappings(
-        self, exporter: FitTrackeeExporter
-    ) -> None:
-        """Verify get_sport_mapping returns complete mapping."""
+        # Test get_sport_mapping
         mapping = exporter.get_sport_mapping()
         assert "Run" in mapping
         assert "Ride" in mapping
@@ -111,10 +97,16 @@ class TestFitTrackeeAuthentication:
 
     @pytest.mark.ai_generated
     @responses.activate
-    def test_authenticate_success(
+    def test_authenticate_success_and_caching(
         self, exporter: FitTrackeeExporter, fittrackee_url: str
     ) -> None:
-        """Verify successful authentication returns token."""
+        """Verify successful authentication and token caching.
+
+        This consolidated test verifies:
+        - Successful authentication returns token
+        - Token is cached after first authentication
+        - Only one HTTP call is made for multiple authenticate() calls
+        """
         responses.add(
             responses.POST,
             f"{fittrackee_url}/api/auth/login",
@@ -122,112 +114,110 @@ class TestFitTrackeeAuthentication:
             status=200,
         )
 
-        token = exporter._authenticate()
-        assert token == "test_token_123"
-
-    @pytest.mark.ai_generated
-    @responses.activate
-    def test_authenticate_caches_token(
-        self, exporter: FitTrackeeExporter, fittrackee_url: str
-    ) -> None:
-        """Verify token is cached after first authentication."""
-        responses.add(
-            responses.POST,
-            f"{fittrackee_url}/api/auth/login",
-            json={"auth_token": "cached_token"},
-            status=200,
-        )
-
         # First call authenticates
         token1 = exporter._authenticate()
+        assert token1 == "test_token_123"
+
         # Second call should use cached token (no additional request)
         token2 = exporter._authenticate()
+        assert token1 == token2
 
-        assert token1 == token2 == "cached_token"
-        assert len(responses.calls) == 1  # Only one HTTP call
+        # Verify only one HTTP call was made
+        assert len(responses.calls) == 1
 
     @pytest.mark.ai_generated
     @responses.activate
-    def test_authenticate_fails_on_bad_credentials(
-        self, exporter: FitTrackeeExporter, fittrackee_url: str
+    def test_authenticate_error_scenarios(
+        self, tmp_path: Path, fittrackee_url: str
     ) -> None:
-        """Verify authentication raises on bad credentials."""
+        """Verify authentication error handling.
+
+        This consolidated test verifies:
+        - Bad credentials (401) raises RuntimeError
+        - Missing credentials raises ValueError
+        - Missing token in response raises RuntimeError
+        """
+        # Test bad credentials
+        exporter1 = FitTrackeeExporter(
+            data_dir=tmp_path,
+            url=fittrackee_url,
+            email="test@example.com",
+            password="badpassword",
+        )
         responses.add(
             responses.POST,
             f"{fittrackee_url}/api/auth/login",
             json={"error": "Invalid credentials"},
             status=401,
         )
-
         with pytest.raises(RuntimeError, match="authentication failed"):
-            exporter._authenticate()
+            exporter1._authenticate()
 
-    @pytest.mark.ai_generated
-    def test_authenticate_requires_credentials(self, tmp_path: Path) -> None:
-        """Verify authentication raises without credentials."""
-        exporter = FitTrackeeExporter(
+        responses.reset()
+
+        # Test missing credentials
+        exporter2 = FitTrackeeExporter(
             data_dir=tmp_path,
-            url="https://example.com",
+            url=fittrackee_url,
             email=None,
             password=None,
         )
-
         with pytest.raises(ValueError, match="email and password are required"):
-            exporter._authenticate()
+            exporter2._authenticate()
 
-    @pytest.mark.ai_generated
-    @responses.activate
-    def test_authenticate_raises_on_missing_token(
-        self, exporter: FitTrackeeExporter, fittrackee_url: str
-    ) -> None:
-        """Verify authentication raises when no token in response."""
+        # Test missing token in response
+        exporter3 = FitTrackeeExporter(
+            data_dir=tmp_path,
+            url=fittrackee_url,
+            email="test@example.com",
+            password="password",
+        )
         responses.add(
             responses.POST,
             f"{fittrackee_url}/api/auth/login",
             json={"status": "ok"},  # No auth_token
             status=200,
         )
-
         with pytest.raises(RuntimeError, match="No auth token"):
-            exporter._authenticate()
+            exporter3._authenticate()
 
 
 class TestFitTrackeeExport:
     """Tests for FitTrackee export functionality."""
 
     @pytest.mark.ai_generated
-    def test_export_dry_run_no_http_calls(
+    def test_export_dry_run_and_result_structure(
         self, exporter: FitTrackeeExporter
     ) -> None:
-        """Verify dry run doesn't make HTTP calls."""
-        # Empty data dir - should return zeros
+        """Verify export dry run behavior and result structure.
+
+        This consolidated test verifies:
+        - Dry run doesn't make HTTP calls
+        - Export returns proper result structure
+        - Log callback is called without errors
+        """
+        # Test dry run
         result = exporter.export(dry_run=True)
 
+        # Verify no activities exported in dry run
         assert result["exported"] == 0
         assert result["failed"] == 0
 
-    @pytest.mark.ai_generated
-    def test_export_returns_result_dict(self, exporter: FitTrackeeExporter) -> None:
-        """Verify export returns proper result structure."""
-        result = exporter.export(dry_run=True)
-
+        # Verify result structure
         assert "exported" in result
         assert "skipped" in result
         assert "failed" in result
         assert "details" in result
         assert isinstance(result["details"], list)
 
-    @pytest.mark.ai_generated
-    def test_export_with_log_callback(self, exporter: FitTrackeeExporter) -> None:
-        """Verify log callback is called during export."""
+        # Test log callback is accepted
         logs: list[str] = []
 
         def log_callback(msg: str, _level: int = 0) -> None:
             logs.append(msg)
 
         exporter.export(dry_run=True, log_callback=log_callback)
-        # Callback may or may not be called depending on data
-        # This just verifies it doesn't raise
+        # Callback may or may not be called depending on data - just verify it doesn't raise
 
 
 class TestFitTrackeeExportWithFixtures:
@@ -252,10 +242,15 @@ class TestFitTrackeeExportWithFixtures:
         yield data_dir
 
     @pytest.mark.ai_generated
-    def test_export_dry_run_with_fixture_data(
+    def test_export_with_fixture_data_and_limit(
         self, cli_data_dir: Path, fittrackee_url: str
     ) -> None:
-        """Verify dry run processes fixture data without HTTP calls."""
+        """Verify dry run processes fixture data and limit option works.
+
+        This consolidated test verifies:
+        - Dry run processes fixture data without HTTP calls
+        - Limit option restricts number of activities
+        """
         exporter = FitTrackeeExporter(
             data_dir=cli_data_dir,
             url=fittrackee_url,
@@ -263,28 +258,12 @@ class TestFitTrackeeExportWithFixtures:
             password="password",
         )
 
+        # Test dry run with fixture data
         result = exporter.export(dry_run=True)
-
-        # Should have some activities to process
         assert result["exported"] == 0  # Dry run doesn't export
-        # Some activities should have been considered
         assert len(result["details"]) >= 0  # At least processed some
 
-    @pytest.mark.ai_generated
-    def test_export_limit_option(
-        self, cli_data_dir: Path, fittrackee_url: str
-    ) -> None:
-        """Verify limit option restricts number of activities."""
-        exporter = FitTrackeeExporter(
-            data_dir=cli_data_dir,
-            url=fittrackee_url,
-            email="test@example.com",
-            password="password",
-        )
-
-        result = exporter.export(dry_run=True, limit=2)
-
-        # Should process at most 2 activities per athlete
-        # Details may include skipped activities too
-        would_export = [d for d in result["details"] if d.get("status") == "would_export"]
+        # Test limit option
+        result_limited = exporter.export(dry_run=True, limit=2)
+        would_export = [d for d in result_limited["details"] if d.get("status") == "would_export"]
         assert len(would_export) <= 4  # 2 per athlete, 2 athletes max
