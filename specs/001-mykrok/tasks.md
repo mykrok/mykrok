@@ -54,10 +54,10 @@
 **Purpose**: Set up CLI testing infrastructure before any command implementation.
 Tests are written WITH commands, not after.
 
-- [ ] T018a Create CLI test fixtures using `generate_fixtures.py` in tests/cli/conftest.py
-- [ ] T018b Create `cli_data_dir` fixture with realistic athlete data (2 athletes, 10+ sessions)
-- [ ] T018c Create `cli_runner` fixture wrapping Click's CliRunner
-- [ ] T018d Create helper functions for verifying file system changes
+- [X] T018a Create CLI test fixtures using `generate_fixtures.py` in tests/cli/conftest.py
+- [X] T018b Create `cli_data_dir` fixture with realistic athlete data (2 athletes, 10+ sessions)
+- [X] T018c Create `cli_runner` fixture wrapping Click's CliRunner
+- [X] T018d Create helper functions for verifying file system changes
 
 **Checkpoint**: CLI test infrastructure ready - command tests can now be written alongside commands
 
@@ -88,12 +88,12 @@ Tests are written WITH commands, not after.
 - [ ] T029a [US1] CLI test: `mykrok sync` creates activity files with fixture data
 - [ ] T029b [US1] CLI test: `mykrok sync --dry-run` makes no file changes
 - [ ] T029c [US1] CLI test: `mykrok sync --json` produces valid JSON output
-- [ ] T029d [US1] CLI test: `mykrok gpx` generates valid GPX files
-- [ ] T029e [US1] Unit test: backup.py sync orchestration logic
+- [X] T029d [US1] CLI test: `mykrok gpx` generates valid GPX files
+- [X] T029e [US1] Unit test: backup.py sync orchestration logic
 - [ ] T029f [US1] Unit test: strava.py API client with mocks
 
 **Checkpoint**: User Story 1 complete - can backup activities with GPS tracks and photos
-**Gate**: Tests T029a-T029f must pass; coverage of backup.py >= 50%
+**Gate**: Tests T029a-T029f must pass; coverage of backup.py >= 50% (currently 60%)
 
 ---
 
@@ -116,12 +116,12 @@ Tests are written WITH commands, not after.
 
 ### Tests for User Story 2 (REQUIRED before checkpoint)
 
-- [ ] T037a [US2] CLI test: `mykrok create-browser` generates index.html and assets
-- [ ] T037b [US2] CLI test: `mykrok create-browser -o <dir>` respects output directory
+- [X] T037a [US2] CLI test: `mykrok create-browser` generates index.html and assets
+- [X] T037b [US2] CLI test: `mykrok create-browser -o <dir>` respects output directory
 - [ ] T037c [US2] Unit test: map.py generates valid HTML with routes
 
 **Checkpoint**: User Story 2 complete - can visualize activities on interactive map with heatmap
-**Gate**: Tests T037a-T037c must pass; coverage of map.py >= 50%
+**Gate**: Tests T037a-T037c must pass; coverage of map.py >= 50% (currently 63%)
 
 ---
 
@@ -142,13 +142,13 @@ Tests are written WITH commands, not after.
 
 ### Tests for User Story 3 (REQUIRED before checkpoint)
 
-- [ ] T043a [US3] CLI test: `mykrok view stats` outputs correct totals
-- [ ] T043b [US3] CLI test: `mykrok view stats --json` produces valid JSON
-- [ ] T043c [US3] CLI test: `mykrok view stats --year 2025` filters correctly
+- [X] T043a [US3] CLI test: `mykrok view stats` outputs correct totals
+- [X] T043b [US3] CLI test: `mykrok view stats --json` produces valid JSON
+- [X] T043c [US3] CLI test: `mykrok view stats --year 2025` filters correctly
 - [ ] T043d [US3] Unit test: stats.py calculates correct aggregates
 
 **Checkpoint**: User Story 3 complete - can view statistics filtered by time period
-**Gate**: Tests T043a-T043d must pass; coverage of stats.py >= 50%
+**Gate**: Tests T043a-T043d must pass; coverage of stats.py >= 50% (currently 64%)
 
 ---
 
@@ -225,11 +225,11 @@ Tests are written WITH commands, not after.
 
 - [ ] T064a [US6] CLI test: `mykrok export fittrackee --dry-run` shows export plan
 - [ ] T064b [US6] CLI test: `mykrok export fittrackee --json` produces valid JSON
-- [ ] T064c [US6] Unit test: fittrackee.py API client with mocks
+- [X] T064c [US6] Unit test: fittrackee.py API client with mocks
 - [ ] T064d [US6] Integration test: FitTrackee export via Docker (pytest-docker)
 
 **Checkpoint**: User Story 6 complete - can export to FitTrackee with incremental sync
-**Gate**: Tests T064a-T064d must pass; coverage of fittrackee.py >= 50%
+**Gate**: Tests T064a-T064d must pass; coverage of fittrackee.py >= 50% (currently 63%)
 
 ---
 
@@ -282,10 +282,10 @@ This phase is NOT optional polish - it gates releases.
 
 ### Coverage Gate (REQUIRED)
 
-- [ ] T090 Verify overall coverage >= 60%: `tox -e cov`
+- [X] T090 Verify overall coverage >= 60%: `tox -e cov` (currently 62%)
 - [ ] T091 Verify CLI tests exist for all commands in contracts/cli.md
-- [ ] T092 Verify no service module has 0% coverage
-- [ ] T093 Create CLI integration tests in tests/cli/ using fixture data
+- [X] T092 Verify no service module has 0% coverage (all modules covered)
+- [X] T093 Create CLI integration tests in tests/cli/ using fixture data
 
 ### Existing Tests (from earlier implementation)
 
