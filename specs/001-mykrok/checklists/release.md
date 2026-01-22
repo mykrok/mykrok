@@ -106,6 +106,54 @@ EOF
 git push && git push --tags
 ```
 
+### 4. Build and Upload to PyPI
+
+#### Setup (One-time)
+
+```bash
+# Install build and twine tools
+uv pip install --upgrade build twine
+
+# Configure PyPI credentials (choose one method):
+
+# Option A: Use API token (recommended)
+# 1. Create token at https://pypi.org/manage/account/token/
+# 2. Add to ~/.pypirc:
+cat > ~/.pypirc << 'EOF'
+[pypi]
+username = __token__
+password = pypi-AgEIcHlwaS5vcmc...  # Your token here
+EOF
+chmod 600 ~/.pypirc
+
+# Option B: Use keyring (alternative)
+pip install keyring
+keyring set https://upload.pypi.org/legacy/ __token__
+```
+
+#### Build and Upload
+
+```bash
+# Clean previous builds
+rm -rf dist/ build/ *.egg-info
+
+# Build distribution packages
+python -m build
+
+# Verify package contents before uploading
+tar -tzf dist/mykrok-*.tar.gz | head -20
+unzip -l dist/mykrok-*.whl | head -20
+
+# Check for common issues
+twine check dist/*
+
+# Upload to PyPI (will prompt for credentials if not in ~/.pypirc)
+twine upload dist/*
+
+# Or upload to TestPyPI first (recommended for testing)
+twine upload --repository testpypi dist/*
+```
+
 ## Post-Release Verification
 
 After pushing:
@@ -113,6 +161,11 @@ After pushing:
 1. **Check CI**: Verify GitHub Actions pass on the tagged commit
 2. **Check Demo**: If gh-pages updates, verify demo site works
 3. **Verify Tag**: `git describe` should show new version
+4. **Check PyPI**: Visit https://pypi.org/project/mykrok/ and verify:
+   - New version appears
+   - README renders correctly
+   - All classifiers are correct
+   - Install works: `pip install mykrok==X.Y.Z`
 
 ## Version Numbering
 

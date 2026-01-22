@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.4.1 (2026-01-21)
+
+#### 🐛 Bug Fixes
+
+- Fix duplicate files in wheel package preventing PyPI upload
+  - Remove redundant force-include directive in pyproject.toml
+
+#### 🔧 Improvements
+
+- Add PyPI upload instructions to release checklist
+  - Document build and upload process using twine
+  - Include PyPI credential configuration options
+  - Add package verification steps
+
+#### Authors: 1
+
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 ## v1.4.0 (2025-12-31)
 
 #### 🚀 Features
