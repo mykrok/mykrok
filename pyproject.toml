@@ -47,6 +47,7 @@ full = [
     # Add more user-facing extras here as they are created
 ]
 test = [
+    "mykrok[full]",  # Include all optional features for full test coverage
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "pytest-timeout>=2.0",
@@ -58,8 +59,7 @@ devel = [
     "ruff>=0.1.0",
     "mypy>=1.0",
     "types-requests",
-    "tox>=4.0",
-    "tox-uv>=1.0",
+    "hatch>=1.9.0",
     "pre-commit>=3.0",
     "codespell>=2.2",
 ]
@@ -69,7 +69,7 @@ e2e = [
 ]
 ci = [
     "mykrok[devel]",
-    "tox-gh-actions>=3.0",
+    # hatch is included via devel, no extra CI plugin needed
 ]
 docs = [
     "mkdocs>=1.5",
@@ -190,3 +190,127 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "if __name__ == .__main__.:",
 ]
+
+# =============================================================================
+# Hatch Environment Configuration
+# =============================================================================
+
+# Default test environment with Python version matrix
+[tool.hatch.envs.hatch-test]
+# Run all tests (unit + integration) by default, matching old tox behavior
+default-args = ["tests/unit", "tests/integration"]
+# Install project with all optional features for full test coverage
+features = ["full"]
+extra-dependencies = [
+    "pytest-cov>=4.0",
+    "pytest-timeout>=2.0",
+    "pytest-docker>=2.0",
+    "responses>=0.23",
+]
+
+[[tool.hatch.envs.hatch-test.matrix]]
+python = ["3.10", "3.11", "3.12", "3.13"]
+
+[tool.hatch.envs.hatch-test.scripts]
+# Default run script used by `hatch test`
+run = "pytest {args:tests/unit tests/integration}"
+run-cov = "pytest --cov=mykrok --cov-report=term-missing --cov-report=xml:coverage.xml {args:tests/unit tests/integration}"
+# Stubs for hatch test --cover multi-env scripts (we use single env)
+cov-combine = "true"
+cov-report = "true"
+# For running specific test subsets manually
+unit = "pytest tests/unit/ {args}"
+integration = "pytest tests/integration/ {args}"
+
+# Lint environment (detached - no project install needed)
+[tool.hatch.envs.lint]
+detached = true
+dependencies = [
+    "ruff>=0.1.0",
+]
+
+[tool.hatch.envs.lint.scripts]
+check = "ruff check src/ tests/"
+format = "ruff format src/ tests/"
+fix = "ruff check --fix src/ tests/"
+
+# Type checking environment
+[tool.hatch.envs.types]
+# Not detached - needs project deps for mypy to resolve types
+dependencies = [
+    "mypy>=1.0",
+    "types-requests",
+]
+
+[tool.hatch.envs.types.scripts]
+check = "mypy --ignore-missing-imports src/mykrok/"
+
+# Integration tests
+[tool.hatch.envs.integration]
+dependencies = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-timeout>=2.0",
+    "pytest-docker>=2.0",
+    "responses>=0.23",
+]
+
+[tool.hatch.envs.integration.scripts]
+run = "pytest tests/integration/ {args}"
+
+# JavaScript environment (detached)
+[tool.hatch.envs.js]
+detached = true
+skip-install = true
+
+[tool.hatch.envs.js.scripts]
+lint = "npm install --silent && npm run lint"
+test = "npm install --silent && npm test"
+all = "npm install --silent && npm run lint && npm test"
+
+# E2E tests with Playwright
+[tool.hatch.envs.e2e]
+dependencies = [
+    "pytest>=7.0",
+    "pytest-playwright>=0.4.0",
+]
+
+[tool.hatch.envs.e2e.env-vars]
+PLAYWRIGHT_BROWSERS_PATH = "{env:PLAYWRIGHT_BROWSERS_PATH:}"
+
+[tool.hatch.envs.e2e.scripts]
+install-browsers = "playwright install chromium"
+run = "pytest tests/e2e/ {args:-v}"
+
+# Screenshots generation
+[tool.hatch.envs.screenshots]
+dependencies = [
+    "pytest>=7.0",
+    "pytest-playwright>=0.4.0",
+]
+
+[tool.hatch.envs.screenshots.scripts]
+generate = "python scripts/generate_screenshots.py {args:--print-readme}"
+
+# Documentation
+[tool.hatch.envs.docs]
+detached = true
+dependencies = [
+    "mkdocs>=1.5",
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.24",
+]
+
+[tool.hatch.envs.docs.scripts]
+build = "mkdocs build --strict"
+serve = "mkdocs serve"
+
+# GitHub Pages
+[tool.hatch.envs.gh-pages]
+dependencies = [
+    "pytest>=7.0",
+    "pytest-playwright>=0.4.0",
+]
+
+[tool.hatch.envs.gh-pages.scripts]
+generate = "mykrok gh-pages {args}"
