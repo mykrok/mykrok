@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.4.2 (2026-08-19)
+
+#### 🐛 Bug Fixes
+
+- Fix map permalink (`#/map?z=...&lat=...&lng=...`) not rendering routes
+  and photo icons for the initial viewport
+  - On URL restore, the Leaflet map is created directly at the target view
+    before `moveend`/`zoomend` handlers are attached, and the post-load
+    `fitBounds` is skipped, so `loadVisibleTracks()` never fired
+  - A subsequent zoom or pan was required to make tracks and photo icons
+    appear
+  - Call `loadVisibleTracks()` explicitly after initial filter application
+- Add e2e regression test `TestMapUrlRestore` covering the URL-restore path
+
+#### Authors: 1
+
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 ## v1.4.1 (2026-01-21)
 
 #### 🐛 Bug Fixes
