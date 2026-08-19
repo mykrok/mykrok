@@ -1066,3 +1066,43 @@ class TestViewportFilter:
         # The count may have changed (depending on session positions)
         # Just verify the filter is still active and working
         assert "active" in (button.get_attribute("class") or "")
+
+
+@pytest.mark.ai_generated
+class TestMapUrlRestore:
+    """Regression: loading a #/map permalink must render routes for the
+    initial viewport without requiring a user zoom/pan.
+
+    Photo icons share the same loadVisibleTracks -> loadPhotos call path, so
+    the tracks assertion is a sufficient regression for both. (The fixture's
+    info.json currently has empty photos[], so photo icons can't be asserted
+    directly here.)
+
+    The seeded LA cluster (34.05, -118.24) holds five sessions across alice
+    and bob — an easy target for a zoomed-in permalink at zoom 12 (above
+    MapView.AUTO_LOAD_ZOOM=11).
+    """
+
+    def test_permalink_renders_tracks_without_zoom(
+        self, demo_server: str, page: Page
+    ) -> None:
+        """Tracks must appear on initial URL restore, no zoom needed."""
+        page.goto(f"{demo_server}/mykrok.html#/map?z=12&lat=34.05&lng=-118.24")
+        page.wait_for_selector(".leaflet-container", timeout=10000)
+        page.wait_for_function(
+            "window.MapView && window.MapView.allMarkers && window.MapView.allMarkers.length > 0",
+            timeout=10000,
+        )
+        # Give loadVisibleTracks time to fetch tracks
+        page.wait_for_timeout(2000)
+
+        counts = page.evaluate(
+            """() => ({
+                zoom: window.MapView.map.getZoom(),
+                tracks: Object.keys(window.MapView.tracksBySession || {}).length,
+            })"""
+        )
+        assert counts["zoom"] == 12, "URL zoom should be applied"
+        assert counts["tracks"] > 0, (
+            f"Tracks should load on URL restore without zoom interaction; got {counts}"
+        )

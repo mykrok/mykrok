@@ -5036,6 +5036,11 @@ MapView.loadSessions = async function() {
     // Apply initial filters
     MapView.applyFiltersAndUpdateUI();
 
+    // When restoring from URL, the map is created directly at the target
+    // view, so no moveend/zoomend fires to trigger loadVisibleTracks — do it
+    // explicitly so routes and photo icons appear without requiring a zoom.
+    MapView.loadVisibleTracks();
+
     // Hide loading overlay
     const overlay = document.getElementById('loading-overlay');
     if (overlay) {
