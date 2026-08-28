@@ -32,8 +32,9 @@ venvs/
 ENV/
 env/
 
-# Cache directories
+# Cache and config directories
 .cache/
+.config/
 .local/
 
 # Testing
